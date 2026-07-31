@@ -1,0 +1,107 @@
+/*
+  GROUND TRACK. Instrument type over a rendered world.
+  Mono means the machine is talking. See docs/DIRECTION.md.
+*/
+
+:root {
+  --void-slate: #101b26;
+  --vellum: #f0eee9;
+  --vellum-dim: #8fa0ac;
+  --accent: #d98a3c;
+
+  --display: 'Space Grotesk', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--void-slate);
+  color: var(--vellum);
+  font-family: var(--mono);
+}
+
+#viewport {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+.masthead {
+  position: fixed;
+  left: 40px;
+  top: 92px;
+  pointer-events: none;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  color: var(--vellum-dim);
+  text-transform: uppercase;
+}
+
+.wordmark {
+  margin: 0;
+  font-family: var(--display);
+  font-size: clamp(38px, 6.4vw, 82px);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  line-height: 0.98;
+  color: var(--vellum);
+}
+
+.standfirst {
+  margin: 16px 0 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--vellum-dim);
+  max-width: 34ch;
+}
+
+.corner {
+  position: fixed;
+  top: 26px;
+  left: 40px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--vellum-dim);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.milestone {
+  position: fixed;
+  right: 40px;
+  bottom: 44px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--vellum-dim);
+  text-align: right;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .masthead {
+    left: 22px;
+    top: 74px;
+  }
+  .corner {
+    left: 22px;
+  }
+  .milestone {
+    right: 22px;
+    bottom: 30px;
+  }
+}
