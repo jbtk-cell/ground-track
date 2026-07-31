@@ -63,12 +63,29 @@ automating one is always a welcome change:
 
 ```
 src/sim/      pure orbital mechanics - vec3, Kepler solver, elements, burns
-src/render/   three.js - palette, noise, earth, atmosphere, starfield, scene
-src/ui/       DOM wiring
+              (burn.ts), formatting (format.ts), card planning (plan.ts),
+              the mission state machine (mission.ts), shared types (types.ts)
+src/render/   three.js - palette, noise, earth, atmosphere, starfield, scene,
+              units mapping (units.ts), orbit traces (orbitTrace.ts),
+              satellite.ts, targetRing.ts
+src/ui/       DOM wiring - the PAD (pad.ts) and the app loop (app.ts, which
+              owns all mutable session state and the wall-to-sim pacing)
 scripts/      shots.mjs (visual baselines), palette-check.mjs (colour gate)
 tests/        mirrors src/. Headless.
 docs/         DIRECTION.md, PLATFORM.md, LOOP.md
 ```
+
+## Mission hooks
+
+The page exposes `window.groundTrack` for the shot harness and verifiers:
+
+- `presets` / `setPreset(name)` - the four landing framings plus four
+  deterministic mission states (`mission-card`, `mission-ghost`,
+  `mission-burn`, `mission-complete`), each rebuilt by advancing a fresh
+  mission in fixed steps, never taken from the live session.
+- `setPaused(bool)`, `setTime(seconds)` - freeze and pin the planet clock.
+- `mission.state()` / `mission.type(digits)` / `mission.commit()` /
+  `mission.warp(mult)` - drive the live session headlessly.
 
 ## Style
 
