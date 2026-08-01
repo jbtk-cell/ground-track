@@ -13,7 +13,7 @@
  * "turn taste into lint".
  */
 import { readdirSync, readFileSync } from 'node:fs';
-import { inflateSync } from 'node:zlib';
+import { decodePNG } from '../lib/png.mjs';
 
 // No arguments means the whole rendered set, so the gate runner can invoke
 // every gate the same way.
@@ -35,54 +35,7 @@ process.exit(failures === 0 ? 0 : 1);
 
 function check(path) {
   const file = readFileSync(path);
-  let pos = 8,
-    width = 0,
-    height = 0,
-    bitDepth = 0,
-    colorType = 0;
-  const idat = [];
-  while (pos < file.length) {
-    const len = file.readUInt32BE(pos);
-    const type = file.toString('ascii', pos + 4, pos + 8);
-    const data = file.subarray(pos + 8, pos + 8 + len);
-    if (type === 'IHDR') {
-      width = data.readUInt32BE(0);
-      height = data.readUInt32BE(4);
-      bitDepth = data[8];
-      colorType = data[9];
-    } else if (type === 'IDAT') idat.push(data);
-    else if (type === 'IEND') break;
-    pos += 12 + len;
-  }
-  if (bitDepth !== 8) throw new Error(`unsupported bit depth ${bitDepth}`);
-  const channels = { 0: 1, 2: 3, 4: 2, 6: 4 }[colorType];
-  if (!channels) throw new Error(`unsupported colour type ${colorType}`);
-
-  const raw = inflateSync(Buffer.concat(idat));
-  const stride = width * channels;
-  const out = Buffer.alloc(height * stride);
-  const paeth = (a, b, c) => {
-    const p = a + b - c,
-      pa = Math.abs(p - a),
-      pb = Math.abs(p - b),
-      pc = Math.abs(p - c);
-    return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
-  };
-  for (let y = 0; y < height; y++) {
-    const filter = raw[y * (stride + 1)];
-    const line = raw.subarray(y * (stride + 1) + 1, y * (stride + 1) + 1 + stride);
-    for (let x = 0; x < stride; x++) {
-      const a = x >= channels ? out[y * stride + x - channels] : 0;
-      const b = y > 0 ? out[(y - 1) * stride + x] : 0;
-      const c = x >= channels && y > 0 ? out[(y - 1) * stride + x - channels] : 0;
-      let v = line[x];
-      if (filter === 1) v += a;
-      else if (filter === 2) v += b;
-      else if (filter === 3) v += (a + b) >> 1;
-      else if (filter === 4) v += paeth(a, b, c);
-      out[y * stride + x] = v & 0xff;
-    }
-  }
+  const { width, height, channels, pixels: out } = decodePNG(file);
 
   const luma = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
   const VOID = [0x10, 0x1b, 0x26];

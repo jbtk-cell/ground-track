@@ -15,6 +15,7 @@ npm run verify     # typecheck, lint, test, build
 npm run shots      # render every camera preset to shots/current
 npm run gates      # run every gate in scripts/gates/ against those PNGs
 npm run palette    # just the palette gate, when that is all you changed
+npm run shots:diff # just the pixel-drift gate, comparing current to baseline
 ```
 
 Do not report work as complete without running `npm run verify` and seeing it
@@ -69,6 +70,12 @@ Gates in place today:
 
 - `palette` - there is no black anywhere; `VOID_SLATE` (`#101B26`) is the
   darkest value.
+- `shots-diff` - every preset in `shots/current` must stay within pixel-drift
+  tolerance of the committed `shots/baseline`; a changed preset with no
+  baseline update fails, and so does a missing or an unexpected extra preset.
+  A deliberate visual change reruns `npm run shots -- --baseline` in the same
+  PR and explains the change in the PR body - that is the only sanctioned way
+  to move a baseline. Diff images for any failing preset land in `shots/diff`.
 
 Deleting or loosening an existing gate is not ordinary work: it needs an issue
 that asks for it and a PR body that says why, and the reviewer rejects it
@@ -99,6 +106,7 @@ src/ui/       DOM wiring - the PAD (pad.ts) and the app loop (app.ts, which
               owns all mutable session state and the wall-to-sim pacing)
 scripts/      shots.mjs (visual baselines), gates.mjs (runs scripts/gates/*)
 scripts/gates/  one file per mechanically checked art-direction rule
+scripts/lib/  shared helpers for gate scripts (png.mjs - PNG decode/encode)
 tests/        mirrors src/. Headless.
 docs/         DIRECTION.md, STRUCTURE.md, PLATFORM.md, LOOP.md
 ```
