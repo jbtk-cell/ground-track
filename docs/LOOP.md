@@ -143,3 +143,38 @@ These belong in AGENTS.md / CLAUDE.md at the repo root, where every agent reads 
 3. **The renderer decides nothing.** It draws what the simulation already determined.
 4. **Real orbital mechanics only.** No invented units, no fake physics, no "thrust blocks."
    If a number appears on a maneuver card, the simulation is genuinely running it.
+
+## Operations: how the loop actually runs
+
+Implemented 2026-08-01. Three launchd agents run headless Claude Code sessions
+(`claude -p`) on a schedule, entirely on Johnny's machine, using his existing
+`gh` and `claude` auth. Install once with `bash loop/install.sh`; pause with
+`touch ~/ground-track-loop/PAUSED`; resume by removing that file; remove
+entirely with `bash loop/uninstall.sh`.
+
+| Job      | Script             | Model  | Schedule          | Role                                                        |
+| -------- | ------------------ | ------ | ----------------- | ----------------------------------------------------------- |
+| builder  | `loop/builder.sh`  | sonnet | even hours at :17 | fix requested changes, else claim one issue, build, open PR |
+| reviewer | `loop/reviewer.sh` | opus   | odd hours at :23  | four-gate review; merge authority; steward of stale claims  |
+| ideas    | `loop/ideas.sh`    | sonnet | daily 15:53       | plays the game, files at most 3 issues, dedupes hard        |
+
+Mechanics worth knowing:
+
+- **Cheap idling.** Each script pre-checks the queue with `gh` + `jq` and exits
+  without spending tokens when there is no work. An idle loop costs nothing.
+- **Claiming and caps** are as designed above: `auto:building` claims an issue,
+  builder stops at 2 open auto PRs, reviewer merges at most 2 PRs per run,
+  ideas stops at 8 unclaimed backlog issues.
+- **Worktrees, never the checkout.** Jobs build in worktrees under
+  `~/ground-track-loop/wt/`; the main checkout only ever moves by
+  `git pull --ff-only` after a merge.
+- **The loop cannot rewrite itself.** No job touches `loop/` or `.github/`;
+  such changes are labeled `needs:human`. The harness and the gates change only
+  by Johnny's hand.
+- **Merge authority.** The reviewer merges with Johnny's standing authorization
+  (recorded in CLAUDE.md), using his `gh` token, so merges to main trigger CI
+  and the Pages deploy exactly as a human merge would.
+- **Escalation.** Blocked issues get `auto:blocked` with a reason; loop-harness
+  changes and questions get `needs:human`; a PR bounced three times gets
+  `needs:human`. The loop runs while the Mac is awake and the user is logged
+  in; fire times missed during sleep coalesce to one run on wake.
