@@ -38,6 +38,13 @@ body {
   left: 40px;
   top: 92px;
   pointer-events: none;
+  transition: opacity 120ms linear;
+}
+
+/* Once the first card prints, the PAD owns the left edge and the wordmark
+   recedes. Applied by app.ts. */
+.masthead-quiet {
+  opacity: 0.25;
 }
 
 .eyebrow {

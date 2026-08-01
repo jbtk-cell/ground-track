@@ -17,12 +17,17 @@ npm run dev
 
 ## Where it is
 
-**Milestone 1 - the look.** A flat-shaded low-poly Earth on a raking dawn key,
-the atmospheric limb, settlement lights on the night side, and the orbital
-mechanics core underneath it, tested. No gameplay yet.
+**Milestone 2 - one card, one number.** One real orbit drawn as a hairline
+trace, dashed where it passes behind the planet. HERON-1 coasts toward its
+node, the flight computer prints the maneuver card and stops one line short,
+and the player types the burn duration. The number is typed, executed and
+corrected - never graded: whatever lands in the blank burns for exactly that
+many real seconds of integrated thrust, the ellipse deforms live, and an off
+entry simply earns a smaller correction card at the next node. The target
+ring goes dashed to solid when the apoapsis settles onto it.
 
-Next: one real orbit drawn as a hairline trace, dashed where it passes behind
-the planet. Then one maneuver card with one blank field.
+Next: propellant pressure tuned against real players, then the second
+satellite and the first constellation card.
 
 ## Why the physics is real
 

@@ -1,0 +1,185 @@
+/*
+  The PAD. A hairline maneuver card docked lower-left over the world.
+  The world behind it never dims, blurs or pauses; the card is an instrument,
+  not a modal. Palette and rules in docs/DIRECTION.md.
+
+  The load-bearing decision lives in .pad-cell: a typed digit renders in the
+  identical face, size, weight, colour and baseline as every machine value,
+  so nothing on the card marks which number is the operator's.
+*/
+
+.pad {
+  --pad-mint: #c6dccc;
+  --pad-dim: #8fa0ac;
+  --pad-accent: #d98a3c;
+  --pad-hairline: rgba(143, 160, 172, 0.28);
+
+  position: fixed;
+  left: 40px;
+  bottom: 44px;
+  width: 340px;
+  z-index: 10;
+  background: rgba(16, 27, 38, 0.72);
+  border: 1px solid var(--pad-hairline);
+  font-family: var(--mono, 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace);
+  pointer-events: none;
+  transition: opacity 120ms linear;
+}
+
+.pad-card {
+  position: relative;
+  padding: 16px 18px 10px;
+}
+
+/* Coasting: the card folds away and only the mission's line remains. */
+.pad--strip .pad-card {
+  display: none;
+}
+
+.pad-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--pad-dim);
+}
+
+/* Live-burn indicator: the second of the two permitted accent uses. No glow. */
+.pad-burn-mark {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: var(--pad-accent);
+}
+
+.pad-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.pad-label {
+  font-size: 11px;
+  text-transform: lowercase;
+  color: var(--pad-dim);
+  white-space: nowrap;
+}
+
+/* Dotted leader. An empty span's baseline is its bottom edge, so the rule
+   sits on the text baseline like a printed PAD's leader dots. */
+.pad-leader {
+  flex: 1;
+  border-bottom: 1px dotted rgba(143, 160, 172, 0.35);
+}
+
+.pad-value {
+  font-size: 13px;
+  color: var(--pad-mint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pad-cells {
+  display: inline-flex;
+  gap: 3px;
+}
+
+/* One underscore per answer digit. Identical to .pad-value in every metric
+   that matters; only the bottom border says a digit is expected here. */
+.pad-cell {
+  display: inline-block;
+  width: 1ch;
+  font-size: 13px;
+  color: var(--pad-mint);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  border-bottom: 1px solid rgba(143, 160, 172, 0.55);
+}
+
+/* The amber caret underlines the next empty cell, and only while typing. */
+.pad-cell--caret {
+  border-bottom-color: var(--pad-accent);
+}
+
+.pad-entered {
+  margin-top: 10px;
+  text-align: right;
+}
+
+.pad-entered-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--pad-dim);
+}
+
+.pad-entry {
+  font-size: 11px;
+  color: var(--pad-mint);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.4;
+}
+
+/* The propellant column is the readout; no numeral accompanies it. */
+.pad-propellant {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  right: 7px;
+  width: 1px;
+  background: rgba(143, 160, 172, 0.25);
+}
+
+.pad-propellant-fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  background: rgba(198, 220, 204, 0.6);
+  transition: height 120ms linear;
+}
+
+/* The mission speaking. Never praise, never error; there is no red. */
+.pad-status {
+  padding: 10px 18px 12px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--pad-mint);
+}
+
+.pad:not(.pad--strip) .pad-status {
+  border-top: 1px dotted rgba(143, 160, 172, 0.2);
+}
+
+.pad--strip .pad-status {
+  padding: 8px 12px;
+}
+
+/* The accent is spoken for; focus speaks in the instrument colour. */
+.pad :focus-visible {
+  outline: 1px solid var(--pad-mint);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .pad {
+    left: 22px;
+    bottom: 30px;
+    width: min(340px, calc(100vw - 44px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pad,
+  .pad * {
+    transition-property: opacity;
+    transition-duration: 120ms;
+  }
+}

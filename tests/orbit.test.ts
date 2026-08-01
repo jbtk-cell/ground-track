@@ -6,13 +6,19 @@ import {
   applyDeltaV,
   elementsFromState,
   length,
+  meanAnomalyAt,
+  normalize,
+  orbitPointAtE,
+  perifocalToInertial,
   period,
   periapsisRadius,
   prograde,
   scale,
+  solveKepler,
   specificAngularMomentum,
   specificEnergy,
   stateAt,
+  vec3,
   visViva,
   type Elements,
 } from '../src/sim';
@@ -119,6 +125,31 @@ describe.each(ORBITS)('state and elements round-trip for %s', (_name, el) => {
     expect(reflown.position.x).toBeCloseTo(original.position.x, 6);
     expect(reflown.position.y).toBeCloseTo(original.position.y, 6);
     expect(reflown.position.z).toBeCloseTo(original.position.z, 6);
+  });
+});
+
+// The renderer consumes these two instead of re-deriving the rotation
+// convention, so the drawn conic and the propagated satellite must be pinned
+// to the same frame here.
+describe.each(ORBITS)('perifocalToInertial and orbitPointAtE for %s', (_name, el) => {
+  it('passes through the propagated position at every sampled time', () => {
+    for (let k = 0; k < 12; k += 1) {
+      const t = (k / 12) * period(el.a);
+      const E = solveKepler(meanAnomalyAt(el, t), el.e);
+      const sampled = orbitPointAtE(el, E);
+      const flown = stateAt(el, t).position;
+      expect(sampled.x).toBeCloseTo(flown.x, 6);
+      expect(sampled.y).toBeCloseTo(flown.y, 6);
+      expect(sampled.z).toBeCloseTo(flown.z, 6);
+    }
+  });
+
+  it('sends the perifocal z axis to the angular momentum direction', () => {
+    const n = perifocalToInertial(el)(vec3(0, 0, 1));
+    const h = normalize(specificAngularMomentum(stateAt(el, 100)));
+    expect(n.x).toBeCloseTo(h.x, 8);
+    expect(n.y).toBeCloseTo(h.y, 8);
+    expect(n.z).toBeCloseTo(h.z, 8);
   });
 });
 

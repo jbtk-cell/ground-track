@@ -9,6 +9,9 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       eqeqeq: ['error', 'always'],
+      // Thin-space digit grouping (U+2009) is this game's own dialect and shows
+      // up in doc-comment examples; code must still spell it as the \u2009 escape.
+      'no-irregular-whitespace': ['error', { skipComments: true }],
     },
   },
   {

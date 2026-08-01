@@ -47,6 +47,19 @@ export const PRESETS: readonly CameraPreset[] = [
     fov: 42,
     sun: [-0.45, 0.08, -0.89],
   },
+  {
+    // The playing camera: pulled back until the whole starting ellipse and the
+    // target ring share the frame with the limb. It sits on the anti-apoapsis
+    // azimuth, so the node (periapsis) is on the near side - the satellite and
+    // its burn are watchable - and the ring's far dip is compressed into frame
+    // by perspective. The four framings above are the milestone-1 baselines
+    // and stay untouched.
+    name: 'mission',
+    position: [0, 1.4, -4.4],
+    target: [0, 0.95, 0],
+    fov: 40,
+    sun: [-0.85, 0.12, -0.35],
+  },
 ];
 
 export function applyPreset(
