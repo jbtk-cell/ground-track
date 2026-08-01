@@ -7,16 +7,25 @@
  * once written down - it is an assertion about pixels, and a reviewer cannot
  * hold it reliably across hundreds of iterations. This can.
  *
- *   node scripts/palette-check.mjs <png> [...more png]
+ *   node scripts/gates/palette.mjs [png ...]    # defaults to shots/current
  *
- * See docs/LOOP.md, "turn taste into lint".
+ * One of the gates discovered and run by scripts/gates.mjs. See docs/LOOP.md,
+ * "turn taste into lint".
  */
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 
-const files = process.argv.slice(2);
+// No arguments means the whole rendered set, so the gate runner can invoke
+// every gate the same way.
+const files = process.argv.slice(2).length
+  ? process.argv.slice(2)
+  : readdirSync('shots/current')
+      .filter((f) => f.endsWith('.png'))
+      .sort()
+      .map((f) => `shots/current/${f}`);
+
 if (files.length === 0) {
-  console.error('usage: node scripts/palette-check.mjs <png> [...]');
+  console.error('palette: no PNGs to check - run npm run shots first');
   process.exit(2);
 }
 
