@@ -22,6 +22,7 @@ import {
 import { advance, commitEntry, createMission, predictedElements, stateAt } from '../sim';
 import type { MissionPhase, MissionState, PadCard } from '../sim';
 import { PROPELLANT_REFERENCE_MS, createPad, reduceTyped } from './pad';
+import { createTouchPad, touchInputActive } from './touchPad';
 
 declare global {
   interface Window {
@@ -192,9 +193,10 @@ export function startApp(): void {
   if (!(padRoot instanceof HTMLElement)) throw new Error('Missing #pad-root');
   const masthead = document.querySelector('.masthead');
 
-  // Touch input is a seeded issue, not this slice: a future touch pad mounts
-  // here, and pointer taps already focus nothing (the pad ignores pointers).
-  padRoot.dataset.touchPad = '';
+  // A coarse pointer has no hardware keyboard behind it, so the tap keypad
+  // mounts only there. The attribute is the mount signal a harness can check.
+  const touchActive = touchInputActive(window);
+  if (touchActive) padRoot.dataset.touchPad = '';
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -286,6 +288,7 @@ export function startApp(): void {
     ring.setSolid(mission.phase === 'complete');
 
     pad.update(mission, typed, caretBlink && !paused);
+    touchPad?.update(mission.phase);
 
     // Once the first card is up the PAD owns the left edge; the wordmark
     // recedes rather than competing with an instrument.
@@ -318,10 +321,13 @@ export function startApp(): void {
     requestAnimationFrame(frame);
   };
 
-  window.addEventListener('keydown', (event) => {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
+  /**
+   * The one path a digit takes into the simulation, keyboard or tap alike:
+   * commitEntry on Enter, reduceTyped on everything else.
+   */
+  const handleKey = (key: string): void => {
     if (mission.phase !== 'card' || mission.card === null) return;
-    if (event.key === 'Enter') {
+    if (key === 'Enter') {
       const next = commitEntry(mission, typed);
       if (next !== mission) {
         mission = next;
@@ -329,7 +335,14 @@ export function startApp(): void {
       }
       return;
     }
-    typed = reduceTyped(typed, event.key, mission.card.answerDigits);
+    typed = reduceTyped(typed, key, mission.card.answerDigits);
+  };
+
+  const touchPad = touchActive ? createTouchPad(padRoot, handleKey) : null;
+
+  window.addEventListener('keydown', (event) => {
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    handleKey(event.key);
   });
 
   window.setInterval(() => {
