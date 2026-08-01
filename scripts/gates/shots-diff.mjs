@@ -8,8 +8,14 @@
  * share exceeds --threshold fails, and a difference image lands in
  * shots/diff for the artifact upload.
  *
- * Intentional visual changes rerun `npm run shots -- --baseline` in the same
- * PR and explain the change in the PR body - see AGENTS.md.
+ * The byte-level comparison only runs when CI is set. GitHub Actions'
+ * ubuntu-latest runner renders shots/current with software-rasterised
+ * Chromium; a developer's machine renders with real GPU antialiasing, which
+ * disagrees with the committed (CI-rendered) baseline by ~1% on every preset
+ * even with no code changed. Comparing unconditionally would make this gate
+ * red by default on every clean local checkout - see AGENTS.md for the full
+ * story and the sanctioned way to move a baseline. Set CI=1 to force the
+ * comparison locally (e.g. to reproduce a CI failure's diff images).
  *
  *   node scripts/gates/shots-diff.mjs [--max-delta N] [--threshold PCT]
  *
@@ -30,6 +36,7 @@ function flag(name, fallback) {
 
 const maxDelta = flag('--max-delta', 2);
 const thresholdPct = flag('--threshold', 0.1);
+const inCI = Boolean(process.env.CI);
 
 function presetNames(dir) {
   if (!existsSync(dir)) return new Set();
@@ -67,11 +74,19 @@ for (const name of extra) {
   );
   failures += 1;
 }
-for (const name of matched) {
-  if (!compare(name)) failures += 1;
+if (inCI) {
+  for (const name of matched) {
+    if (!compare(name)) failures += 1;
+  }
+} else if (matched.length > 0) {
+  console.log(
+    `\nskipped pixel comparison for ${matched.length} preset(s) - only runs when CI is set,\n` +
+      `because local rendering does not match the CI runner's byte-for-byte (see AGENTS.md).\n` +
+      `Run 'CI=1 npm run shots:diff' to force it, e.g. to reproduce a CI failure.`
+  );
 }
 
-const checked = missing.length + extra.length + matched.length;
+const checked = missing.length + extra.length + (inCI ? matched.length : 0);
 console.log(`\n${checked - failures}/${checked} presets within drift threshold`);
 process.exit(failures === 0 ? 0 : 1);
 
