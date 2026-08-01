@@ -43,6 +43,22 @@ export interface PadCard {
   readonly nodeTimeSim: number;
 }
 
+/**
+ * A constellation plane-spacing card. Same field/blank shape as PadCard, but
+ * the entry is a spacing in degrees, not a burn duration in seconds - kept as
+ * its own type rather than widening PadCard.answerUnit.
+ */
+export interface SpacingCard {
+  /** e.g. 'CONSTELLATION · PLANE SPACING' */
+  readonly title: string;
+  readonly fields: readonly PadField[];
+  /** Width of the blank, in digits. */
+  readonly answerDigits: number;
+  readonly answerUnit: 'deg';
+  /** Ground truth the executor runs: how many satellites share this shell. */
+  readonly count: number;
+}
+
 /** One committed entry: what was typed, what the world did with it. */
 export interface EntryRecord {
   readonly digits: string;

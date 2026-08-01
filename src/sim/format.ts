@@ -22,6 +22,10 @@ export function formatMS(ms: number): string {
   return `${formatInt(ms)} m/s`;
 }
 
+export function formatDeg(deg: number): string {
+  return `${formatInt(deg)}°`;
+}
+
 /**
  * Countdown clock: 41 -> 'T-00:41'. A moment already passed reads 'T+00:12' -
  * stating what the mission did rather than hiding it.
