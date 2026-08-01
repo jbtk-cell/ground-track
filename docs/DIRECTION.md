@@ -11,6 +11,8 @@ Reference project: Quiet Vector (github.com/jbtk-cell/quiet-vector)
 
 # GROUND TRACK
 
+> This document governs how the game looks and speaks. The shape of play — areas, repeatable encounters, progression — is governed by [STRUCTURE.md](STRUCTURE.md), synthesized 2026-08-01 from the owner's direction that gameplay should follow Prodigy's structure: areas and encounters you can beat over and over, no story. Both documents are binding.
+
 You own a small satellite network. The only control input in the entire game is one small whole number you type into a flight computer — and real Keplerian orbits, real transfer burns and real Walker constellation geometry are what obey it. The shape your coverage draws across a hazy, low-poly Earth is the score. The single idea underneath everything: **the machine finds the shape, you give it the size.** The hard orbital mechanics is spectacle the world visibly runs on; the child's contribution is the last line of a computation the machine already did, and that line is arithmetic.
 
 ## The premise that makes it work
