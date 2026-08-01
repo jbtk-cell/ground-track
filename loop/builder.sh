@@ -66,7 +66,11 @@ PROCEDURE
    branch lives on origin). Never leave uncommitted work behind.
 
 HARD RULES: never commit to main; never force-push; never edit files under
-loop/ or .github/ (label the issue needs:human instead); one issue per run; no
+loop/ or .github/ (label the issue needs:human instead) - but note that a NEW
+mechanical gate does not need a CI edit: drop an .mjs file in scripts/gates/
+and CI picks it up (see scripts/gates.mjs), so gate work is ordinary work you
+can do. Deleting or loosening an existing gate is not: that needs an issue
+asking for it. One issue per run; no
 scope creep past the issue's done-when; the typed number is executed, never
 graded - if your change needs a correct/incorrect branch, the design is wrong,
 stop and label auto:blocked.

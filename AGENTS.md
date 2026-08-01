@@ -13,7 +13,8 @@ loop is meant to run.
 ```bash
 npm run verify     # typecheck, lint, test, build
 npm run shots      # render every camera preset to shots/current
-npm run palette    # assert the art direction's colour rules against those PNGs
+npm run gates      # run every gate in scripts/gates/ against those PNGs
+npm run palette    # just the palette gate, when that is all you changed
 ```
 
 Do not report work as complete without running `npm run verify` and seeing it
@@ -58,12 +59,23 @@ pass. For anything that changes what is on screen, run `npm run shots` and
 
 ## Art direction rules that are mechanically checked
 
-`npm run palette` enforces these against rendered frames:
+Every `.mjs` file in `scripts/gates/` is a gate. CI runs the whole directory
+via `npm run gates`, so **adding a gate is adding a file** - no CI config
+change, which means the loop can strengthen its own taste checks. A gate takes
+no arguments, reads what it needs (rendered frames are in `shots/current`),
+prints its findings, and exits non-zero to fail.
 
-- There is no black anywhere. `VOID_SLATE` (`#101B26`) is the darkest value.
+Gates in place today:
 
-These are in DIRECTION.md and are not yet automated - hold them by hand, and
-automating one is always a welcome change:
+- `palette` - there is no black anywhere; `VOID_SLATE` (`#101B26`) is the
+  darkest value.
+
+Deleting or loosening an existing gate is not ordinary work: it needs an issue
+that asks for it and a PR body that says why, and the reviewer rejects it
+otherwise.
+
+These rules are in DIRECTION.md and are not yet automated - hold them by hand,
+and turning one into a gate is always welcome work:
 
 - **No bloom at any intensity.** No lens flare, no chromatic aberration, no
   emissive UI. This single rule is most of why the game does not read as sci-fi.
@@ -85,7 +97,8 @@ src/render/   three.js - palette, noise, earth, atmosphere, starfield, scene,
               satellite.ts, targetRing.ts
 src/ui/       DOM wiring - the PAD (pad.ts) and the app loop (app.ts, which
               owns all mutable session state and the wall-to-sim pacing)
-scripts/      shots.mjs (visual baselines), palette-check.mjs (colour gate)
+scripts/      shots.mjs (visual baselines), gates.mjs (runs scripts/gates/*)
+scripts/gates/  one file per mechanically checked art-direction rule
 tests/        mirrors src/. Headless.
 docs/         DIRECTION.md, STRUCTURE.md, PLATFORM.md, LOOP.md
 ```

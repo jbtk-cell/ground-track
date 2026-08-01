@@ -31,7 +31,12 @@ Process open, NON-DRAFT PRs labeled auto, oldest first, at most 2 merges per
 run. For each PR:
 
 GATE 1 - CI. Both checks (verify, visual) green. Not green: comment and skip.
-GATE 2 - ADVERSARIAL DIFF. Read the full diff against the invariants. Reject on
+GATE 2 - ADVERSARIAL DIFF. Read the full diff against the invariants. First,
+check what the diff does to the gates themselves: a PR that deletes a file
+under scripts/gates/, loosens a threshold inside one, or makes a gate exit 0
+where it used to fail is rejected unless an issue explicitly asked for that
+and the PR body justifies it. The loop may add gates freely; it may not file
+down the ones that constrain it. Then reject on
 sight: any branch comparing the typed entry to a right answer; score, XP,
 percent, or star anywhere including register strings; red, or colors outside
 the DIRECTION palette; bloom or post-processing; three.js/DOM/clock/randomness
