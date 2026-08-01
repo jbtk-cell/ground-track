@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.groundtrack.ideas</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/johnnyklaus/ground-track/loop/ideas.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>15</integer><key>Minute</key><integer>53</integer></dict>
+  </array>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/johnnyklaus/ground-track-loop/logs/launchd-ideas.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/johnnyklaus/ground-track-loop/logs/launchd-ideas.log</string>
+</dict>
+</plist>
