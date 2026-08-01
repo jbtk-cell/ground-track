@@ -1,0 +1,65 @@
+/*
+  The touch keypad. A coarse-pointer twin of the hardware keyboard: ten
+  digits, delete, commit, nothing else. The accent is already spoken for by
+  the PAD's caret and live-burn mark (see pad.css), so every key here stays
+  in the instrument mint/dim palette - no third accent site.
+*/
+
+.touch-pad {
+  --key-mint: #c6dccc;
+  --key-dim: #8fa0ac;
+  --key-hairline: rgba(143, 160, 172, 0.35);
+
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: none;
+  grid-template-columns: repeat(3, 64px);
+  grid-auto-rows: 52px;
+  gap: 8px;
+  font-family: var(--mono, 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.touch-pad--visible {
+  display: grid;
+}
+
+.touch-key {
+  appearance: none;
+  background: rgba(16, 27, 38, 0.72);
+  border: 1px solid var(--key-hairline);
+  color: var(--key-mint);
+  font-family: inherit;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  padding: 0;
+}
+
+.touch-key--del,
+.touch-key--enter {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--key-dim);
+}
+
+.touch-key:active {
+  border-color: var(--key-mint);
+}
+
+.touch-key:focus-visible {
+  outline: 1px solid var(--key-mint);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .touch-pad {
+    right: 14px;
+    grid-template-columns: repeat(3, 56px);
+    grid-auto-rows: 46px;
+    gap: 6px;
+  }
+}
