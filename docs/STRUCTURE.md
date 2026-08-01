@@ -16,19 +16,19 @@ Prodigy's island becomes the space around Earth. Orbital regimes are the zones. 
 
 ## The Prodigy mapping
 
-| Prodigy | GROUND TRACK |
-| --- | --- |
-| Elemental zones (Firefly Forest, Shiverchill…) | Orbital regimes — each defined by its weather (dominant perturbation), tempo (rev period), and light |
-| Roaming monsters, touch to battle | Standing situations, visible as geometry; fly near or click to task the computer |
-| Turn-based battle, math powers the spell | The PAD exchange: card prints, one blank, typed number executes as real thrust |
-| Wrong answer → fumble, lost turn | **Refused.** Every number executes. A short burn is a real orbit and the shortfall becomes the next, smaller card |
-| Monsters respawn by fiat | Perturbations regenerate situations mechanically |
-| Pet capture and collection | Derelict salvage — caught frames are refit and join the fleet, flyable and named |
-| Shiny/rare pets | Heritage buses with strange physics — a crude 25 m/s-per-s thruster means two-second burns; rarity IS different arithmetic |
-| Gear changes battle stats | Hardware changes the card numbers — thruster sets the numeral form, tank sets reach, imager sets what a pass returns |
-| Level-gated zones | Tank-gated regimes — the planner prints the Δv fact, not a lock |
-| Daily respawns, streaks | **Refused.** The comeback hook is physical: a transfer parked mid-coast, a plane one bird short, a derelict still crossing your trace |
-| Story quests (skippable) | None at all |
+| Prodigy                                        | GROUND TRACK                                                                                                                          |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Elemental zones (Firefly Forest, Shiverchill…) | Orbital regimes — each defined by its weather (dominant perturbation), tempo (rev period), and light                                  |
+| Roaming monsters, touch to battle              | Standing situations, visible as geometry; fly near or click to task the computer                                                      |
+| Turn-based battle, math powers the spell       | The PAD exchange: card prints, one blank, typed number executes as real thrust                                                        |
+| Wrong answer → fumble, lost turn               | **Refused.** Every number executes. A short burn is a real orbit and the shortfall becomes the next, smaller card                     |
+| Monsters respawn by fiat                       | Perturbations regenerate situations mechanically                                                                                      |
+| Pet capture and collection                     | Derelict salvage — caught frames are refit and join the fleet, flyable and named                                                      |
+| Shiny/rare pets                                | Heritage buses with strange physics — a crude 25 m/s-per-s thruster means two-second burns; rarity IS different arithmetic            |
+| Gear changes battle stats                      | Hardware changes the card numbers — thruster sets the numeral form, tank sets reach, imager sets what a pass returns                  |
+| Level-gated zones                              | Tank-gated regimes — the planner prints the Δv fact, not a lock                                                                       |
+| Daily respawns, streaks                        | **Refused.** The comeback hook is physical: a transfer parked mid-coast, a plane one bird short, a derelict still crossing your trace |
+| Story quests (skippable)                       | None at all                                                                                                                           |
 
 The one deliberate departure from Prodigy is the whole design: Prodigy grades every answer (fumble on a miss). GROUND TRACK never does. The pressure that replaces grading is propellant and time, applied to every entry alike.
 
@@ -103,48 +103,56 @@ Sites ask, they never plead. No greeting, no missed-day line, no summary of abse
 Every type specifies its blank at all four bands. Grade changes the numeral form on an otherwise identical card — regimes never gate by grade, and no area is an arithmetic tier in disguise.
 
 **REBOOST** — Low Field weather. Drag has eaten a perigee; the haze visibly softens as the bird sinks; cards arrive more often the lower it gets. The enemy is the atmosphere. Outcome: a continuous new perigee altitude, `PERIGEE 412 KM`. Short entries leave it lower — softer haze, sooner cards, more tank over time. Respawn: solar-activity cycles scale the drag rate; drag never stops.
+
 - grades 1–2 · pulses: `Δv 24 · per pulse 6 · PULSES __` (4)
 - grades 3–4 · `Δv 18 ÷ thruster 6 · BURN DURATION __ s` (3)
 - grades 5–6 · ion thruster brings decimals: `Δv 4.5 ÷ 0.5` (9)
 - grades 7–8 · ratio form: `PERIGEE RISES 3 KM PER M/S · RAISE 45 KM · Δv __` (15)
 
 **THE CROSSING** — debris on an intersecting track, a desaturated-rust hairline marking the conjunction corridor. Low Field and Shell. Outcome: `CLOSEST APPROACH 9 KM`, a distance, never a verdict. A pass inside the corridor width (a printed card field, a plant limit) has the bird shutter its payload and feather arrays for that pass — a protective posture, so the cell it would have lit stays unlit. Absence, not alarm; never a damage number. Respawn: each spawn seeds new crossing geometry.
+
 - grades 1–2 · pulses to shift the track
 - grades 3–4 · `Δv 12 ÷ 4 · BURN DURATION __ s` (3)
 - grades 5–6 · signed Δv: +40 raises the far side, −40 lowers it
 - grades 7–8 · period-change form: shift needed ÷ shift per second
 
 **TASKED PASS** — the Dawn Line's signature. A ground site requests a frame; the imager is the weapon and the ground track is the aim. Outcome: **a photograph is ALWAYS returned** — of whatever was actually under the track on the typed rev. Dead-center site, terrain 41 km east, or open ocean; the still stamps its own measurement (`OFFSET 41 KM EAST`) and goes in the album either way. The picture you took is the entire outcome. Remainder rule applies to multi-frame requests. Respawn: endless sites at fresh longitudes; the westward-shift-per-rev changes with altitude, so the division is never the same twice.
+
 - grades 1–2 · countable: track moves one marked step west per rev, site three steps west, `REVS __`
 - grades 3–4 · `SHIFT 24°/REV · SITE 72° WEST · REVS TO PASS __` (3)
 - grades 5–6 · decimal trim: a burn-seconds card fine-tunes the track
 - grades 7–8 · combined revs-plus-trim, ratio form
 
 **THE CATCH** — the collection engine. A derelict — spent stage, dead weather bird, tumbling cubesat — coasts on a neighboring orbit; the servicer gives chase from a lower, faster phasing orbit. Outcome: `ARRIVAL 12 KM BEHIND`, signed and continuous. Inside the printed capture corridor the grapple takes and the docking simply proceeds — `HARD DOCK · SALVAGE · AGENA CLASS`, no fanfare; outside it, the computer replans from the actual gap and the chase continues. Extra revs are time, not shame. Caught frames are towed in, refit over a session, and **join the fleet** — flyable, kid-named, with a register plate and their own stat sheet. Salvage physically refuels: `RECOVERED · 40 M/S` ticks the tank column up — catching monsters feeds the resource that guessing spends. Rarely, a heritage bus appears in the advisories — an old frame with strange hardware whose rarity is different arithmetic. Respawn: gap, direction, altitude, closing rate, and the derelict model re-roll per target.
+
 - grades 1–2 · countable laps, the register ticking one per rev
 - grades 3–4 · `GAP 120 KM · CLOSES 30 KM/REV · REVS __` (4)
 - grades 5–6 · decimal residual: `GAP 105 ÷ 30` (3.5)
 - grades 7–8 · ratio of the two orbital periods
 
 **KEEPING** — the Ring's standing weather. Triaxiality drags a bead east or west out of its slot box. The enemy is the shape of the Earth. Outcome: a continuous drift rate, `DRIFT 0.1°/DAY WEST`. Near zero and the bead sits; residual drift and its footprint eases off its cells, which quietly unlight. Respawn: real triaxiality wells — each slot on the Ring plays differently, forever.
+
 - grades 1–2 · pulses
 - grades 3–4 · `Δv 6 ÷ 2 · BURN DURATION __ s` (3)
 - grades 5–6 · relocation: `TRAVEL 12° · DRIFT 1.5°/DAY · DAYS __` (8)
 - grades 7–8 · signed drift and inverse forms: drift × days = degrees, any one blank
 
 **THE SLOT** — the Shell. A constellation plane needs its birds evenly spaced — DIRECTION's signature moment, made repeatable. Outcome: the spacing executes as typed and the coverage band shows the consequence as geometry — even spacing quilts a continuous lit band; lopsided spacing leaves a dark cell that circulates on a real period. `PLANE A · CONTINUOUS` prints only when the band closes — a fact about the sky, not the child. Respawn: N grows with the fleet; failures and second planes regenerate the arithmetic.
+
 - grades 1–2 · countable: 12 ring marks, 6 birds, `MARKS APART __` (2)
 - grades 3–4 · `360 ÷ 6 · SPACING __ °` (60)
 - grades 5–6 · a failure forces `360 ÷ 7` (51.4); the second plane offsets by the Walker half-step (22.5)
 - grades 7–8 · Walker delta phasing as a ratio
 
 **DWELL** — the Long Swing. Polar cells need continuous coverage; one Molniya bird dwells above 60°N only part of each rev, so twin birds must hand off on time. Outcome: delivered coverage as geometry, `COVERAGE 20 H OF 24` and nothing else; a short entry hands off early, a long one leaves a repeating dark gap. Remainder rule applies. Respawn: two-bird then three-bird handoffs, different target latitudes, station-keeping period tweaks.
+
 - grades 1–2 · not posted (the Long Swing's tempo is a later-band pleasure; nothing gates — the cards there simply involve halves and the youngest players have no tank that reaches it yet)
 - grades 3–4 · `PERIOD 12 H ÷ 2 BIRDS · HANDOFF EVERY __ H` (6)
 - grades 5–6 · fraction of period: `2/3 OF 12 H · DWELL __ H` (8)
 - grades 7–8 · three-bird phasing, percent-of-period forms
 
 **CORRIDOR ENTRY** — end of life. A spent frame comes down through the long ocean disposal corridor; the retro burn is planned; the entry ellipse draws as the number is typed. Outcome: entry point along track, continuous — `ENTRY 300 KM DOWNRANGE OF CENTER`. The corridor is thousands of km long; anywhere inside retires the frame and frees its launch mass for the manifest. Far outside, the register simply records where it fell — the world never flinches, and the freed mass arrives regardless. Respawn: corridor, starting orbit, remaining propellant and retro thruster differ per retirement; deorbiting a heritage frame with its odd engine is a genuinely different division.
+
 - grades 1–2 · retro pulses
 - grades 3–4 · `Δv ÷ accel · BURN DURATION __ s`
 - grades 5–6 · decimal Δv
