@@ -96,6 +96,11 @@ Gates in place today:
     and run `CI=1 npm run shots:diff` locally - the comparison is pure byte
     math with no rendering involved, so it reproduces CI's verdict exactly and
     writes the same images to `shots/diff`.
+- `accent` - `#D98A3C` appears in source only at its three canonical
+  definition sites (`src/render/palette.ts`, `src/style.css`,
+  `src/ui/pad.css`), scanned by literal hex; and in rendered frames only on
+  the live burn (`mission-burn`'s burn mark and plume), scanned by colour
+  distance, with every other preset held to antialiasing-level noise.
 
 Deleting or loosening an existing gate is not ordinary work: it needs an issue
 that asks for it and a PR body that says why, and the reviewer rejects it
@@ -106,8 +111,6 @@ and turning one into a gate is always welcome work:
 
 - **No bloom at any intensity.** No lens flare, no chromatic aberration, no
   emissive UI. This single rule is most of why the game does not read as sci-fi.
-- **One accent.** `#D98A3C` appears on exactly two things: the primary action,
-  and a live burn.
 - **Earth's limb holds 30-40% of frame.** No shot is an object against black.
 - **No red.** The only warm-negative is desaturated rust `#A8624B`, hairline.
 - **No score, XP, percentage or star rating.** Coverage is expressed as geometry.
