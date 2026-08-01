@@ -93,6 +93,8 @@ describe('ghost conic vs executed burn', () => {
         }
       }
     }
-    expect(checked).toBe(A_FACTORS.length * E_VALUES.length * TARGET_FACTORS.length * DURATIONS_S.length);
+    expect(checked).toBe(
+      A_FACTORS.length * E_VALUES.length * TARGET_FACTORS.length * DURATIONS_S.length
+    );
   });
 });
