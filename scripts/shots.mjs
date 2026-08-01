@@ -77,9 +77,11 @@ async function main() {
 
   for (const preset of presets) {
     await page.evaluate((name) => window.groundTrack.setPreset(name), preset);
+    // Pins the planet clock for the landing presets; the mission-* presets are
+    // deterministic by construction (setPreset rebuilds their state fresh).
     await page.evaluate((t) => window.groundTrack.setTime(t), FIXED_TIME);
-    // Two frames so the shader uniforms are certainly applied.
-    await sleep(120);
+    // Settle so uniforms, DOM layout and fonts are certainly applied.
+    await sleep(250);
     await page.screenshot({ path: path.join(outDir, `${preset}.png`) });
     console.log(`shot ${preset}`);
   }
