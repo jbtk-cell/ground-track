@@ -23,17 +23,14 @@ function at<T>(arr: readonly T[], i: number): T {
 }
 
 describe('planPlaneSpacing', () => {
-  it.each(PLANE_SPACING_SEED_COUNTS)(
-    'prints one clean division for %d satellites',
-    (count) => {
-      expect(360 % count).toBe(0);
-      const card = planPlaneSpacing(count);
-      const ideal = 360 / count;
-      expect(card.count).toBe(count);
-      expect(card.answerUnit).toBe('deg');
-      expect(card.answerDigits).toBe(String(ideal).length);
-    }
-  );
+  it.each(PLANE_SPACING_SEED_COUNTS)('prints one clean division for %d satellites', (count) => {
+    expect(360 % count).toBe(0);
+    const card = planPlaneSpacing(count);
+    const ideal = 360 / count;
+    expect(card.count).toBe(count);
+    expect(card.answerUnit).toBe('deg');
+    expect(card.answerDigits).toBe(String(ideal).length);
+  });
 
   it('prints the satellite count and the full circle, with only SPACING blank', () => {
     const card = planPlaneSpacing(6);
@@ -55,20 +52,17 @@ describe('commitPlaneSpacing', () => {
     [8, 45],
     [8, 40],
     [9, 30],
-  ])(
-    'spaces %d satellites %d degrees apart, with an honest closing gap',
-    (count, spacingDeg) => {
-      const slots = commitPlaneSpacing(SHELL, count, spacingDeg);
-      expect(slots).toHaveLength(count);
+  ])('spaces %d satellites %d degrees apart, with an honest closing gap', (count, spacingDeg) => {
+    const slots = commitPlaneSpacing(SHELL, count, spacingDeg);
+    expect(slots).toHaveLength(count);
 
-      for (let k = 1; k < count; k += 1) {
-        const gap = wrapAngle(at(slots, k).m0 - at(slots, k - 1).m0);
-        expect(gap / RAD_PER_DEG).toBeCloseTo(spacingDeg, 9);
-      }
-      const closingGap = wrapAngle(at(slots, 0).m0 - at(slots, count - 1).m0);
-      expect(closingGap / RAD_PER_DEG).toBeCloseTo(360 - (count - 1) * spacingDeg, 9);
+    for (let k = 1; k < count; k += 1) {
+      const gap = wrapAngle(at(slots, k).m0 - at(slots, k - 1).m0);
+      expect(gap / RAD_PER_DEG).toBeCloseTo(spacingDeg, 9);
     }
-  );
+    const closingGap = wrapAngle(at(slots, 0).m0 - at(slots, count - 1).m0);
+    expect(closingGap / RAD_PER_DEG).toBeCloseTo(360 - (count - 1) * spacingDeg, 9);
+  });
 
   it.each([
     ['clean', 60],
