@@ -169,8 +169,18 @@ Mechanics worth knowing:
   `~/ground-track-loop/wt/`; the main checkout only ever moves by
   `git pull --ff-only` after a merge.
 - **The loop cannot rewrite itself.** No job touches `loop/` or `.github/`;
-  such changes are labeled `needs:human`. The harness and the gates change only
-  by Johnny's hand.
+  such changes are labeled `needs:human`. The harness changes only by Johnny's
+  hand.
+- **But it can strengthen its gates.** CI runs `npm run gates`, which discovers
+  every `.mjs` file in `scripts/gates/`, so a new mechanical check is a new
+  file and never a CI edit. This exists because the first version of the rule
+  above was too blunt: it also blocked the loop from _adding_ taste checks, and
+  on the loop's second run two of the most valuable backlog items (pixel-drift
+  and accent discipline) escalated to `needs:human` for no better reason than
+  a line of YAML. The asymmetry is the safeguard - adding a gate is one new
+  file, while removing or loosening one is a deletion or an edit that stands
+  out in the diff, and the reviewer is instructed to reject it without an issue
+  asking for it.
 - **Merge authority.** The reviewer merges with Johnny's standing authorization
   (recorded in CLAUDE.md), using his `gh` token, so merges to main trigger CI
   and the Pages deploy exactly as a human merge would.

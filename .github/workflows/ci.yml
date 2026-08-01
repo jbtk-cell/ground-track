@@ -45,8 +45,11 @@ jobs:
         run: npm run build
       - name: Render camera presets
         run: npm run shots
-      - name: Check palette rules
-        run: npm run palette
+      # Runs every gate in scripts/gates/. A new gate is a new file there, so
+      # this step never changes - which is what lets the loop add gates
+      # without editing CI config. See scripts/gates.mjs.
+      - name: Run visual gates
+        run: npm run gates
       - name: Upload rendered frames
         if: always()
         uses: actions/upload-artifact@v4
