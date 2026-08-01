@@ -106,11 +106,17 @@ Deleting or loosening an existing gate is not ordinary work: it needs an issue
 that asks for it and a PR body that says why, and the reviewer rejects it
 otherwise.
 
+Also mechanically checked, though not a `scripts/gates/` file:
+
+- **No bloom at any intensity.** `eslint.config.js`'s `no-restricted-imports`
+  rejects any import of `three/examples/jsm/postprocessing/*`,
+  `three/addons/postprocessing/*`, a `*Bloom*` shader module, or the pmndrs
+  `postprocessing` package anywhere under `src/`. Checked by `npm run verify`
+  (lint), not by `npm run gates` - there is no rendered-frame gate for this.
+
 These rules are in DIRECTION.md and are not yet automated - hold them by hand,
 and turning one into a gate is always welcome work:
 
-- **No bloom at any intensity.** No lens flare, no chromatic aberration, no
-  emissive UI. This single rule is most of why the game does not read as sci-fi.
 - **Earth's limb holds 30-40% of frame.** No shot is an object against black.
 - **No red.** The only warm-negative is desaturated rust `#A8624B`, hairline.
 - **No score, XP, percentage or star rating.** Coverage is expressed as geometry.
