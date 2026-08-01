@@ -27,6 +27,8 @@ export {
   elementsFromState,
   meanAnomalyAt,
   meanMotion,
+  orbitPointAtE,
+  perifocalToInertial,
   period,
   periapsisRadius,
   prograde,
@@ -36,3 +38,17 @@ export {
   trueAnomalyAt,
   visViva,
 } from './orbit';
+export { formatCountdown, formatInt, formatKm, formatMS } from './format';
+export { integrateBurn, stepBurn } from './burn';
+export type { PlanOptions } from './plan';
+export { idealDeltaVMS, nextPeriapsisTime, planApogeeRaise, planCorrection } from './plan';
+export type { MissionConfig } from './mission';
+export { advance, commitEntry, createMission, predictedElements } from './mission';
+export type {
+  ActiveBurn,
+  EntryRecord,
+  MissionPhase,
+  MissionState,
+  PadCard,
+  PadField,
+} from './types';

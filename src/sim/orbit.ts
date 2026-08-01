@@ -61,10 +61,27 @@ export function trueAnomalyAt(el: Elements, t: number, mu = MU_EARTH): number {
 }
 
 /**
- * Position and velocity at time t after epoch, in the inertial frame.
- * Standard perifocal-to-inertial transform: rotate by argp about z, by
- * inclination about x, then by RAAN about z.
+ * The perifocal-to-inertial transform for an element set: rotate by argp
+ * about z, by inclination about x, then by RAAN about z. Exported as the one
+ * owner of the sim's rotation convention - the renderer consumes this rather
+ * than re-deriving it, so a drawn conic can never skew off the propagated
+ * satellite.
  */
+export function perifocalToInertial(el: Elements): (v: Vec3) => Vec3 {
+  return (v) => rotateZ(rotateX(rotateZ(v, el.argp), el.i), el.raan);
+}
+
+/**
+ * Inertial position at eccentric anomaly E. Equal steps in E spread points
+ * evenly around the ellipse, which is why trace sampling parameterizes by E
+ * rather than by true anomaly.
+ */
+export function orbitPointAtE(el: Elements, E: number): Vec3 {
+  const b = el.a * Math.sqrt(1 - el.e * el.e);
+  return perifocalToInertial(el)(vec3(el.a * (Math.cos(E) - el.e), b * Math.sin(E), 0));
+}
+
+/** Position and velocity at time t after epoch, in the inertial frame. */
 export function stateAt(el: Elements, t: number, mu = MU_EARTH): State {
   const nu = trueAnomalyAt(el, t, mu);
   const p = el.a * (1 - el.e * el.e);
@@ -74,7 +91,7 @@ export function stateAt(el: Elements, t: number, mu = MU_EARTH): State {
   const rPerifocal = vec3(r * Math.cos(nu), r * Math.sin(nu), 0);
   const vPerifocal = vec3(-sqrtMuOverP * Math.sin(nu), sqrtMuOverP * (el.e + Math.cos(nu)), 0);
 
-  const toInertial = (v: Vec3): Vec3 => rotateZ(rotateX(rotateZ(v, el.argp), el.i), el.raan);
+  const toInertial = perifocalToInertial(el);
 
   return { position: toInertial(rPerifocal), velocity: toInertial(vPerifocal) };
 }
