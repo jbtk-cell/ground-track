@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TWO_PI, orbitPointAtE } from '../sim';
 import type { Elements } from '../sim';
+import { presetByName } from './camera';
 import { scenePointFromSim } from './units';
 
 /**
@@ -17,6 +18,28 @@ const GAP_SIZE = 0.038;
 /** The occluded pass renders at this fraction of the solid opacity. */
 const OCCLUDED_OPACITY = 0.28;
 
+/**
+ * DIRECTION.md: the dash phase crawls "4 px/s so a still frame is never
+ * frozen." Converted once to scene units/s at the mission framing rather than
+ * read from the live viewport, so the rate is a fixed constant, not something
+ * that changes on every window resize.
+ *
+ * At distance d from the camera, the frame's vertical span in scene units is
+ * 2 * d * tan(fovY / 2); dividing by the reference frame height in pixels
+ * (the 1600x900 the shot harness renders at) gives scene units per pixel.
+ */
+const DASH_CRAWL_PX_PER_S = 4;
+const REFERENCE_FRAME_HEIGHT_PX = 900;
+const missionPreset = presetByName('mission');
+if (missionPreset === undefined) throw new Error('Missing mission camera preset');
+const [cameraX, cameraY, cameraZ] = missionPreset.position;
+const [targetX, targetY, targetZ] = missionPreset.target;
+const missionCameraDistance = Math.hypot(cameraX - targetX, cameraY - targetY, cameraZ - targetZ);
+const missionHalfFovRad = (missionPreset.fov * Math.PI) / 360;
+const sceneUnitsPerPixel =
+  (2 * missionCameraDistance * Math.tan(missionHalfFovRad)) / REFERENCE_FRAME_HEIGHT_PX;
+const DASH_CRAWL_SCENE_UNITS_PER_S = DASH_CRAWL_PX_PER_S * sceneUnitsPerPixel;
+
 export interface OrbitTraceOptions {
   readonly colour: THREE.ColorRepresentation;
   readonly opacity: number;
@@ -29,6 +52,8 @@ export interface OrbitTraceOptions {
 export interface OrbitTrace {
   readonly object: THREE.Group;
   update(elements: Elements): void;
+  /** Sets the dashed passes' phase as a pure function of the app's sceneTime. */
+  setDashTime(tScene: number): void;
   setColour(hex: THREE.ColorRepresentation): void;
   dispose(): void;
 }
@@ -69,6 +94,26 @@ export function createOrbitTrace(options: OrbitTraceOptions): OrbitTrace {
   const materials: Array<THREE.LineBasicMaterial | THREE.LineDashedMaterial> = [];
   /** The line whose computeLineDistances() feeds every dashed material. */
   let dashedLine: THREE.Line | null = null;
+  /** The lineDistance values computeLineDistances() produced, phase zero. */
+  let baseLineDistances: Float32Array | null = null;
+  let dashTime = 0;
+
+  /**
+   * Shifts the dashed pass's lineDistance attribute by the current phase
+   * without a full computeLineDistances() recompute: the dash shader takes
+   * `mod(lineDistance, dashSize + gapSize)`, and GLSL mod handles the negative
+   * values a growing offset produces, so a per-vertex subtraction is enough.
+   */
+  function applyDashOffset(): void {
+    if (dashedLine === null || baseLineDistances === null) return;
+    const attribute = dashedLine.geometry.getAttribute('lineDistance') as THREE.BufferAttribute;
+    const array = attribute.array as Float32Array;
+    const offset = dashTime * DASH_CRAWL_SCENE_UNITS_PER_S;
+    baseLineDistances.forEach((base, k) => {
+      array[k] = base - offset;
+    });
+    attribute.needsUpdate = true;
+  }
 
   if (options.ghost === true) {
     const material = new THREE.LineDashedMaterial({
@@ -139,8 +184,21 @@ export function createOrbitTrace(options: OrbitTraceOptions): OrbitTrace {
 
       position.needsUpdate = true;
       // Dash placement is a cumulative arc length baked into the geometry;
-      // skip this and the dashed pass renders nothing.
-      if (dashedLine) dashedLine.computeLineDistances();
+      // skip this and the dashed pass renders nothing. Elements arrive far
+      // less often than frames render, so recomputing it here (rather than in
+      // applyDashOffset, called every frame) is the expensive path only when
+      // the orbit actually changes.
+      if (dashedLine) {
+        dashedLine.computeLineDistances();
+        const attribute = dashedLine.geometry.getAttribute('lineDistance') as THREE.BufferAttribute;
+        baseLineDistances = Float32Array.from(attribute.array as Float32Array);
+        applyDashOffset();
+      }
+    },
+
+    setDashTime(tScene: number) {
+      dashTime = tScene;
+      applyDashOffset();
     },
 
     setColour(hex: THREE.ColorRepresentation) {
