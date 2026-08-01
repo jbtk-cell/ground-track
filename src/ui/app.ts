@@ -296,6 +296,11 @@ export function startApp(): void {
       );
     }
 
+    // A pure function of sceneTime, which is itself frozen under setPaused and
+    // pinned by setTime - the crawl inherits both for free.
+    trace.setDashTime(sceneTime);
+    ghost.setDashTime(sceneTime);
+
     handle.update(sceneTime);
     renderer.render(handle.scene, handle.camera);
   };
