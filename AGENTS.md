@@ -3,8 +3,9 @@
 A satellite game. The flight computer solves the orbit, prints the whole
 maneuver card, and stops one line short. The player types the last number.
 
-Read [docs/DIRECTION.md](docs/DIRECTION.md) before touching anything visual. It
-is binding, not advisory. [docs/LOOP.md](docs/LOOP.md) describes how the agent
+Read [docs/DIRECTION.md](docs/DIRECTION.md) before touching anything visual, and
+[docs/STRUCTURE.md](docs/STRUCTURE.md) before touching gameplay. Both are
+binding, not advisory. [docs/LOOP.md](docs/LOOP.md) describes how the agent
 loop is meant to run.
 
 ## Verify with this
@@ -41,6 +42,20 @@ pass. For anything that changes what is on screen, run `npm run shots` and
    angular momentum are conserved, the period obeys Kepler's third law, and a
    burn produces the apoapsis the card predicted.
 
+5. **Thresholds are printed card fields enforced as plant limits** — tolerance,
+   corridor width, box width, capacity — the `toleranceKm` / tank-cutoff
+   precedent in `mission.ts`. They apply to every entry alike and are visible on
+   the card before entry. A threshold the player never saw printed is a hidden
+   verdict.
+
+6. **Grade changes only the numeral form.** No area, encounter, or content gates
+   by grade or curriculum. The only gate in the game is delta-v aboard, and it
+   prints as a fact line (`TRANSFER DV 2 400 M/S · TANK 900 M/S`), never a lock.
+
+7. **Completion keys to physical totals** (seconds, frames, m/s, kilograms,
+   cells) — never sustained-performance judgments, never wall-clock streaks.
+   No percent anywhere in the UI layer, including register strings.
+
 ## Art direction rules that are mechanically checked
 
 `npm run palette` enforces these against rendered frames:
@@ -72,7 +87,7 @@ src/ui/       DOM wiring - the PAD (pad.ts) and the app loop (app.ts, which
               owns all mutable session state and the wall-to-sim pacing)
 scripts/      shots.mjs (visual baselines), palette-check.mjs (colour gate)
 tests/        mirrors src/. Headless.
-docs/         DIRECTION.md, PLATFORM.md, LOOP.md
+docs/         DIRECTION.md, STRUCTURE.md, PLATFORM.md, LOOP.md
 ```
 
 ## Mission hooks
