@@ -38,10 +38,11 @@ export {
   trueAnomalyAt,
   visViva,
 } from './orbit';
-export { formatCountdown, formatInt, formatKm, formatMS } from './format';
+export { formatCountdown, formatDeg, formatInt, formatKm, formatMS } from './format';
 export { integrateBurn, stepBurn } from './burn';
 export type { PlanOptions } from './plan';
 export { idealDeltaVMS, nextPeriapsisTime, planApogeeRaise, planCorrection } from './plan';
+export { PLANE_SPACING_SEED_COUNTS, commitPlaneSpacing, planPlaneSpacing } from './constellation';
 export type { MissionConfig } from './mission';
 export { advance, commitEntry, createMission, predictedElements } from './mission';
 export type {
@@ -51,4 +52,5 @@ export type {
   MissionState,
   PadCard,
   PadField,
+  SpacingCard,
 } from './types';
