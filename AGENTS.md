@@ -15,6 +15,7 @@ npm run verify     # typecheck, lint, test, build
 npm run shots      # render every camera preset to shots/current
 npm run gates      # run every gate in scripts/gates/ against those PNGs
 npm run palette    # just the palette gate, when that is all you changed
+npm run shots:diff # just the pixel-drift gate (comparison only runs in CI - see below)
 ```
 
 Do not report work as complete without running `npm run verify` and seeing it
@@ -69,6 +70,32 @@ Gates in place today:
 
 - `palette` - there is no black anywhere; `VOID_SLATE` (`#101B26`) is the
   darkest value.
+- `shots-diff` - every preset in `shots/current` must stay within pixel-drift
+  tolerance of the committed `shots/baseline`; a missing or an unexpected
+  extra preset always fails, in any environment. The byte-level pixel
+  comparison itself only runs when `CI` is set: GitHub Actions' `ubuntu-latest`
+  runner renders with software-rasterised Chromium, and a developer's own
+  machine renders with real GPU antialiasing that disagrees with the
+  CI-rendered baseline by about 1% on every preset even with nothing changed.
+  **CI is the sole authoritative environment for this gate.** Outside CI,
+  `npm run gates` / `npm run shots:diff` print an advisory and skip the pixel
+  comparison, so a clean local tree stays green and nothing tempts a
+  re-baseline off local rendering. Force the real comparison locally with
+  `CI=1 npm run shots:diff` - useful to confirm a change actually moves pixels,
+  or to reproduce a CI failure (below).
+  - **Moving a baseline deliberately:** push the source change first, without
+    touching `shots/baseline`. Once CI's `visual` job runs, download that run's
+    `shots` artifact (`gh run download <run-id> -n shots`) - it holds
+    `shots/current` exactly as CI rendered it - copy those PNGs into
+    `shots/baseline`, commit, push, and explain the change in the PR body.
+    That download-and-copy is the only sanctioned way to move a baseline;
+    running `npm run shots -- --baseline` on your own machine captures your
+    machine's rendering, not CI's, and reintroduces the mismatch.
+  - **Reproducing a CI failure's diff images:** they are not uploaded as a CI
+    artifact. Download the failing run's `shots` artifact into `shots/current`
+    and run `CI=1 npm run shots:diff` locally - the comparison is pure byte
+    math with no rendering involved, so it reproduces CI's verdict exactly and
+    writes the same images to `shots/diff`.
 
 Deleting or loosening an existing gate is not ordinary work: it needs an issue
 that asks for it and a PR body that says why, and the reviewer rejects it
@@ -99,6 +126,7 @@ src/ui/       DOM wiring - the PAD (pad.ts) and the app loop (app.ts, which
               owns all mutable session state and the wall-to-sim pacing)
 scripts/      shots.mjs (visual baselines), gates.mjs (runs scripts/gates/*)
 scripts/gates/  one file per mechanically checked art-direction rule
+scripts/lib/  shared helpers for gate scripts (png.mjs - PNG decode/encode)
 tests/        mirrors src/. Headless.
 docs/         DIRECTION.md, STRUCTURE.md, PLATFORM.md, LOOP.md
 ```

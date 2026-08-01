@@ -6,4 +6,5 @@ dist/
 *.log
 .env
 shots/current/
+shots/diff/
 .claude/worktrees/
