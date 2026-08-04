@@ -8,3 +8,6 @@ dist/
 shots/current/
 shots/diff/
 .claude/worktrees/
+
+# Scratch files from review agents driving the browser.
+.gt-*
