@@ -45,6 +45,7 @@ const SEALED = [
   // walked - a hole the size of a doorway, in a brand new room, found by this
   // check rather than by looking.
   'spine-run',
+  'node-across',
   'station-run',
   'station-seam',
 ];
