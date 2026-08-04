@@ -213,7 +213,7 @@ one of the two is front-facing from any eye.
 
 This shipped three times. The pocket's side cheeks landed on the bulkhead plane.
 Fixing that by running the frame aft THROUGH the plane so it overlapped the
-sleeve in solid material then put *their* faces flush, down both sides of the
+sleeve in solid material then put _their_ faces flush, down both sides of the
 reveal, full height. The rails landed on the jambs the same way.
 
 Eye is the wrong instrument: this door has several hundred face pairs. So every
@@ -301,8 +301,8 @@ structure does not emerge from a wall, it lands on a fitting that spreads load.
 
 **Detail is not decoration out there; it is scale.** A 5.6 m panel drawn as one
 flat box has nothing in it to tell the eye how big it is or how far away, so it
-reads as unfinished whatever colour it is. What fixes that is a *repeat at a
-known pitch*:
+reads as unfinished whatever colour it is. What fixes that is a _repeat at a
+known pitch_:
 
 - The boom is a **three-chord truss** - longerons, battens, and diagonals that
   alternate hand bay to bay so it reads as braced rather than as a ladder. It
@@ -346,7 +346,7 @@ and an early cut of it was silently doing nothing.
 
 Earth's icosahedron is at `detail: 42` (36 980 facets), up from 28. Through a
 window the planet is seen far closer to full frame than it ever is on the
-orbital map. It is still deliberately a *faceted* Earth - every facet has to
+orbital map. It is still deliberately a _faceted_ Earth - every facet has to
 stay big enough to read as one, or the low-poly language quietly becomes a
 smooth sphere with noise on it.
 
@@ -815,13 +815,14 @@ about 1% on every preset and committing it bakes the mismatch in permanently.
 **A gate only covers the states it renders**, and that is not a small caveat.
 The palette gate passed every run while the test button's live ring rendered at
 255,255,247 across eight thousand pixels - blown white, in a game with no white
+
 - because not one pinned shot had ever stood at a control and operated it. Four
-poses are four poses. When a room grows a state that looks different from every
-other state, pin it: `deck-reach` and `deck-press` exist for exactly that, and
-`deck-press` is set in eclipse so the step is measured with nothing else in the
-room to hide behind. A preset may drive the room as well as pose it - `press:
+  poses are four poses. When a room grows a state that looks different from every
+  other state, pin it: `deck-reach` and `deck-press` exist for exactly that, and
+  `deck-press` is set in eclipse so the step is measured with nothing else in the
+  room to hide behind. A preset may drive the room as well as pose it - `press:
 true` calls `interact()` and then nudges the pinned clock past the cap's spring
-time, since a spring needs an interval and the harness's clock does not run.
+  time, since a spring needs an interval and the harness's clock does not run.
 
 `deck-door` is the same lesson learned twice: the aft door's OPEN state had no
 pinned shot, and that is how it shipped with a header standing out through the

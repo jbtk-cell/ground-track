@@ -1472,9 +1472,7 @@ function boxOnHull(
   const seat = hullPoint(x, theta, inset).addScaledVector(tangent, slideAlongArc);
 
   const geometry = new THREE.BoxGeometry(width, height, depth);
-  geometry.applyMatrix4(
-    new THREE.Matrix4().makeBasis(axis, tangent, inward).setPosition(seat)
-  );
+  geometry.applyMatrix4(new THREE.Matrix4().makeBasis(axis, tangent, inward).setPosition(seat));
   return geometry;
 }
 
@@ -1538,14 +1536,7 @@ function buildStowage(palette: Palette): THREE.Group {
     runs.push(tubeBetween(a, b, 0.016, 5));
     runs.push(tubeBetween(a, b, 0.011, 5));
     // A tape wrap at each tie-down.
-    tapes.push(
-      tubeBetween(
-        a.clone().lerp(b, 0.42),
-        a.clone().lerp(b, 0.5),
-        0.026,
-        6
-      )
-    );
+    tapes.push(tubeBetween(a.clone().lerp(b, 0.42), a.clone().lerp(b, 0.5), 0.026, 6));
   }
   // The service coil, at the forward end. Four turns, drawn as a flat spiral
   // standing off the wall, which is what a taped-up loop of spare cable is.
@@ -1592,9 +1583,7 @@ function buildStowage(palette: Palette): THREE.Group {
     // Two bungees over each bag, standing proud of the fabric and wrapping
     // slightly further round it than the bag is deep.
     for (const offset of [-bag.w * 0.26, bag.w * 0.26]) {
-      straps.push(
-        boxOnHull(bag.x + offset, BAG_THETA, 0.14, 0.035, bag.h + 0.05, bag.d + 0.045)
-      );
+      straps.push(boxOnHull(bag.x + offset, BAG_THETA, 0.14, 0.035, bag.h + 0.05, bag.d + 0.045));
     }
   }
   group.add(meshOf(merge(bags), palette(PALETTE.ARID), 'stowage-bags'));
@@ -1627,7 +1616,10 @@ function buildRobotBay(palette: Palette): THREE.Group {
   // The cradle: a backplate, a pair of shoulders, and the mating face.
   const arms: THREE.BufferGeometry[] = [boxOnHull(-2.85, DOCK_THETA, 0.02, 0.46, 0.5, 0.04)];
   for (const side of [-1, 1]) {
-    const a = seat.clone().addScaledVector(inward, 0.03).addScaledVector(up, side * 0.17);
+    const a = seat
+      .clone()
+      .addScaledVector(inward, 0.03)
+      .addScaledVector(up, side * 0.17);
     const b = a.clone().addScaledVector(inward, 0.16);
     arms.push(tubeBetween(a, b, 0.022, 6));
   }

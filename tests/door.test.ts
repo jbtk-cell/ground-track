@@ -84,9 +84,7 @@ describe('the aft door: nothing shares a plane with anything', () => {
     const clashes: string[] = [];
 
     for (const shut of [true, false]) {
-      const faces = parts.flatMap((p) =>
-        facesOf(p, p.leaf >= 0 && !shut ? leafLift(p.leaf) : 0)
-      );
+      const faces = parts.flatMap((p) => facesOf(p, p.leaf >= 0 && !shut ? leafLift(p.leaf) : 0));
       for (let i = 0; i < faces.length; i += 1) {
         for (let j = i + 1; j < faces.length; j += 1) {
           const a = faces[i];
@@ -116,8 +114,7 @@ describe('the aft door: nothing shares a plane with anything', () => {
     // wall either side of the head.
     const on = doorParts()
       .filter(
-        (p) =>
-          Math.abs(p.x0 - BULKHEAD_X) < COPLANAR_M || Math.abs(p.x1 - BULKHEAD_X) < COPLANAR_M
+        (p) => Math.abs(p.x0 - BULKHEAD_X) < COPLANAR_M || Math.abs(p.x1 - BULKHEAD_X) < COPLANAR_M
       )
       .map((p) => p.name);
     expect(on).toEqual([]);

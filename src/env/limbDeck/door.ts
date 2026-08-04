@@ -53,11 +53,11 @@ import { AFT_DOORWAY } from './shell';
 export const BULKHEAD_X = -3.2;
 
 /** Clear opening, taken off the pressure vessel's own cut with a margin. */
-const CLEAR_HALF_Z = AFT_DOORWAY.maxZ - 0.045;
-const CLEAR_TOP_Y = AFT_DOORWAY.maxY - 0.06;
+const BORE_Z = AFT_DOORWAY.maxZ - 0.045;
+const HEAD_Y = AFT_DOORWAY.maxY - 0.06;
 /** The threshold plate stands this proud of the deck; the door lands on it. */
 const SILL_Y = 0.016;
-const OPENING_H = CLEAR_TOP_Y - SILL_Y;
+const OPENING_H = HEAD_Y - SILL_Y;
 
 /** How far the frame laps the bulkhead cut, and how far it stands into the room. */
 const COAMING_LAP = 0.24;
@@ -70,10 +70,10 @@ const RAIL_W = 0.075;
 /** How far the rails overhang the opening, capturing the leaf edges. */
 const RAIL_LIP = 0.012;
 
-const LAP_MIN_Y = SILL_Y - COAMING_LAP;
-const LAP_HALF_Z = CLEAR_HALF_Z + COAMING_LAP;
+const LAP_Y = SILL_Y - COAMING_LAP;
+const LAP_Z = BORE_Z + COAMING_LAP;
 const FACE_X = BULKHEAD_X + COAMING_DEPTH;
-const FASCIA_TOP_Y = CLEAR_TOP_Y + FASCIA_H;
+const FASCIA_Y = HEAD_Y + FASCIA_H;
 
 /**
  * Where the frame's back face and the sleeve's front face sit, relative to the
@@ -89,8 +89,8 @@ const FASCIA_TOP_Y = CLEAR_TOP_Y + FASCIA_H;
  * too (SLEEVE_INSET): two boxes occupying the same space is fine, two boxes
  * whose faces land in the same plane is not.
  */
-const FRAME_BACK_X = BULKHEAD_X - 0.022;
-const SLEEVE_FRONT_X = BULKHEAD_X - 0.01;
+const BACK_X = BULKHEAD_X - 0.022;
+const SLEEVE_X = BULKHEAD_X - 0.01;
 const SLEEVE_INSET = 0.008;
 
 /** Leaves: three, lapping each other, thin enough to stack in the reveal. */
@@ -115,12 +115,12 @@ const LEAF_FRONT_X = BULKHEAD_X - REVEAL - LEAF_T;
  * Every real overhead door parks with its bottom rail in the opening.
  */
 const PARK_LIP = 0.05;
-const PARK_Y = CLEAR_TOP_Y - PARK_LIP;
+const PARK_Y = HEAD_Y - PARK_LIP;
 
 /** The pocket the leaves stack in, aft of the bulkhead and over the opening. */
-const POCKET_TOP_Y = PARK_Y + LEAF_H + 0.05;
-const POCKET_ROOF_Y = POCKET_TOP_Y + 0.07;
-const POCKET_BACK_X = LEAF_FRONT_X - (LEAF_COUNT - 1) * LEAF_PITCH - 0.04;
+const POCKET_Y = PARK_Y + LEAF_H + 0.05;
+const ROOF_Y = POCKET_Y + 0.07;
+const POCKET_X = LEAF_FRONT_X - (LEAF_COUNT - 1) * LEAF_PITCH - 0.04;
 
 /** Depth of the sleeve aft of the bulkhead, metres, and the cap that closes it. */
 const JAMB_DEPTH = 1.15;
@@ -151,7 +151,7 @@ const LATCH_S = 0.28;
 
 /** Where the door's button sits, on the starboard jamb outboard of the rail. */
 const BUTTON_Y = 1.28;
-const BUTTON_Z = CLEAR_HALF_Z + 0.157;
+const BUTTON_Z = BORE_Z + 0.157;
 const BUTTON_PLATE_T = 0.016;
 const BUTTON_CAP_T = 0.024;
 
@@ -178,8 +178,8 @@ export const DOOR_BUTTON: readonly [number, number, number] = [
  */
 export const DOOR_FASCIA = {
   x: BULKHEAD_X + FASCIA_DEPTH,
-  minY: CLEAR_TOP_Y,
-  maxY: FASCIA_TOP_Y,
+  minY: HEAD_Y,
+  maxY: FASCIA_Y,
 } as const;
 
 /**
@@ -192,7 +192,7 @@ export const DOOR_FASCIA = {
  */
 export const DOOR_CLEAR = {
   height: PARK_Y - SILL_Y,
-  width: 2 * (CLEAR_HALF_Z - RAIL_LIP),
+  width: 2 * (BORE_Z - RAIL_LIP),
 } as const;
 
 /** How far the frame laps the bulkhead's cut, for the test against `cutMargin()`. */
@@ -252,33 +252,28 @@ export function doorParts(): readonly DoorPart[] {
   // No head piece - the fascia is the head, and one part doing one job is why
   // those two no longer overlap each other by a third of a metre.
   parts.push(
-    part('jamb-port', 'frame', FRAME_BACK_X, FACE_X, LAP_MIN_Y, CLEAR_TOP_Y, -LAP_HALF_Z, -CLEAR_HALF_Z),
-    part('jamb-starboard', 'frame', FRAME_BACK_X, FACE_X, LAP_MIN_Y, CLEAR_TOP_Y, CLEAR_HALF_Z, LAP_HALF_Z),
-    part('threshold', 'frame', FRAME_BACK_X, FACE_X, LAP_MIN_Y, SILL_Y, -CLEAR_HALF_Z, CLEAR_HALF_Z),
+    part('jamb-port', 'frame', BACK_X, FACE_X, LAP_Y, HEAD_Y, -LAP_Z, -BORE_Z),
+    part('jamb-starboard', 'frame', BACK_X, FACE_X, LAP_Y, HEAD_Y, BORE_Z, LAP_Z),
+    part('threshold', 'frame', BACK_X, FACE_X, LAP_Y, SILL_Y, -BORE_Z, BORE_Z),
     // The head. The pocket is behind the bulkhead where nothing can see it, so
     // this panel is the only thing saying a mechanism lives up there.
-    part('fascia', 'frame', FRAME_BACK_X, DOOR_FASCIA.x, CLEAR_TOP_Y, FASCIA_TOP_Y, -LAP_HALF_Z, LAP_HALF_Z)
+    part('fascia', 'frame', BACK_X, DOOR_FASCIA.x, HEAD_Y, FASCIA_Y, -LAP_Z, LAP_Z)
   );
 
   // --- The guide rails: threshold to just under the head in one unbroken run,
   // overhanging the opening so they capture the leaf edges. They are the part
   // that ties the floor, the frame and the head together, and without them the
   // head reads as a slab hung above a hole.
+  const railX0 = BULKHEAD_X + 0.01;
+  const railX1 = BULKHEAD_X + RAIL_DEPTH;
+  const railTop = FASCIA_Y - 0.04;
   for (const side of [-1, 1]) {
-    const inner = side * (CLEAR_HALF_Z - RAIL_LIP);
-    const outer = side * (CLEAR_HALF_Z + RAIL_W);
-    parts.push(
-      part(
-        side < 0 ? 'rail-port' : 'rail-starboard',
-        'trim',
-        BULKHEAD_X + 0.01,
-        BULKHEAD_X + RAIL_DEPTH,
-        SILL_Y,
-        FASCIA_TOP_Y - 0.04,
-        Math.min(inner, outer),
-        Math.max(inner, outer)
-      )
-    );
+    const name = side < 0 ? 'rail-port' : 'rail-starboard';
+    const a = side * (BORE_Z - RAIL_LIP);
+    const b = side * (BORE_Z + RAIL_W);
+    const z0 = Math.min(a, b);
+    const z1 = Math.max(a, b);
+    parts.push(part(name, 'trim', railX0, railX1, SILL_Y, railTop, z0, z1));
   }
 
   // --- The sleeve: a rectangular sock aft of the bulkhead, opening out into the
@@ -289,40 +284,41 @@ export function doorParts(): readonly DoorPart[] {
   // every surface sits on the same emissive floor and a one-value tunnel renders
   // as a flat grey rectangle hung in the doorway. Walls one value, floor and
   // roof another, and the tunnel starts having a top and a bottom.
-  const boreZ = CLEAR_HALF_Z + SLEEVE_INSET;
-  const outerZ = LAP_HALF_Z - SLEEVE_INSET;
+  const boreZ = BORE_Z + SLEEVE_INSET;
+  const outerZ = LAP_Z - SLEEVE_INSET;
   const floorY = SILL_Y - SLEEVE_INSET;
   const capZ = boreZ + 0.007;
+  const pocketTop = POCKET_Y + 0.05;
   parts.push(
     // One wall each side, running the full depth AND the full height - past the
     // tunnel's ceiling and up the pocket. Splitting it into a wall and a pocket
     // cheek was the obvious way to write it and put their faces in the same
     // plane as the jamb's top and the fascia's underside; one taller box has no
     // seam to fight over.
-    part('sleeve-port', 'sleeve', CAP_X, SLEEVE_FRONT_X, SILL_Y, POCKET_ROOF_Y, -outerZ, -boreZ),
-    part('sleeve-starboard', 'sleeve', CAP_X, SLEEVE_FRONT_X, SILL_Y, POCKET_ROOF_Y, boreZ, outerZ),
-    part('sleeve-floor', 'frame', CAP_X, SLEEVE_FRONT_X, LAP_MIN_Y + SLEEVE_INSET, floorY, -outerZ, outerZ),
+    part('sleeve-port', 'sleeve', CAP_X, SLEEVE_X, SILL_Y, ROOF_Y, -outerZ, -boreZ),
+    part('sleeve-starboard', 'sleeve', CAP_X, SLEEVE_X, SILL_Y, ROOF_Y, boreZ, outerZ),
+    part('sleeve-floor', 'frame', CAP_X, SLEEVE_X, LAP_Y + SLEEVE_INSET, floorY, -outerZ, outerZ),
     // Everything that caps the bore is only as wide as the bore, buried in the
     // walls at both ends. Anything reaching the walls' own outer face would be
     // flush with it.
     // Both run PAST the walls' ends rather than up to them: buried in the cap at
     // the far end, stopped short of the bulkhead at the near one, where solid
     // bulkhead is what seals in front of them.
-    part('tunnel-roof', 'frame', CAP_X - 0.02, POCKET_BACK_X - 0.02, CLEAR_TOP_Y, CLEAR_TOP_Y + 0.08, -capZ, capZ),
-    part('pocket-roof', 'sleeve', POCKET_BACK_X, SLEEVE_FRONT_X - 0.008, POCKET_TOP_Y, POCKET_TOP_Y + 0.05, -capZ, capZ),
-    part('pocket-back', 'sleeve', POCKET_BACK_X - 0.02, POCKET_BACK_X, CLEAR_TOP_Y - 0.01, POCKET_TOP_Y + 0.05, -capZ, capZ),
+    part('tunnel-roof', 'frame', CAP_X - 0.02, POCKET_X - 0.02, HEAD_Y, HEAD_Y + 0.08, -capZ, capZ),
+    part('pocket-roof', 'sleeve', POCKET_X, SLEEVE_X - 0.008, POCKET_Y, pocketTop, -capZ, capZ),
+    part('pocket-back', 'sleeve', POCKET_X - 0.02, POCKET_X, HEAD_Y - 0.01, pocketTop, -capZ, capZ),
     // The cap. Temporary in the fiction, load-bearing in the rule: without it the
     // room has a hole and the exterior pass shows space through the wall.
-    part('cap', 'frame', CAP_X - CAP_T, CAP_X, LAP_MIN_Y + SLEEVE_INSET, POCKET_ROOF_Y, -outerZ, outerZ)
+    part('cap', 'frame', CAP_X - CAP_T, CAP_X, LAP_Y + SLEEVE_INSET, ROOF_Y, -outerZ, outerZ)
   );
 
   // The mating flange on the cap: a square rib standing into the tunnel, which is
   // what the next compartment bolts to, and the only thing giving the far end of
   // an otherwise blank 1.15 m tunnel a scale.
   {
-    const out = CLEAR_HALF_Z - 0.06;
+    const out = BORE_Z - 0.06;
     const inn = out - 0.05;
-    const top = CLEAR_TOP_Y - 0.09;
+    const top = HEAD_Y - 0.09;
     const bottom = SILL_Y + 0.09;
     const x0 = CAP_X;
     const x1 = CAP_X + 0.03;
@@ -353,12 +349,13 @@ export function doorParts(): readonly DoorPart[] {
       const x0 = BULKHEAD_X - JAMB_DEPTH * at;
       const x1 = x0 + 0.055;
       const low = floorY + stand;
-      const high = CLEAR_TOP_Y - stand;
+      const high = HEAD_Y - stand;
+      const id = `tunnel-frame-${n}`;
       parts.push(
-        part(`tunnel-frame-${n}-floor`, 'frame', x0, x1, floorY - buried, low, -boreZ, boreZ),
-        part(`tunnel-frame-${n}-roof`, 'frame', x0, x1, high, CLEAR_TOP_Y + buried, -boreZ, boreZ),
-        part(`tunnel-frame-${n}-port`, 'frame', x0, x1, low, high, -boreZ - buried, -boreZ + stand),
-        part(`tunnel-frame-${n}-starboard`, 'frame', x0, x1, low, high, boreZ - stand, boreZ + buried)
+        part(`${id}-floor`, 'frame', x0, x1, floorY - buried, low, -boreZ, boreZ),
+        part(`${id}-roof`, 'frame', x0, x1, high, HEAD_Y + buried, -boreZ, boreZ),
+        part(`${id}-port`, 'frame', x0, x1, low, high, -boreZ - buried, -boreZ + stand),
+        part(`${id}-starboard`, 'frame', x0, x1, low, high, boreZ - stand, boreZ + buried)
       );
     }
   }
@@ -367,7 +364,7 @@ export function doorParts(): readonly DoorPart[] {
   // front in the pocket, and the step between planes at each seam is what makes
   // the stack legible as three before anything has moved. Each carries a raised
   // border, because three bordered panels read as three panels.
-  const halfZ = CLEAR_HALF_Z - LEAF_SIDE_GAP;
+  const halfZ = BORE_Z - LEAF_SIDE_GAP;
   const inset = 0.055;
   const rib = 0.026;
   const bz = halfZ - inset;
@@ -389,17 +386,11 @@ export function doorParts(): readonly DoorPart[] {
   }
 
   // --- The button plate, on the starboard jamb outboard of the rail.
+  const plateX1 = FACE_X + BUTTON_PLATE_T;
+  const plateY = [BUTTON_Y - 0.1, BUTTON_Y + 0.1] as const;
+  const plateZ = [BUTTON_Z - 0.076, BUTTON_Z + 0.076] as const;
   parts.push(
-    part(
-      'button-plate',
-      'frame',
-      FACE_X,
-      FACE_X + BUTTON_PLATE_T,
-      BUTTON_Y - 0.1,
-      BUTTON_Y + 0.1,
-      BUTTON_Z - 0.076,
-      BUTTON_Z + 0.076
-    )
+    part('button-plate', 'frame', FACE_X, plateX1, plateY[0], plateY[1], plateZ[0], plateZ[1])
   );
 
   return parts;
