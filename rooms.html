@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Ground Track &middot; Environments</title>
+    <meta
+      name="description"
+      content="Walk one room. The environment viewer mounts a single environment and nothing else."
+    />
+  </head>
+  <body class="rooms">
+    <canvas id="viewport"></canvas>
+
+    <nav class="rooms-rail" aria-label="Environments">
+      <p class="rooms-eyebrow">Station Kepler &middot; Environments</p>
+      <ul class="rooms-list" id="rooms-list"></ul>
+    </nav>
+
+    <p class="rooms-status" id="rooms-status">loading</p>
+
+    <div class="rooms-controls">
+      <dl class="rooms-legend" id="rooms-legend"></dl>
+    </div>
+
+    <script type="module" src="/src/env/viewer/main.ts"></script>
+  </body>
+</html>
