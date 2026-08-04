@@ -429,6 +429,18 @@ export interface DoorHandle extends Animated {
   press(): boolean;
   /** 0 shut, 1 fully lifted. */
   travel(): number;
+  /**
+   * Whether the far end of the sleeve is closed off.
+   *
+   * True while nothing is attached aft - the cap is what keeps the interior
+   * airtight, and without it the room has a doorway-shaped hole to space. False
+   * once a compartment is joined there, and then it MUST come out: this file has
+   * said since it was written that "when there is a second compartment it
+   * attaches at the cap and the cap comes out", and until this existed it never
+   * did. The door opened onto a flat plate, which is the one thing a door must
+   * never do.
+   */
+  seal(closed: boolean): void;
 }
 
 function boxOf(p: DoorPart): THREE.BufferGeometry {
@@ -484,9 +496,21 @@ export function createDoor(): DoorHandle {
 
   const parts = doorParts();
 
+  // The cap is its own mesh, not merged with the rest of the frame, because it
+  // is the one piece that has to disappear when a compartment is attached aft.
+  const sleeveCapPart = parts.find((p) => p.name === 'cap');
+  const sleeveCap =
+    sleeveCapPart === undefined ? null : new THREE.Mesh(boxOf(sleeveCapPart), materials.frame);
+  if (sleeveCap !== null) {
+    sleeveCap.name = 'door-sleeve-cap';
+    root.add(sleeveCap);
+  }
+
   // Static geometry, one mesh per value.
   for (const key of ['frame', 'sleeve', 'trim', 'leaf'] as const) {
-    const solids = parts.filter((p) => p.leaf < 0 && p.material === key).map(boxOf);
+    const solids = parts
+      .filter((p) => p.leaf < 0 && p.material === key && p.name !== 'cap')
+      .map(boxOf);
     if (solids.length === 0) continue;
     const mesh = new THREE.Mesh(merged(solids), materials[key]);
     mesh.name = `door-${key}`;
@@ -551,6 +575,10 @@ export function createDoor(): DoorHandle {
 
     travel() {
       return travel;
+    },
+
+    seal(closed: boolean) {
+      if (sleeveCap !== null) sleeveCap.visible = closed;
     },
 
     update(frame: Frame) {

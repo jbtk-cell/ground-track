@@ -347,7 +347,11 @@ function buildSpine(): CompartmentHandle {
 
   return {
     root,
-    spawn: { position: [0, FLOOR_Y + EYE_HEIGHT, 0], yaw: Math.PI, pitch: 0 },
+    // Stood at the fore end looking down the run, not in the middle facing a
+    // wall 0.81 m away. The room's whole claim is the long converging view, and
+    // mounted on its own its first frame was a flat grey panel with no floor, no
+    // ceiling and no vanishing point in it.
+    spawn: { position: [HALF_LENGTH - 0.9, FLOOR_Y + EYE_HEIGHT, 0], yaw: Math.PI / 2, pitch: 0 },
     floor,
     pointsOfInterest: points,
     eyeHeight: EYE_HEIGHT,

@@ -53,6 +53,16 @@ export interface CompartmentHandle extends EnvironmentHandle {
    */
   contains(point: THREE.Vector3): number;
   /**
+   * Told, once after building, whether each of its ports leads anywhere.
+   *
+   * A room is built not knowing: whether a seam is a doorway or the end of the
+   * station is a fact about the STATION, and it changes when a compartment is
+   * added. Rooms that carry their own closure at a port - the limb deck's aft
+   * sleeve has a cap, because it had to be airtight long before there was
+   * anything behind it - implement this and take it out when the answer is yes.
+   */
+  sealPort?(portId: string, sealed: boolean): void;
+  /**
    * The room's own bounding box, local. Used to decide what is worth building
    * and to place the station's rooms without overlapping them.
    */

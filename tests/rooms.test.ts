@@ -17,7 +17,8 @@ import { LIMB_DECK } from '../src/env/limbDeck';
 import { STATION } from '../src/env/station/plan';
 import { corners, planeClashes } from '../src/env/kit/solids';
 import { layOut, overlaps } from '../src/env/station/layout';
-import { SEAM } from '../src/env/station/ports';
+import { buildStation } from '../src/env/station/index';
+import { SEAM, facingVector } from '../src/env/station/ports';
 import type { CompartmentDefinition } from '../src/env/station/compartment';
 
 const ROOMS: readonly CompartmentDefinition[] = STATION.rooms;
@@ -211,6 +212,54 @@ describe('the station as a whole', () => {
       }
     }
     expect(same.join('\n')).toBe('');
+  });
+});
+
+describe('the station: you can actually walk between the compartments', () => {
+  it('has continuous floor through every seam', () => {
+    // The one that every gate missed. Two compartments joined at a port are not
+    // joined for WALKING: each room's deck stops at its own end wall and the
+    // collar between them - the door, its pocket, the sleeve - belonged to
+    // neither. Walking aft with the door open, the player stopped dead 1.65 m
+    // short of the corridor and stayed there, while every screenshot preset
+    // passed, because a shot harness teleports and never walks.
+    //
+    // Sampling every 10 cm along the seam axis is the cheapest honest form of
+    // "walk through it": a gap anywhere in the run is a gap the player hits.
+    const station = buildStation(STATION);
+    try {
+      const placed = layOut(STATION.rooms, STATION.connections, STATION.anchor);
+      for (const link of STATION.connections) {
+        const room = STATION.rooms.find((r) => r.id === link.from[0]);
+        const placement = placed.get(link.from[0]);
+        const p = room?.ports.find((q) => q.id === link.from[1]);
+        expect(p, `${link.from[0]} has no port ${link.from[1]}`).toBeDefined();
+        if (p === undefined || placement === undefined) continue;
+
+        const seam = new THREE.Vector3(p.at[0], 0, p.at[2]).applyMatrix4(placement.matrix);
+        const axis = new THREE.Vector3(...facingVector(p.facing))
+          .applyAxisAngle(new THREE.Vector3(0, 1, 0), placement.yaw)
+          .round();
+
+        // Walk the eye from 2 m before the seam to 2 m past it.
+        const gaps: string[] = [];
+        for (let t = -2; t <= 2.0001; t += 0.1) {
+          const x = seam.x + axis.x * t;
+          const z = seam.z + axis.z * t;
+          station.observe?.(new THREE.Vector3(x, 1.74, z));
+          const standing = station.floor.some(
+            (rect) => x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ
+          );
+          if (!standing) gaps.push(`${t.toFixed(1)} m from the seam`);
+        }
+        expect(
+          gaps.slice(0, 6).join(', '),
+          `no floor across ${link.from[0]}.${link.from[1]} -> ${link.to[0]}.${link.to[1]}`
+        ).toBe('');
+      }
+    } finally {
+      station.dispose();
+    }
   });
 });
 
