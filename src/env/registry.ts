@@ -62,6 +62,17 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     },
   },
   {
+    id: 'node',
+    name: 'The Node',
+    description: 'A four-way junction, 4.6 m across the flats.',
+    async load() {
+      return definitionFrom(
+        (await import('./node/index')) as unknown as Record<string, unknown>,
+        'node'
+      );
+    },
+  },
+  {
     // The whole station, streamed. Every compartment above can also be mounted
     // on its own - that is how a room gets reviewed and approved - but this is
     // the one you walk, and the only place the seams between rooms exist.

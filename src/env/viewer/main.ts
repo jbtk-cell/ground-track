@@ -179,6 +179,20 @@ function main(): void {
    */
   let targetsFrom = -1;
 
+  /**
+   * Tell the environment where the eye is, so a station can stream to it.
+   *
+   * Called from the frame loop AND from setPose and setTime, and that is not
+   * belt-and-braces: the screenshot harness pins the clock and drives poses with
+   * the loop PAUSED. With this only in the loop, residency stayed wherever the
+   * player spawned, and a pinned shot deep in the corridor rendered with the
+   * compartment beyond it never built - 18,360 pixels of open space through a
+   * doorway, which the airtight gate caught and no amount of walking would have.
+   */
+  const syncStreaming = (): void => {
+    handle?.observe?.(camera.position);
+  };
+
   const refreshTargets = (): void => {
     const revision = (handle as { poiRevision?: number } | null)?.poiRevision;
     if (revision === undefined || revision === targetsFrom) return;
@@ -379,9 +393,7 @@ function main(): void {
     last = now;
     if (!paused) {
       elapsed += dt;
-      // Where the eye is, before the clock. A station streams its compartments
-      // off this and nothing else implements it; see `observe` in env/types.ts.
-      handle?.observe?.(camera.position);
+      syncStreaming();
       // Absolute, never accumulated inside the room: the same time always
       // produces the same frame, and a dropped frame cannot drift the orbit.
       handle?.update(elapsed);
@@ -440,12 +452,19 @@ function main(): void {
     },
     setTime(seconds: number) {
       elapsed = seconds;
+      syncStreaming();
       handle?.update(elapsed);
+      refreshTargets();
       poseArm(0);
       draw();
     },
     setPose(pose: PoseRequest) {
       controller?.setPose(pose);
+      // Residency follows the eye, not the clock, so a pinned pose has to settle
+      // the station before anything is drawn from it.
+      syncStreaming();
+      handle?.update(elapsed);
+      refreshTargets();
       poseArm(0);
       draw();
     },

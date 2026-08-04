@@ -142,6 +142,16 @@ const INTERIOR_PRESETS = [
     pose: { x: -8, z: 0, yaw: -Math.PI / 2, pitch: 0 },
   },
   {
+    // THE NODE, across the room from one doorway toward the opposite one, so
+    // both corner stacks and three of the four seams are in frame. The room's
+    // whole claim is that it is radially symmetric where everything else on the
+    // station is long, and this is the pose where that is true or it is not.
+    name: 'node-across',
+    room: 'node',
+    t: 19.3,
+    pose: { x: 1.95, z: 0, yaw: Math.PI / 2, pitch: -0.02 },
+  },
+  {
     // Deep in the corridor with the limb deck streamed in behind. Same pose as
     // spine-run but mounted as part of the station, so the two frames are a
     // controlled comparison: anything that differs between them is something

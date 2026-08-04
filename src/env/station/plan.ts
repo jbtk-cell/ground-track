@@ -22,13 +22,17 @@
  */
 import { LIMB_DECK_COMPARTMENT } from '../limbDeck';
 import { SPINE } from '../spine';
+import { NODE } from '../node';
 import type { CompartmentDefinition } from './compartment';
 import { type Connection, connect } from './ports';
 import { type StationHandle, type StationPlan, buildStation } from './index';
 
-const ROOMS: readonly CompartmentDefinition[] = [LIMB_DECK_COMPARTMENT, SPINE];
+const ROOMS: readonly CompartmentDefinition[] = [LIMB_DECK_COMPARTMENT, SPINE, NODE];
 
-const CONNECTIONS: readonly Connection[] = [connect('limb-deck', 'aft', 'spine', 'fore')];
+const CONNECTIONS: readonly Connection[] = [
+  connect('limb-deck', 'aft', 'spine', 'fore'),
+  connect('spine', 'aft', 'node', 'fore'),
+];
 
 export const STATION: StationPlan = {
   id: 'station',
