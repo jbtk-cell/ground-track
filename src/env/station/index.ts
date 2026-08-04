@@ -63,6 +63,19 @@ export interface StationPlan {
  */
 const COMMIT_M = 0.45;
 
+/**
+ * ...but never more than this fraction of the rectangle's own half-width.
+ *
+ * A fixed margin is a different rule in a different sized room. The corridor's
+ * floor is 1.5 m wide, so a flat 0.45 m left a commit band of only +/-0.30 m
+ * inside a room the player may stand +/-0.55 m across: step off the centreline -
+ * more than half the walkable width - and the station never committed, so the
+ * compartment beyond the far door was never built and you were looking through a
+ * doorway at open space. It sealed the moment you walked up the middle once,
+ * which is exactly what every pinned preset does.
+ */
+const COMMIT_FRACTION = 0.3;
+
 interface Resident {
   readonly id: string;
   readonly handle: CompartmentHandle;
@@ -94,12 +107,14 @@ function worldFloor(handle: CompartmentHandle, placement: Placement): readonly F
   });
 }
 
-function inside(rect: FloorRect, x: number, z: number, margin: number): boolean {
+function inside(rect: FloorRect, x: number, z: number): boolean {
+  const marginX = Math.min(COMMIT_M, ((rect.maxX - rect.minX) / 2) * COMMIT_FRACTION);
+  const marginZ = Math.min(COMMIT_M, ((rect.maxZ - rect.minZ) / 2) * COMMIT_FRACTION);
   return (
-    x >= rect.minX + margin &&
-    x <= rect.maxX - margin &&
-    z >= rect.minZ + margin &&
-    z <= rect.maxZ - margin
+    x >= rect.minX + marginX &&
+    x <= rect.maxX - marginX &&
+    z >= rect.minZ + marginZ &&
+    z <= rect.maxZ - marginZ
   );
 }
 
@@ -229,7 +244,12 @@ export function buildStation(plan: StationPlan): StationHandle {
     group.matrix.copy(placement.matrix);
     group.add(handle.root);
     for (const p of handle.ports) {
-      if (!joined.has(`${id}/${p.id}`)) group.add(capFor(p));
+      const sealed = !joined.has(`${id}/${p.id}`);
+      // The station's own blank, for a room that brought no closure of its own.
+      if (sealed) group.add(capFor(p));
+      // And the room's, for one that did. Both are told either way: a room that
+      // was capped in a previous layout has to be uncapped in this one.
+      handle.sealPort?.(p.id, sealed);
     }
     root.add(group);
     resident.set(id, { id, handle, group, placement });
@@ -243,9 +263,84 @@ export function buildStation(plan: StationPlan): StationHandle {
     resident.delete(id);
   };
 
+  /**
+   * The floor THROUGH a seam, which no room owns and which nobody had built.
+   *
+   * Two compartments joined at a port are not joined for walking. The limb deck's
+   * deck stops at its own bulkhead and the corridor's starts at its own end wall,
+   * and between them is the collar - the door, its pocket, the sleeve - which is
+   * 1.25 m of structure belonging to the rooms on either side and 1.65 m of floor
+   * belonging to neither. Walking aft with the door standing open, the player
+   * stopped dead 1.65 m short of the corridor and stayed there. Every gate was
+   * green, because a screenshot harness teleports and never walks.
+   *
+   * `FloorRect` was designed for this - "a doorway between two rooms is just an
+   * overlap between two rectangles" - but an overlap needs a rectangle to be an
+   * overlap OF. This is that rectangle: seam width, spanning from one room's
+   * floor edge to the other's, lapping into both so the union is continuous and
+   * the controller's wall margin never fires in the middle of a doorway.
+   */
+  const seamFloors = (): readonly FloorRect[] => {
+    const out: FloorRect[] = [];
+    for (const link of plan.connections) {
+      const a = resident.get(link.from[0]);
+      const b = resident.get(link.to[0]);
+      if (a === undefined || b === undefined) continue;
+      const near = a.handle.ports.find((p) => p.id === link.from[1]);
+      if (near === undefined) continue;
+
+      const seam = new THREE.Vector3(near.at[0], 0, near.at[2]).applyMatrix4(a.placement.matrix);
+      const axis = new THREE.Vector3(...facingVector(near.facing))
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), a.placement.yaw)
+        .round();
+      const alongX = Math.abs(axis.x) > 0.5;
+
+      // How far each room's floor stops short of the seam, measured as a
+      // projection along the seam axis rather than by comparing named edges. The
+      // first attempt compared rect.minX to the seam and clamped the result at
+      // zero, which yielded a tunnel of length zero and left the 1.65 m gap
+      // exactly where it was.
+      const project = (room: Resident): { lo: number; hi: number } => {
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (const rect of worldFloor(room.handle, room.placement)) {
+          for (const x of [rect.minX, rect.maxX]) {
+            for (const z of [rect.minZ, rect.maxZ]) {
+              const t = (x - seam.x) * axis.x + (z - seam.z) * axis.z;
+              lo = Math.min(lo, t);
+              hi = Math.max(hi, t);
+            }
+          }
+        }
+        return { lo, hi };
+      };
+      // `axis` points out of room A and into room B, so A lies at negative
+      // projection and B at positive. The tunnel runs between the two nearest
+      // edges, lapping 0.06 m into each so the rectangles genuinely overlap
+      // rather than merely touching - a touch leaves the controller's wall
+      // margin free to fire in the middle of a doorway.
+      const near0 = project(a).hi - 0.06;
+      const far0 = project(b).lo + 0.06;
+      const half = SEAM.width / 2;
+      const floorY = a.placement.position.y + near.floorY;
+      const p0 = new THREE.Vector3(seam.x + axis.x * near0, 0, seam.z + axis.z * near0);
+      const p1 = new THREE.Vector3(seam.x + axis.x * far0, 0, seam.z + axis.z * far0);
+      const alongZ = !alongX;
+      out.push({
+        minX: alongZ ? seam.x - half : Math.min(p0.x, p1.x),
+        maxX: alongZ ? seam.x + half : Math.max(p0.x, p1.x),
+        minZ: alongZ ? Math.min(p0.z, p1.z) : seam.z - half,
+        maxZ: alongZ ? Math.max(p0.z, p1.z) : seam.z + half,
+        floorY,
+      });
+    }
+    return out;
+  };
+
   const refreshLists = (): void => {
     floor.length = 0;
     points.length = 0;
+    floor.push(...seamFloors());
     for (const entry of resident.values()) {
       floor.push(...worldFloor(entry.handle, entry.placement));
       for (const poi of entry.handle.pointsOfInterest) {
@@ -332,11 +427,28 @@ export function buildStation(plan: StationPlan): StationHandle {
      */
     observe(position: THREE.Vector3): void {
       eye.copy(position);
-      // Commit to a new room only well inside it - see COMMIT_M.
+      // Commit to a new room when you are well inside it - OR when you are
+      // simply no longer standing in the one you were in. The second clause is
+      // what makes this work in a room narrower than twice the margin: the
+      // corridor is 1.5 m across, so a margin alone left a commit band of
+      // +/-0.52 m in a room the player may stand +/-0.75 m across, and stepping
+      // off the centreline meant the station never committed at all.
+      const here = resident.get(currentId);
+      const stillHere =
+        here !== undefined &&
+        worldFloor(here.handle, here.placement).some(
+          (rect) =>
+            eye.x >= rect.minX && eye.x <= rect.maxX && eye.z >= rect.minZ && eye.z <= rect.maxZ
+        );
       for (const entry of resident.values()) {
         if (entry.id === currentId) continue;
         const rects = worldFloor(entry.handle, entry.placement);
-        if (rects.some((rect) => inside(rect, eye.x, eye.z, COMMIT_M))) {
+        const wellInside = rects.some((rect) => inside(rect, eye.x, eye.z));
+        const anywhereInside = rects.some(
+          (rect) =>
+            eye.x >= rect.minX && eye.x <= rect.maxX && eye.z >= rect.minZ && eye.z <= rect.maxZ
+        );
+        if (wellInside || (!stillHere && anywhereInside)) {
           currentId = entry.id;
           settle();
           break;
@@ -392,7 +504,14 @@ export function buildStation(plan: StationPlan): StationHandle {
      */
     render(renderer: THREE.WebGLRenderer, camera: THREE.PerspectiveCamera): void {
       const rooms = [...resident.values()];
-      const owner = rooms.find((entry) => isPainter(entry.handle));
+      // Only the room you are STANDING IN may paint space, not merely any
+      // resident room that has a window. The exterior pass scissors to where
+      // the window's corners land on screen, and those corners are computed for
+      // a camera assumed to be in that room; from two compartments away the
+      // rectangle is meaningless, and it rendered as a hard-edged black slab
+      // over a third of the frame whenever the player stepped off the corridor's
+      // centreline. A window behind a shut door is not a window.
+      const owner = rooms.find((entry) => entry.id === currentId && isPainter(entry.handle));
 
       if (owner !== undefined) {
         // Space first, into the window's rectangle, behind everything. The

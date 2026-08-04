@@ -206,6 +206,11 @@ function buildLimbDeck(): SelfRenderingHandle {
       if (point.x < -3.15) return 1;
       return hullClearance(point.y, point.z);
     },
+
+    /** The aft sleeve's cap comes out when something is attached behind it. */
+    sealPort(portId: string, sealed: boolean): void {
+      if (portId === 'aft') door.seal(sealed);
+    },
     // Blade pass: speed x blades, at the impeller's REAL rate rather than the
     // geared-down one it is drawn at (see IMPELLER_VISUAL_GEARING). 117.6 Hz -
     // a low hum, which is what a ventilation duct sounds like.

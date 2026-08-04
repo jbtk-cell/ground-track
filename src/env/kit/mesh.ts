@@ -204,7 +204,25 @@ export function toGeometry(target: Sink): THREE.BufferGeometry {
 export function interiorMaterial(nightSide: string): THREE.MeshLambertMaterial {
   return new THREE.MeshLambertMaterial({
     vertexColors: true,
-    flatShading: true,
+    // NOT flatShading, and this is a correctness fix rather than a style change.
+    //
+    // Every geometry built through this kit is NON-INDEXED and gets its normals
+    // from `computeVertexNormals()`, which gives each triangle its own face
+    // normal. The three vertices of a facet therefore already carry identical
+    // normals and the surface renders flat whether or not the flag is set - the
+    // flag is redundant here, and it is not harmless.
+    //
+    // `flatShading` makes the shader ignore the normal attribute and derive one
+    // per pixel from the screen-space derivatives of the view position. Stand
+    // close to a large flat wall and look along it, and those derivatives go
+    // degenerate: the cross product collapses toward zero, `normalize` of it is
+    // NaN, and a NaN fragment clamps to 0,0,0. That is PURE BLACK, in a game
+    // whose direction says the darkest value is VOID_SLATE and there is no black
+    // anywhere. It measured 30 per cent of the frame from a spot the player can
+    // stand in, and no pinned preset had ever stood off a corridor's centreline.
+    //
+    // A curved hull never quite hits the degenerate case, which is why one room
+    // with no flat walls hid this for the whole life of the project.
     emissive: new THREE.Color(nightSide),
     emissiveIntensity: 1,
   });
