@@ -283,11 +283,7 @@ interface Segment {
  * surface was mated a moment ago" read on a fraction of the area, and it is
  * also what a pole face on a real magnetic coupling looks like.
  */
-function buildCoupling(
-  radius: number,
-  ring: THREE.Material,
-  core: THREE.Material
-): THREE.Object3D {
+function buildCoupling(radius: number, ring: THREE.Material, core: THREE.Material): THREE.Object3D {
   const group = new THREE.Object3D();
 
   const bandGeometry = new THREE.CylinderGeometry(radius * 1.06, radius * 1.09, COUPLING_M, 8);
@@ -447,7 +443,10 @@ export function createArm(reducedMotion: boolean): ArmHandle {
   const handPoint = new THREE.Vector3();
 
   /** The path the chain lies on, resampled every frame and walked by arc length. */
-  const curve: THREE.Vector3[] = Array.from({ length: CURVE_SAMPLES + 1 }, () => new THREE.Vector3());
+  const curve: THREE.Vector3[] = Array.from(
+    { length: CURVE_SAMPLES + 1 },
+    () => new THREE.Vector3()
+  );
   const arc = new Float64Array(CURVE_SAMPLES + 1);
 
   const solid = limbSolidLength();

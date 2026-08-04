@@ -103,7 +103,9 @@ export function createTestButton(): TestButtonHandle {
   // Dark is a RECESS - materially below the plate around it, the same trick the
   // cupola's pane reveal uses - rather than the plate's own value. A state light
   // whose off state is invisible has one state.
-  const ringDark = lit(`#${new THREE.Color(PALETTE.HULL_SHADOW).multiplyScalar(0.72).getHexString()}`);
+  const ringDark = lit(
+    `#${new THREE.Color(PALETTE.HULL_SHADOW).multiplyScalar(0.72).getHexString()}`
+  );
   /**
    * The live ring takes no diffuse light at all.
    *

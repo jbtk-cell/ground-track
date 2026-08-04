@@ -28,12 +28,7 @@ import { createMotes } from './motes';
 import { DOOR_BUTTON, DOOR_FULL_RATE_S, createDoor } from './door';
 import type { Frame } from './contract';
 import { buildExterior } from './exterior';
-import {
-  IMPELLER_BLADES,
-  IMPELLER_HZ,
-  IMPELLER_VISUAL_GEARING,
-  buildFixtures,
-} from './fixtures';
+import { IMPELLER_BLADES, IMPELLER_HZ, IMPELLER_VISUAL_GEARING, buildFixtures } from './fixtures';
 import { buildLighting } from './light';
 import { buildShell } from './shell';
 
