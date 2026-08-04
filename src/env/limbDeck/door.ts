@@ -128,6 +128,17 @@ const CAP_X = BULKHEAD_X - JAMB_DEPTH;
 const CAP_T = 0.09;
 
 /**
+ * The seam: where the next compartment's structure begins.
+ *
+ * Exported because the alternative is the next room reverse-deriving
+ * `BULKHEAD_X - 1.15` by reading this file, which is a seam two files describe
+ * independently and therefore a seam that agrees only until someone edits one of
+ * them. The cap standing at this plane is temporary in the fiction - when a room
+ * is attached here, that room's own end wall is what seals the station.
+ */
+export const SEAM_X = CAP_X;
+
+/**
  * Travel time, seconds, and the reason it is not faster.
  *
  * A door is the one moment the player hands control to the room, and how long it

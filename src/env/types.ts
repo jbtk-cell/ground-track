@@ -74,7 +74,7 @@ export interface EnvironmentHandle {
    * like: the pitch of the ventilation is a fact about the fan in THIS room,
    * and a room without machinery simply omits it and stays silent.
    */
-  readonly machineryHz?: number;
+  readonly machineryHz?: number | undefined;
   /**
    * What this room's one moving mechanism is doing, for the audio layer.
    *
@@ -85,6 +85,19 @@ export interface EnvironmentHandle {
    * has exactly one thing in it that moves.
    */
   readonly mechanism?: { travel: number; speed: number };
+  /**
+   * Where the player's eye is, world space, handed over once per frame BEFORE
+   * `update`.
+   *
+   * Optional, and almost nothing implements it: a room is a fixed set of
+   * geometry and has no business knowing where it is being looked at from. The
+   * station does, because streaming is the one decision that depends on the
+   * player's position rather than on the clock, and `update` only carries a
+   * clock. Anything implementing this must stay a pure function of the arguments
+   * it is given, like everything else here - the shot harness sets a pose and
+   * then a time and expects the same frame every run.
+   */
+  observe?(eye: THREE.Vector3): void;
   /**
    * Advance every animation to an absolute time. Absolute rather than delta so
    * the same time always produces the same frame: the shot harness pins it,

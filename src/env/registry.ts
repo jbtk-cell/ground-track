@@ -50,10 +50,35 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
       );
     },
   },
+  {
+    id: 'spine',
+    name: 'The Spine',
+    description: 'An 11 m connecting run, one person wide.',
+    async load() {
+      return definitionFrom(
+        (await import('./spine/index')) as unknown as Record<string, unknown>,
+        'spine'
+      );
+    },
+  },
+  {
+    // The whole station, streamed. Every compartment above can also be mounted
+    // on its own - that is how a room gets reviewed and approved - but this is
+    // the one you walk, and the only place the seams between rooms exist.
+    id: 'station',
+    name: 'Station Kepler',
+    description: 'The pressurised run, streamed a few compartments at a time.',
+    async load() {
+      return definitionFrom(
+        (await import('./station/plan')) as unknown as Record<string, unknown>,
+        'station'
+      );
+    },
+  },
 ];
 
 /** What rooms.html mounts when the fragment is empty. */
-export const DEFAULT_ENVIRONMENT_ID = 'limb-deck';
+export const DEFAULT_ENVIRONMENT_ID = 'station';
 
 export function environmentById(id: string): EnvironmentEntry | undefined {
   return ENVIRONMENTS.find((entry) => entry.id === id);

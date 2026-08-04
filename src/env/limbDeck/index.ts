@@ -17,20 +17,18 @@
  */
 import * as THREE from 'three';
 import { LIMB_DECK_GEOMETRY, LIMB_DECK_GEOMETRY_REDUCED, sampleOrbit } from '../orbit';
-import type {
-  EnvironmentDefinition,
-  EnvironmentHandle,
-  FloorRect,
-  PointOfInterest,
-} from '../types';
+import type { EnvironmentDefinition, FloorRect, PointOfInterest } from '../types';
+import type { CompartmentDefinition, CompartmentHandle } from '../station/compartment';
+import { SEAM, port } from '../station/ports';
+import { solid } from '../kit/solids';
 import { BUTTON_POSITION, createTestButton } from './testButton';
 import { createMotes } from './motes';
-import { DOOR_BUTTON, DOOR_FULL_RATE_S, createDoor } from './door';
+import { DOOR_BUTTON, DOOR_FULL_RATE_S, SEAM_X, createDoor, doorParts, leafLift } from './door';
 import type { Frame } from './contract';
 import { buildExterior } from './exterior';
 import { IMPELLER_BLADES, IMPELLER_HZ, IMPELLER_VISUAL_GEARING, buildFixtures } from './fixtures';
 import { buildLighting } from './light';
-import { buildShell } from './shell';
+import { buildShell, hullClearance } from './shell';
 
 /**
  * Eye height above the deck, metres.
@@ -99,9 +97,33 @@ function prefersReducedMotion(): boolean {
  * (SelfRendering, viewer/main.ts) and a room without a window implements
  * nothing extra and gets the default single pass.
  */
-interface SelfRenderingHandle extends EnvironmentHandle {
+interface SelfRenderingHandle extends CompartmentHandle {
   render(renderer: THREE.WebGLRenderer, camera: THREE.PerspectiveCamera): void;
+  paint(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera): void;
 }
+
+/**
+ * The one seam this room offers, aft, where the lift door already is.
+ *
+ * The door, its pocket and its capped sleeve were built for this before there
+ * was anything to put behind them, so the port sits at the sleeve's far end
+ * rather than at the bulkhead: everything between the two belongs to this room
+ * and always did.
+ */
+const PORTS = [port('aft', [SEAM_X, SEAM.height / 2, 0], '-x', 0)] as const;
+
+/**
+ * Where the room ends, for layout. The hull is a 2.1 m cylinder about y = 1.15,
+ * plus the aft sleeve, plus the cupola standing off the port skin.
+ */
+const EXTENT = {
+  minX: SEAM_X,
+  maxX: 3.35,
+  minY: -0.1,
+  maxY: 3.3,
+  minZ: -2.85,
+  maxZ: 2.25,
+} as const;
 
 function buildLimbDeck(): SelfRenderingHandle {
   const reducedMotion = prefersReducedMotion();
@@ -148,6 +170,42 @@ function buildLimbDeck(): SelfRenderingHandle {
     floor: [DECK],
     pointsOfInterest: POINTS_OF_INTEREST,
     eyeHeight: EYE_HEIGHT,
+    ports: PORTS,
+    extent: EXTENT,
+    /**
+     * The door, as boxes, for the geometry checks in tests/rooms.test.ts.
+     *
+     * An honest partial: the hull, the deck, the cupola and the fixtures are not
+     * declared, because they are curves, lathes and instanced dot matrices that
+     * no box describes. The door is here because the door is where every one of
+     * this project's geometry defects actually happened, and because it is the
+     * piece that moves - `lifts` is what lets the checks run against the open
+     * state, which no screenshot had ever shown.
+     */
+    solids: doorParts().map((part) =>
+      solid(
+        `door/${part.name}`,
+        part.material,
+        part.x0,
+        part.x1,
+        part.y0,
+        part.y1,
+        part.z0,
+        part.z1,
+        part.leaf
+      )
+    ),
+    lifts: [0, 1, 2].map(leafLift),
+    /**
+     * The pressure vessel: a 2.1 m cylinder about y = 1.15, open aft into the
+     * door's sleeve. Anything the room builds has to be inside this, and the
+     * sleeve has to be exempt because it is deliberately outside the cylinder -
+     * it is the tunnel through the bulkhead.
+     */
+    contains(point: THREE.Vector3): number {
+      if (point.x < -3.15) return 1;
+      return hullClearance(point.y, point.z);
+    },
     // Blade pass: speed x blades, at the impeller's REAL rate rather than the
     // geared-down one it is drawn at (see IMPELLER_VISUAL_GEARING). 117.6 Hz -
     // a low hum, which is what a ventilation duct sounds like.
@@ -195,6 +253,23 @@ function buildLimbDeck(): SelfRenderingHandle {
       exterior.render(renderer, root, camera);
     },
 
+    /**
+     * The same two passes, painting space behind a scene that is not this room.
+     *
+     * Inside a station this room is not the only thing on screen, but it is the
+     * only thing with a window, and the exterior pass begins by clearing the
+     * whole canvas. So it paints space and then draws whatever it was handed -
+     * the entire station - rather than drawing itself and erasing its
+     * neighbours. See `Painter` in station/compartment.ts.
+     */
+    paint(
+      renderer: THREE.WebGLRenderer,
+      scene: THREE.Scene,
+      camera: THREE.PerspectiveCamera
+    ): void {
+      exterior.render(renderer, scene, camera);
+    },
+
     dispose(): void {
       exterior.dispose();
       lighting.dispose();
@@ -212,6 +287,23 @@ export const LIMB_DECK: EnvironmentDefinition = {
   id: 'limb-deck',
   name: 'THE LIMB DECK',
   description: 'A 6.4 m module with a faceted cupola in the port hull.',
+  build: buildLimbDeck,
+};
+
+/**
+ * The same room, as a piece of the station.
+ *
+ * Two exports rather than one because both uses are real and neither is a
+ * subset of the other: `LIMB_DECK` is what `rooms.html` mounts to look at this
+ * place on its own, which is how environments get reviewed and approved, and
+ * this is what the station lays out. They build the identical handle.
+ */
+export const LIMB_DECK_COMPARTMENT: CompartmentDefinition = {
+  id: 'limb-deck',
+  name: 'THE LIMB DECK',
+  description: 'A 6.4 m module with a faceted cupola in the port hull.',
+  ports: PORTS,
+  extent: EXTENT,
   build: buildLimbDeck,
 };
 

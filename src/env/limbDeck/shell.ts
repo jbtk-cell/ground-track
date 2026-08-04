@@ -14,6 +14,15 @@
 import * as THREE from 'three';
 import { fbm } from '../../render/noise';
 import { PALETTE } from '../../render/palette';
+import {
+  facetColour,
+  interiorMaterial as meshInteriorMaterial,
+  nth,
+  pushFacet,
+  pushQuad,
+  type Sink,
+  toGeometry,
+} from '../kit/mesh';
 import { LIMB_DECK_ORBIT, sunDirection } from '../orbit';
 import type { Aperture, Frame, ShellHandle } from './contract';
 
@@ -190,12 +199,7 @@ const FITTING_SEED = 1607;
  * the darkest value in the game.
  */
 function interiorMaterial(): THREE.MeshLambertMaterial {
-  return new THREE.MeshLambertMaterial({
-    vertexColors: true,
-    flatShading: true,
-    emissive: new THREE.Color(PALETTE.NIGHT_SIDE),
-    emissiveIntensity: 1,
-  });
+  return meshInteriorMaterial(PALETTE.NIGHT_SIDE);
 }
 
 /**
@@ -235,31 +239,14 @@ function diffuserMaterial(): THREE.MeshLambertMaterial {
   });
 }
 
-interface Sink {
-  readonly position: number[];
-  readonly colour: number[];
-}
-
 /** A point in the module's cross section, at some station along X. */
 interface Section {
   readonly y: number;
   readonly z: number;
 }
 
-/** noUncheckedIndexedAccess makes every array read optional; every index used
- *  here is derived from the array's own length. */
-function nth(values: readonly number[], index: number): number {
-  return values[index] ?? 0;
-}
-
 /** Stand-in for an index that cannot be out of range but is typed as if it can. */
 const ORIGIN = new THREE.Vector3();
-
-const EDGE_A = new THREE.Vector3();
-const EDGE_B = new THREE.Vector3();
-const NORMAL = new THREE.Vector3();
-const CENTROID = new THREE.Vector3();
-const FACET = new THREE.Color();
 
 function cylPoint(x: number, theta: number): THREE.Vector3 {
   return new THREE.Vector3(x, AXIS_Y + RADIUS * Math.cos(theta), RADIUS * Math.sin(theta));
@@ -313,84 +300,6 @@ export function hullClearance(y: number, z: number): number {
 
 function sectionPoint(x: number, s: Section): THREE.Vector3 {
   return new THREE.Vector3(x, s.y, s.z);
-}
-
-/**
- * Per-facet value, sampled at the centroid the way earth.ts samples the planet.
- *
- * The light does the loud work - one sun vector re-values all 384 hull facets
- * every frame - but a distant directional on a cylinder hands every facet at
- * the same angle from zenith the identical term, so a bare hull steps around
- * the arc and reads as one long ribbon along it. This is what separates two
- * facets that share a normal, and it is held to a few per cent: any more and
- * it stops being a facet edge and starts being a texture, which DIRECTION.md
- * does not allow at any strength.
- */
-function facetColour(base: THREE.Color, centroid: THREE.Vector3, seed: number, amount: number) {
-  const n = fbm(centroid.x * 1.6, centroid.y * 1.6, centroid.z * 1.6, seed, 3);
-  return FACET.copy(base).multiplyScalar(1 + (n - 0.5) * 2 * amount);
-}
-
-function pushTriangle(
-  sink: Sink,
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  c: THREE.Vector3,
-  colour: THREE.Color
-): void {
-  sink.position.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
-  for (let v = 0; v < 3; v += 1) sink.colour.push(colour.r, colour.g, colour.b);
-}
-
-/** One triangle, wound so its normal points at `towards`. */
-function pushFacet(
-  sink: Sink,
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  c: THREE.Vector3,
-  towards: THREE.Vector3,
-  colour: THREE.Color
-): void {
-  EDGE_A.subVectors(b, a);
-  EDGE_B.subVectors(c, a);
-  NORMAL.crossVectors(EDGE_A, EDGE_B);
-  CENTROID.copy(a)
-    .add(b)
-    .add(c)
-    .multiplyScalar(1 / 3);
-  CENTROID.subVectors(towards, CENTROID);
-
-  if (NORMAL.dot(CENTROID) >= 0) pushTriangle(sink, a, b, c, colour);
-  else pushTriangle(sink, a, c, b, colour);
-}
-
-/**
- * A quad as two triangles carrying one colour - one facet - wound so its normal
- * points at `towards`. Winding is derived rather than trusted to a hundred call
- * sites because a single back-facing facet is a hole with space behind it.
- */
-function pushQuad(
-  sink: Sink,
-  a: THREE.Vector3,
-  b: THREE.Vector3,
-  c: THREE.Vector3,
-  d: THREE.Vector3,
-  towards: THREE.Vector3,
-  colour: THREE.Color
-): void {
-  EDGE_A.subVectors(b, a);
-  EDGE_B.subVectors(d, a);
-  NORMAL.crossVectors(EDGE_A, EDGE_B);
-  CENTROID.copy(a).add(b).add(c).add(d).multiplyScalar(0.25);
-  CENTROID.subVectors(towards, CENTROID);
-
-  if (NORMAL.dot(CENTROID) >= 0) {
-    pushTriangle(sink, a, b, c, colour);
-    pushTriangle(sink, a, c, d, colour);
-  } else {
-    pushTriangle(sink, a, d, c, colour);
-    pushTriangle(sink, a, c, b, colour);
-  }
 }
 
 /**
@@ -1199,14 +1108,6 @@ function buildCupola(sink: Sink, grid: Grid): { apertures: Aperture[]; throat: A
   };
 
   return { apertures, throat };
-}
-
-function toGeometry(sink: Sink): THREE.BufferGeometry {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(sink.position), 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(sink.colour), 3));
-  geometry.computeVertexNormals();
-  return geometry;
 }
 
 export function buildShell(): ShellHandle {

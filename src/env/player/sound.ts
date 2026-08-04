@@ -135,6 +135,14 @@ const DOOR_MOTOR_LAG_S = 0.12;
 const TONE_GAIN = 0.06;
 /** Seconds to fade in. Slow, so the room is never switched on. */
 const TONE_FADE_S = 2.5;
+/**
+ * How fast the tone slides between two compartments' machinery, seconds.
+ *
+ * Long enough that walking a doorway is a change in the room rather than a
+ * change in the audio: a fan that re-pitches in under a second reads as two
+ * fans, one stopping and one starting.
+ */
+const TONE_GLIDE_S = 0.55;
 /** Air noise above this is hiss, not ventilation. */
 const TONE_CUTOFF_HZ = 420;
 /** Seconds of noise in the loop. Long enough not to hear the seam. */
@@ -155,6 +163,11 @@ export function createSound(): SoundHandle {
   let loading = false;
   let dead = false;
   let tone: GainNode | null = null;
+  /** The blade-pass oscillators, kept so the tone can be retuned or stopped. */
+  let toneVoices: OscillatorNode[] = [];
+  let toneAir: AudioBufferSourceNode | null = null;
+  /** What the tone is currently tuned to, so a repeat of the same room is free. */
+  let toneHz = 0;
   let motor: GainNode | null = null;
 
   const load = async (): Promise<void> => {
@@ -303,8 +316,48 @@ export function createSound(): SoundHandle {
     },
 
     roomTone(bladePassHz) {
-      if (dead || context === null || master === null || tone !== null) return;
+      if (dead || context === null || master === null) return;
       if (context.state !== 'running') return;
+
+      // Already running. Two cases, and neither existed while there was one
+      // room: a station has compartments with different machinery in them and
+      // compartments with none, and walking between them has to change what the
+      // place sounds like.
+      if (tone !== null) {
+        if (bladePassHz <= 0) {
+          // Into a silent room. Fade out and let it go - a tone that merely
+          // dropped to zero gain would keep every oscillator running for the
+          // rest of the session, once per room entered.
+          const dying = tone;
+          const voices = toneVoices;
+          tone = null;
+          toneVoices = [];
+          toneHz = 0;
+          dying.gain.cancelScheduledValues(context.currentTime);
+          dying.gain.setValueAtTime(dying.gain.value, context.currentTime);
+          dying.gain.linearRampToValueAtTime(0, context.currentTime + TONE_FADE_S);
+          const stopAt = context.currentTime + TONE_FADE_S + 0.05;
+          for (const voice of voices) voice.stop(stopAt);
+          window.setTimeout(() => dying.disconnect(), (TONE_FADE_S + 0.2) * 1000);
+          return;
+        }
+        if (Math.abs(bladePassHz - toneHz) > 0.5) {
+          // Different machinery next door. Slide rather than jump: a fan that
+          // changes pitch instantly is two fans.
+          toneHz = bladePassHz;
+          for (let i = 0; i < toneVoices.length; i += 1) {
+            const voice = toneVoices[i];
+            if (voice === undefined) continue;
+            voice.frequency.setTargetAtTime(
+              bladePassHz * (i + 1),
+              context.currentTime,
+              TONE_GLIDE_S
+            );
+          }
+        }
+        return;
+      }
+      if (bladePassHz <= 0) return;
 
       const bed = context.createGain();
       bed.gain.value = 0;
@@ -367,10 +420,17 @@ export function createSound(): SoundHandle {
       bed.gain.setValueAtTime(0, context.currentTime);
       bed.gain.linearRampToValueAtTime(TONE_GAIN, context.currentTime + TONE_FADE_S);
       tone = bed;
+      toneVoices = oscillators;
+      toneHz = bladePassHz;
+      toneAir = air;
     },
 
     dispose() {
       dead = true;
+      for (const voice of toneVoices) voice.stop();
+      toneAir?.stop();
+      toneAir = null;
+      toneVoices = [];
       tone?.disconnect();
       tone = null;
       motor?.disconnect();

@@ -35,7 +35,19 @@ import { decodePNG } from '../lib/png.mjs';
  * the whole point of the check. Anything aimed away from the bay belongs here,
  * and adding a pose to this list is one line.
  */
-const SEALED = ['deck-aft', 'deck-door', 'deck-reach', 'deck-press'];
+const SEALED = [
+  'deck-aft',
+  'deck-door',
+  'deck-reach',
+  'deck-press',
+  // The corridor has no window at all, so every one of its poses qualifies, and
+  // its unconnected aft port measured 18,360 void pixels the first time it was
+  // walked - a hole the size of a doorway, in a brand new room, found by this
+  // check rather than by looking.
+  'spine-run',
+  'station-run',
+  'station-seam',
+];
 
 /** Space, and the darkest value in the game. Nothing interior may reach it. */
 const VOID = [0x10, 0x1b, 0x26];
