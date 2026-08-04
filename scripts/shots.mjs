@@ -121,6 +121,36 @@ const INTERIOR_PRESETS = [
     press: true,
     settle: 2.0,
   },
+  {
+    // THE SPINE, from one end. The room is a proportion and a vanishing point
+    // rather than a set of objects, so the pinned pose is dead centre looking
+    // down the run - the one view that shows what the room is for.
+    name: 'spine-run',
+    room: 'spine',
+    t: 19.3,
+    pose: { x: 4.6, z: 0, yaw: Math.PI / 2, pitch: 0 },
+  },
+  {
+    // The seam, from the corridor side, with the limb deck's shut door beyond
+    // it. This is the only preset that renders two compartments at once, which
+    // is the whole reason it exists: cross-room defects - a light from one room
+    // falling on another, a hole where two hulls meet, a floor that steps - are
+    // invisible in any shot of a single room.
+    name: 'station-seam',
+    room: 'station',
+    t: 19.3,
+    pose: { x: -8, z: 0, yaw: -Math.PI / 2, pitch: 0 },
+  },
+  {
+    // Deep in the corridor with the limb deck streamed in behind. Same pose as
+    // spine-run but mounted as part of the station, so the two frames are a
+    // controlled comparison: anything that differs between them is something
+    // the station is doing to the room.
+    name: 'station-run',
+    room: 'station',
+    t: 19.3,
+    pose: { x: -7, z: 0, yaw: Math.PI / 2, pitch: 0 },
+  },
 ];
 
 const args = process.argv.slice(2);

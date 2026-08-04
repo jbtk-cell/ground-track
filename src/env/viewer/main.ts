@@ -167,6 +167,27 @@ function main(): void {
   let limbOpen = 0;
   const LIMB_OPENING = 0.1;
   const LIMB_SEATED = 0.04;
+  /** Last room tone started, so it is only restarted when it actually changes. */
+  let roomToneHz: number | undefined;
+  /**
+   * The `poiRevision` the arm's target list was built from.
+   *
+   * A single room's points of interest are a fact and can be read once. A
+   * station's are a snapshot: rooms come and go under the player, and without
+   * this the hand would spend the whole game reaching for controls in the
+   * compartment it spawned in - including ones that no longer exist.
+   */
+  let targetsFrom = -1;
+
+  const refreshTargets = (): void => {
+    const revision = (handle as { poiRevision?: number } | null)?.poiRevision;
+    if (revision === undefined || revision === targetsFrom) return;
+    targetsFrom = revision;
+    armTargets =
+      handle?.pointsOfInterest
+        .filter((poi) => poi.operable === true)
+        .map((poi) => ({ id: poi.id, position: new THREE.Vector3(...poi.position) })) ?? [];
+  };
   /**
    * The door, edge-triggered the same way. The release fires as the slab starts
    * to move and the seat as it arrives at either end - a door that clunks only
@@ -358,11 +379,23 @@ function main(): void {
     last = now;
     if (!paused) {
       elapsed += dt;
+      // Where the eye is, before the clock. A station streams its compartments
+      // off this and nothing else implements it; see `observe` in env/types.ts.
+      handle?.observe?.(camera.position);
       // Absolute, never accumulated inside the room: the same time always
       // produces the same frame, and a dropped frame cannot drift the orbit.
       handle?.update(elapsed);
       controller?.update(dt);
+      refreshTargets();
       poseArm(dt);
+      // The room tone belongs to the compartment the player is standing in, so
+      // it is polled rather than set once at mount: walking through a door
+      // changes what the station sounds like.
+      const hz = handle?.machineryHz;
+      if (hz !== roomToneHz) {
+        roomToneHz = hz;
+        sound.roomTone(hz ?? 0);
+      }
       const mechanism = handle?.mechanism;
       if (mechanism !== undefined) {
         sound.doorMotor(mechanism.speed);
