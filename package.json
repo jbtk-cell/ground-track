@@ -19,7 +19,8 @@
     "gates": "node scripts/gates.mjs",
     "palette": "node scripts/gates/palette.mjs",
     "shots:diff": "node scripts/gates/shots-diff.mjs",
-    "accent": "node scripts/gates/accent.mjs"
+    "accent": "node scripts/gates/accent.mjs",
+    "flatness": "node scripts/gates/flatness.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
