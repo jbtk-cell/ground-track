@@ -64,6 +64,29 @@ function hold(
   return { x, z, covered };
 }
 
+/**
+ * Press every door control and run the clock until the doors are up.
+ *
+ * A shut pressure door is now a wall - it has to be, because there is no
+ * collider stack and without it the player walked their eye into the closed
+ * slab and the whole screen went to one flat value, which reads as exactly the
+ * barrier they could not get past. So a test that walks a seam has to open the
+ * seam first, which is a better test than the one it replaces: it covers the
+ * press and the travel as well as the walk.
+ */
+function openEveryDoor(station: {
+  pointsOfInterest: readonly { id: string; operable?: boolean }[];
+  interact?: (id: string) => boolean;
+  update(t: number): void;
+}): void {
+  for (const poi of station.pointsOfInterest) {
+    if (poi.operable === true && poi.id.includes('door-button')) station.interact?.(poi.id);
+  }
+  // Past TRAVEL_S and short of the dwell, stepped rather than jumped so the
+  // door's own rate limiting sees a plausible frame time.
+  for (let t = 0; t <= 2.0001; t += 1 / HZ) station.update(t);
+}
+
 describe('the station: every doorway is walk-through at its full width', () => {
   // The defect this replaces: SEAM.width is 1.18 m, but only the middle 0.70 m
   // could be walked. At |z| >= 0.40 the player stopped inside the door recess.
@@ -93,6 +116,8 @@ describe('the station: every doorway is walk-through at its full width', () => {
       // Across the opening, perpendicular to the way through it.
       const side = new THREE.Vector3(-axis.z, 0, axis.x);
 
+      openEveryDoor(station);
+
       const stuck: string[] = [];
       for (const offset of offsets) {
         const startX = seam.x - axis.x * approach + side.x * offset;
@@ -119,6 +144,46 @@ describe('the station: every doorway is walk-through at its full width', () => {
     // The width test, stated as a number rather than as a pass. SEAM.width is
     // the clear opening; this is the part of it a body can actually use.
     expect(SEAM.width).toBeGreaterThan(1.0);
+  });
+});
+
+describe('the station: a shut door is a wall', () => {
+  it('stops the player in front of the aft door, not inside it', () => {
+    // The defect, reported as "I still cannot physically walk through the
+    // doorway, it may not be tall enough or there is a barrier".
+    //
+    // There is no collider stack here - only the floor - so nothing was stopping
+    // anybody at a closed pressure door. Walking aft, the eye passed INTO the
+    // 2 m slab and the entire viewport became one flat value for the length of
+    // the door and the sleeve behind it. Measured at x = -3.30, ten centimetres
+    // past the bulkhead: a featureless wall filling the frame. It reads exactly
+    // like a barrier you cannot get past, and every gate was blind to it because
+    // the pinned poses are all in the middle of rooms and none of them is inside
+    // a door.
+    const station = buildStation(STATION);
+    try {
+      // Door untouched, so shut. Walk at it from the middle of the deck.
+      const end = hold(station, -2.0, 0, -1, 0, 4);
+      // The leaf's front face is at x = -3.305. Stopping short of it is the
+      // whole point; ending up past it is the bug.
+      expect(end.x, 'walked into the shut door').toBeGreaterThan(-3.3);
+      // And it really is the door that stopped them, not the room being short.
+      expect(end.x, 'stopped nowhere near the door').toBeLessThan(-2.6);
+    } finally {
+      station.dispose();
+    }
+  });
+
+  it('lets the player through once it is open', () => {
+    const station = buildStation(STATION);
+    try {
+      openEveryDoor(station);
+      const end = hold(station, -2.0, 0, -1, 0, 6);
+      // Past the sleeve, past the seam at -4.35, and into the corridor.
+      expect(end.x, 'the open door did not let anyone through').toBeLessThan(-5.5);
+    } finally {
+      station.dispose();
+    }
   });
 });
 

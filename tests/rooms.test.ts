@@ -228,6 +228,15 @@ describe('the station: you can actually walk between the compartments', () => {
     // "walk through it": a gap anywhere in the run is a gap the player hits.
     const station = buildStation(STATION);
     try {
+      // With the doors OPEN. A shut pressure door is deliberately a hole in the
+      // floor now - that is what stops the player walking their eye into the
+      // closed slab - so "continuous through every seam" is a claim about a
+      // seam you are allowed through, and the door has to be raised to test it.
+      for (const poi of station.pointsOfInterest) {
+        if (poi.operable === true && poi.id.includes('door-button')) station.interact?.(poi.id);
+      }
+      for (let t = 0; t <= 2.0001; t += 1 / 60) station.update(t);
+
       const placed = layOut(STATION.rooms, STATION.connections, STATION.anchor);
       for (const link of STATION.connections) {
         const room = STATION.rooms.find((r) => r.id === link.from[0]);
