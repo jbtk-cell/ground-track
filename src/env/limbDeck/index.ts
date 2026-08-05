@@ -24,6 +24,7 @@ import { solid } from '../kit/solids';
 import { BUTTON_POSITION, createTestButton } from './testButton';
 import { createMotes } from './motes';
 import {
+  BULKHEAD_X,
   DOOR_BUTTON,
   DOOR_BUTTON_AFT,
   DOOR_FULL_RATE_S,
@@ -226,6 +227,16 @@ function buildLimbDeck(): SelfRenderingHandle {
     /** The aft sleeve's cap comes out when something is attached behind it. */
     sealPort(portId: string, sealed: boolean): void {
       if (portId === 'aft') door.seal(sealed);
+    },
+
+    /**
+     * The aft door, so the station knows not to let anyone walk through it
+     * while it is shut. The plane sits BULKHEAD_X, and the port is at the far
+     * end of the sleeve at SEAM_X, so the door is that much inside the room.
+     */
+    portDoor(portId: string) {
+      if (portId !== 'aft') return undefined;
+      return { open: door.travel(), inset: BULKHEAD_X - SEAM_X };
     },
     // Blade pass: speed x blades, at the impeller's REAL rate rather than the
     // geared-down one it is drawn at (see IMPELLER_VISUAL_GEARING). 117.6 Hz -

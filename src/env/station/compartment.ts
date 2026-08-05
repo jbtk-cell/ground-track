@@ -63,6 +63,23 @@ export interface CompartmentHandle extends EnvironmentHandle {
    */
   sealPort?(portId: string, sealed: boolean): void;
   /**
+   * The door standing between this port and the room, if there is one.
+   *
+   * A shut pressure door has to STOP somebody, and nothing here was stopping
+   * anybody: there is no collider stack, only the floor, so a player walked
+   * straight into the closed slab and their eye ended up inside it. The whole
+   * screen became one flat value for the length of the door and the sleeve
+   * behind it, which reads exactly like a barrier you cannot get past - and it
+   * was invisible to every gate, because the pinned poses are all in the middle
+   * of rooms and none of them is 0.1 m inside a door.
+   *
+   * `open` is 0 shut to 1 fully lifted. `inset` is how far the door plane sits
+   * INSIDE the room from the port plane, metres, so the station can cut the
+   * walkable tunnel at the right place without knowing anything about how this
+   * particular door is built.
+   */
+  portDoor?(portId: string): { readonly open: number; readonly inset: number } | undefined;
+  /**
    * The room's own bounding box, local. Used to decide what is worth building
    * and to place the station's rooms without overlapping them.
    */

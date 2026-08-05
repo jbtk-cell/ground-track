@@ -77,6 +77,18 @@ const COMMIT_M = 0.45;
  */
 const COMMIT_FRACTION = 0.3;
 
+/**
+ * How far up its travel a door has to be before the floor runs through it.
+ *
+ * Low, because the leaves clear the head long before they are fully parked and
+ * a door you have to wait out after it is already tall enough to walk under is
+ * a door that feels stuck.
+ */
+const DOOR_OPEN_ENOUGH = 0.35;
+
+/** How far in front of a shut door the floor stops, metres. */
+const DOOR_STOP_M = 0.12;
+
 interface Resident {
   readonly id: string;
   readonly handle: CompartmentHandle;
@@ -273,6 +285,13 @@ export function buildStation(plan: StationPlan): StationHandle {
    * floor edge to the other's, lapping into both so the union is continuous and
    * the controller's wall margin never fires in the middle of a doorway.
    */
+  /**
+   * Where the player is. Declared up here rather than beside the handle because
+   * `seamFloors` reads it and `settle()` runs before the handle is built - left
+   * below, the first floor build threw on a temporal dead zone.
+   */
+  const eye = new THREE.Vector3();
+
   const seamFloors = (): readonly FloorRect[] => {
     const out: FloorRect[] = [];
     for (const link of plan.connections) {
@@ -312,8 +331,32 @@ export function buildStation(plan: StationPlan): StationHandle {
       // edges, lapping 0.06 m into each so the rectangles genuinely overlap
       // rather than merely touching - a touch leaves the controller's wall
       // margin free to fire in the middle of a doorway.
-      const near0 = project(a).hi - 0.06;
-      const far0 = project(b).lo + 0.06;
+      let near0 = project(a).hi - 0.06;
+      let far0 = project(b).lo + 0.06;
+
+      // A shut door is a wall. Cut the tunnel at the door plane so the floor
+      // stops short of it, leaving a gap the walk cannot cross, and the player
+      // is held in front of a door they can see and press instead of walking
+      // their eye into the slab.
+      //
+      // The exception is the player already standing in the tunnel: a door that
+      // closes on somebody must not delete the floor under them. While the eye
+      // is inside, the tunnel stays whole and the door simply shuts around them.
+      for (const [room, side] of [
+        [a, link.from[1]],
+        [b, link.to[1]],
+      ] as const) {
+        const gate = room.handle.portDoor?.(side);
+        if (gate === undefined || gate.open >= DOOR_OPEN_ENOUGH) continue;
+        // The door plane in tunnel coordinates. `axis` runs out of A into B, so
+        // A's own fittings are at negative projection and B's at positive.
+        const plane = room === a ? -gate.inset : gate.inset;
+        const t = (eye.x - seam.x) * axis.x + (eye.z - seam.z) * axis.z;
+        if (t > near0 - DOOR_STOP_M && t < far0 + DOOR_STOP_M) continue;
+        if (room === a) near0 = Math.max(near0, plane + DOOR_STOP_M);
+        else far0 = Math.min(far0, plane - DOOR_STOP_M);
+      }
+      if (near0 >= far0) continue;
       const half = SEAM.width / 2;
       const floorY = a.placement.position.y + near.floorY;
       const p0 = new THREE.Vector3(seam.x + axis.x * near0, 0, seam.z + axis.z * near0);
@@ -328,6 +371,37 @@ export function buildStation(plan: StationPlan): StationHandle {
       });
     }
     return out;
+  };
+
+  /**
+   * Whether any door has crossed the open-enough line since we last looked, or
+   * whether the player has stepped into or out of a doorway.
+   *
+   * Both change what the floor is, and both are edges rather than states: the
+   * answer is only interesting on the frame it changes.
+   */
+  /**
+   * A compact description of everything about doors that changes what the floor
+   * is: whether each is open, and whether the player is inside its stand-off.
+   * Both are edges - only interesting on the frame they flip.
+   */
+  const doorSignature = (): string => {
+    const parts: string[] = [];
+    for (const room of resident.values()) {
+      for (const p of room.handle.ports) {
+        const gate = room.handle.portDoor?.(p.id);
+        if (gate === undefined) continue;
+        parts.push(`${room.id}/${p.id}:${gate.open >= DOOR_OPEN_ENOUGH ? 1 : 0}`);
+      }
+    }
+    return parts.join(',');
+  };
+  let lastSignature = '';
+  const gatesChanged = (): boolean => {
+    const now = doorSignature();
+    if (now === lastSignature) return false;
+    lastSignature = now;
+    return true;
   };
 
   const refreshLists = (): void => {
@@ -396,7 +470,6 @@ export function buildStation(plan: StationPlan): StationHandle {
     pitch: localSpawn?.pitch ?? 0,
   };
 
-  const eye = new THREE.Vector3();
   const mechanism = { travel: 0, speed: 0 };
   /**
    * Handed to the windowed room's exterior pass so that it clears the canvas,
@@ -468,6 +541,12 @@ export function buildStation(plan: StationPlan): StationHandle {
     update(tSeconds: number): void {
       lastTime = tSeconds;
       for (const entry of resident.values()) entry.handle.update(tSeconds);
+      // A door that opened has to put the floor back under the doorway, and a
+      // door that shut has to take it away again. Rebuilt only on the crossing
+      // rather than every frame: the floor array is the one the controller is
+      // holding, and rewriting it sixty times a second to say the same thing
+      // would be sixty allocations to no purpose.
+      if (gatesChanged()) refreshLists();
       // The mechanism the viewer listens to is the one in the room the player is
       // standing in. A door closing two compartments away is not a sound.
       const here = resident.get(currentId)?.handle.mechanism;
