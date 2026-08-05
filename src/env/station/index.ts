@@ -6,19 +6,18 @@
  * alternative was teaching the viewer about rooms, residency, placement and
  * routing, and the viewer's job is to run a camera and a pair of legs.
  *
- * STREAMING, AND WHY IT IS NOT AN OPTIMISATION YET. Only the compartment the
- * player is standing in and the ones directly connected to it are built. Everything
- * else does not exist: no geometry, no materials, no update cost. Walk through a
- * door and the far side's neighbours come up while the rooms you can no longer
- * reach go down.
+ * EVERY COMPARTMENT IS BUILT, ALL OF THEM, AT MOUNT. This used to stream a
+ * sliding window of the current room plus its neighbours. Measured, the whole
+ * station is 12 840 triangles and 145 ms - and 11 364 of those triangles are the
+ * limb deck, which is the anchor and resident at all times regardless. The
+ * streaming existed to manage the other 1 476, and it cost three defects shaped
+ * like "the room next door does not exist yet".
  *
- * At the current room count this is not needed for frame rate and that is fine -
- * it is needed for the SHAPE of the thing. A station that only ever holds three
- * rooms in memory can have thirty; a station that builds all of them at mount can
- * have as many as the slowest machine tolerates, and you find out which number
- * that is late, from someone else's laptop. The seam this streams across is the
- * capped sleeve behind the aft door, which was built for this before there was a
- * second room to put behind it.
+ * When there is enough station that this does matter, the thing to stream is a
+ * WING - a run of compartments behind a door that is shut - rather than a sliding
+ * window of neighbours. A shut door is a real seam with a real moment to hide the
+ * work behind; "two rooms away" is not, which is why the sliding window kept
+ * having to be told where the player was and kept being told too late.
  *
  * WHAT MAKES IT SAFE. Three things that are all tests rather than intentions:
  * the layout must close (`layOut` throws rather than placing a room inside
@@ -58,8 +57,10 @@ export interface StationPlan {
  * Without this the current room flips every frame while you stand in a doorway,
  * because a doorway is where two floor rectangles overlap - which is exactly how
  * `FloorRect` was designed to join rooms, so the overlap is not going away. Each
- * flip would tear down one room's neighbours and build another's, several times
- * a second, in the one place where the player can see both.
+ * flip used to tear down one room's neighbours and build another's several times
+ * a second, in the one place where the player can see both. Nothing is torn down
+ * now, but the room you are IN still picks the room tone and the machinery hum,
+ * and those should not stutter in a doorway either.
  */
 const COMMIT_M = 0.45;
 
@@ -145,14 +146,6 @@ export interface StationHandle extends EnvironmentHandle {
 export function buildStation(plan: StationPlan): StationHandle {
   const placed = layOut(plan.rooms, plan.connections, plan.anchor);
   const byId = new Map(plan.rooms.map((room) => [room.id, room]));
-
-  /** Who is next to whom, for deciding what to keep built. */
-  const neighbours = new Map<string, Set<string>>();
-  for (const room of plan.rooms) neighbours.set(room.id, new Set());
-  for (const link of plan.connections) {
-    neighbours.get(link.from[0])?.add(link.to[0]);
-    neighbours.get(link.to[0])?.add(link.from[0]);
-  }
 
   const root = new THREE.Scene();
   root.name = plan.id;
@@ -357,19 +350,33 @@ export function buildStation(plan: StationPlan): StationHandle {
     revision += 1;
   };
 
-  /** Bring residency in line with whichever room the player is in. */
+  /**
+   * Build the station. All of it, once.
+   *
+   * This used to stream: the room you were in plus its neighbours, mounting and
+   * dropping compartments as you walked. That was solving a problem the station
+   * does not have. Measured, the whole place is 12 840 triangles and 145 ms to
+   * build - and 11 364 of those triangles are the limb deck, which is the anchor
+   * and therefore resident at all times anyway. The streaming machinery existed
+   * to manage the other 1 476.
+   *
+   * What it cost was not performance, it was correctness. Residency depended on
+   * position, so `observe` had to be called from setPose and setTime as well as
+   * the frame loop or a pinned screenshot rendered a compartment that had never
+   * been built. The commit band needed a margin tuned per room width, and got it
+   * wrong in the corridor. A port was sealed or open depending on what happened
+   * to be resident. Three separate defects, all of them shaped like "the room
+   * next door does not exist yet", none of them possible now.
+   *
+   * When there is enough station that this matters, the thing to stream is a
+   * WING - a run of compartments behind a closed door - and not a sliding window
+   * of neighbours. Until then, everything is here.
+   */
   const settle = (): void => {
-    const wanted = new Set<string>([currentId, ...(neighbours.get(currentId) ?? [])]);
     let changed = false;
-    for (const id of [...resident.keys()]) {
-      if (!wanted.has(id)) {
-        drop(id);
-        changed = true;
-      }
-    }
-    for (const id of wanted) {
-      if (!resident.has(id)) {
-        build(id);
+    for (const room of plan.rooms) {
+      if (!resident.has(room.id)) {
+        build(room.id);
         changed = true;
       }
     }
@@ -449,8 +456,10 @@ export function buildStation(plan: StationPlan): StationHandle {
             eye.x >= rect.minX && eye.x <= rect.maxX && eye.z >= rect.minZ && eye.z <= rect.maxZ
         );
         if (wellInside || (!stillHere && anywhereInside)) {
+          // Which room the player is in still matters - it picks the room tone,
+          // the machinery hum and which door's travel the audio layer hears -
+          // but it no longer decides what exists.
           currentId = entry.id;
-          settle();
           break;
         }
       }

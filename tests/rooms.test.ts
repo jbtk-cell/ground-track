@@ -270,14 +270,29 @@ describe('the limb deck keeps the promises it made on its own', () => {
     // promise being kept. Runs for every room rather than the one it was
     // written for.
     for (const room of ROOMS) {
-      const built = room.build();
-      try {
-        for (const poi of built.pointsOfInterest) {
+      // One press per room, against a room that has not been pressed yet.
+      //
+      // Sharing a build across every point of interest only worked while no room
+      // had two controls driving one mechanism. The limb deck now has two - the
+      // same door, from the deck and from the corridor - and pressing the first
+      // sets the door moving, so the second press correctly does nothing and the
+      // check read that as a control that was not wired up. `operable` is a
+      // promise about the control, not about the state of what it drives.
+      const listing = room.build();
+      const ids = listing.pointsOfInterest.map((poi) => ({
+        id: poi.id,
+        operable: poi.operable === true,
+      }));
+      listing.dispose();
+
+      for (const poi of ids) {
+        const built = room.build();
+        try {
           const acted = built.interact?.(poi.id) === true;
-          expect(acted, `${room.id}/${poi.id}`).toBe(poi.operable === true);
+          expect(acted, `${room.id}/${poi.id}`).toBe(poi.operable);
+        } finally {
+          built.dispose();
         }
-      } finally {
-        built.dispose();
       }
     }
   });

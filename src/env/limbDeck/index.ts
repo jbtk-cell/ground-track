@@ -23,7 +23,15 @@ import { SEAM, port } from '../station/ports';
 import { solid } from '../kit/solids';
 import { BUTTON_POSITION, createTestButton } from './testButton';
 import { createMotes } from './motes';
-import { DOOR_BUTTON, DOOR_FULL_RATE_S, SEAM_X, createDoor, doorParts, leafLift } from './door';
+import {
+  DOOR_BUTTON,
+  DOOR_BUTTON_AFT,
+  DOOR_FULL_RATE_S,
+  SEAM_X,
+  createDoor,
+  doorParts,
+  leafLift,
+} from './door';
 import type { Frame } from './contract';
 import { buildExterior } from './exterior';
 import { IMPELLER_BLADES, IMPELLER_HZ, IMPELLER_VISUAL_GEARING, buildFixtures } from './fixtures';
@@ -70,6 +78,14 @@ const POINTS_OF_INTEREST: readonly PointOfInterest[] = [
   // pressure slab and having it open is a different and worse promise than
   // pressing the thing that opens it.
   { id: 'door-button', label: 'the aft door control', position: DOOR_BUTTON, operable: true },
+  // The same door, from the corridor. A door you can only open from one side is
+  // a door that works in every screenshot and strands you in the run outside it.
+  {
+    id: 'door-button-aft',
+    label: 'the aft door control',
+    position: DOOR_BUTTON_AFT,
+    operable: true,
+  },
   { id: 'dial', label: 'the sun-bearing dial', position: [-3.19, 1.05, -0.85] },
   { id: 'grille', label: 'the ventilation grille', position: [3.16, 1.05, -1.62] },
   // Wired to nothing, and the only operable thing in the room: the hand reaches
@@ -245,7 +261,7 @@ function buildLimbDeck(): SelfRenderingHandle {
     interact(id: string): boolean {
       // One operable thing in this room so far, and it is deliberately inert.
       if (id === 'test-button') return testButton.press();
-      if (id === 'door-button') return door.press();
+      if (id === 'door-button' || id === 'door-button-aft') return door.press();
       return false;
     },
 

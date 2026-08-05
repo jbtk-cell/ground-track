@@ -11,7 +11,7 @@ import '@fontsource/ibm-plex-mono/400.css';
 
 import * as THREE from 'three';
 import { PALETTE } from '../../render/palette';
-import { DEFAULT_ENVIRONMENT_ID, ENVIRONMENTS, environmentById } from '../registry';
+import { DEFAULT_ENVIRONMENT_ID, ENVIRONMENTS, STATION_ID, environmentById } from '../registry';
 import type { ArmHandle, ArmTarget } from '../player/arm';
 import { createArm } from '../player/arm';
 import { footfallVoice } from '../player/gait';
@@ -189,8 +189,17 @@ function main(): void {
    * compartment beyond it never built - 18,360 pixels of open space through a
    * doorway, which the airtight gate caught and no amount of walking would have.
    */
-  const syncStreaming = (): void => {
+  const syncPresence = (): void => {
     handle?.observe?.(camera.position);
+    // Which compartment the player is standing in, printed live. With the rail
+    // demoted to a review tool this is the only thing that says where you are,
+    // and unlike the rail it is a fact about the walk rather than about a click.
+    const where = (handle as { currentRoom?: () => string } | null)?.currentRoom?.();
+    if (where !== undefined && where !== shownRoom) {
+      shownRoom = where;
+      const named = environmentById(where)?.name ?? where;
+      setStatus(`${named} - walk through the doors`);
+    }
   };
 
   const refreshTargets = (): void => {
@@ -209,6 +218,8 @@ function main(): void {
    */
   let doorMoving = false;
   let mounted: string | null = null;
+  /** Last compartment printed in the status line, so it prints only on change. */
+  let shownRoom: string | null = null;
   let elapsed = 0;
   let paused = false;
   let last = 0;
@@ -234,9 +245,28 @@ function main(): void {
     }
   };
 
+  /**
+   * The rail, which is a review tool and had been reading as the way to get
+   * around.
+   *
+   * Four equally weighted links, one per compartment, is a menu - and a menu is
+   * what a player uses when the doors do not work. They did not: the aft door had
+   * a control on the deck side only, so walking back down the corridor there was
+   * nothing to press. Clicking the list was not the player choosing a shortcut,
+   * it was the only way through.
+   *
+   * So the station is listed on its own as the thing you WALK, and the individual
+   * compartments sit under a heading that says what they are for. They stay
+   * reachable, because mounting one room alone is how a room gets reviewed and
+   * approved and that predates the station.
+   */
   const printList = (): void => {
     list.replaceChildren();
-    for (const entry of ENVIRONMENTS) {
+
+    const station = ENVIRONMENTS.filter((entry) => entry.id === STATION_ID);
+    const compartments = ENVIRONMENTS.filter((entry) => entry.id !== STATION_ID);
+
+    const add = (entry: (typeof ENVIRONMENTS)[number]): void => {
       const item = document.createElement('li');
       item.className = 'rooms-item';
       if (entry.id === mounted) item.classList.add('is-current');
@@ -256,6 +286,16 @@ function main(): void {
       link.append(name, note);
       item.append(link);
       list.append(item);
+    };
+
+    for (const entry of station) add(entry);
+
+    if (compartments.length > 0) {
+      const heading = document.createElement('li');
+      heading.className = 'rooms-heading';
+      heading.textContent = 'or review one alone';
+      list.append(heading);
+      for (const entry of compartments) add(entry);
     }
   };
 
@@ -393,7 +433,7 @@ function main(): void {
     last = now;
     if (!paused) {
       elapsed += dt;
-      syncStreaming();
+      syncPresence();
       // Absolute, never accumulated inside the room: the same time always
       // produces the same frame, and a dropped frame cannot drift the orbit.
       handle?.update(elapsed);
@@ -452,7 +492,7 @@ function main(): void {
     },
     setTime(seconds: number) {
       elapsed = seconds;
-      syncStreaming();
+      syncPresence();
       handle?.update(elapsed);
       refreshTargets();
       poseArm(0);
@@ -462,7 +502,7 @@ function main(): void {
       controller?.setPose(pose);
       // Residency follows the eye, not the clock, so a pinned pose has to settle
       // the station before anything is drawn from it.
-      syncStreaming();
+      syncPresence();
       handle?.update(elapsed);
       refreshTargets();
       poseArm(0);

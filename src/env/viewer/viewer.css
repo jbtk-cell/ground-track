@@ -227,3 +227,21 @@ html {
     transition-duration: 120ms;
   }
 }
+
+/*
+ * The divider between the station and the compartments.
+ *
+ * The rail used to be four equally weighted links, which read as a menu - and a
+ * menu is what a player reaches for when the doors do not work. The station is
+ * the thing you walk; what sits under this heading is the review workflow, where
+ * one room is mounted alone to be approved.
+ */
+.rooms-heading {
+  margin: 18px 0 8px;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--dim);
+  white-space: nowrap;
+  opacity: 0.65;
+}

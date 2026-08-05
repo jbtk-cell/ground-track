@@ -180,6 +180,25 @@ export const DOOR_BUTTON: readonly [number, number, number] = [
 ];
 
 /**
+ * The same door's control on the OTHER side, in the sleeve near its aft mouth.
+ *
+ * A door with one button is a door that only opens from the room that owns it.
+ * Walking back down the corridor you arrived through, there was nothing to press
+ * and no way to get in - and because the shot harness only ever photographed
+ * this door from inside the room, every picture of it showed a door that worked.
+ *
+ * It sits 0.24 m into the sleeve rather than on the bulkhead's aft face, because
+ * the bulkhead is 1.15 m up the tunnel and a promise the hand cannot keep is
+ * worse than no button at all.
+ */
+const AFT_BUTTON_X = CAP_X + 0.24;
+export const DOOR_BUTTON_AFT: readonly [number, number, number] = [
+  AFT_BUTTON_X,
+  BUTTON_Y,
+  BORE_Z + SLEEVE_INSET - BUTTON_PLATE_T - BUTTON_CAP_T,
+];
+
+/**
  * The face of the head panel over the opening, for anything mounted on it.
  *
  * The module's name plate used to sit at a height typed in beside the old round
@@ -404,6 +423,25 @@ export function doorParts(): readonly DoorPart[] {
     part('button-plate', 'frame', FACE_X, plateX1, plateY[0], plateY[1], plateZ[0], plateZ[1])
   );
 
+  // --- The same control on the corridor side, on the sleeve's starboard wall.
+  //
+  // Its outer face lands in the sleeve wall's inner plane, which is legal and
+  // deliberate: the two faces are back to back, pointing opposite ways, and only
+  // SAME-facing coplanar pairs fight for pixels.
+  const aftInnerZ = BORE_Z + SLEEVE_INSET;
+  parts.push(
+    part(
+      'button-plate-aft',
+      'frame',
+      AFT_BUTTON_X - 0.1,
+      AFT_BUTTON_X + 0.1,
+      plateY[0],
+      plateY[1],
+      aftInnerZ - BUTTON_PLATE_T,
+      aftInnerZ
+    )
+  );
+
   return parts;
 }
 
@@ -555,6 +593,24 @@ export function createDoor(): DoorHandle {
   ring.position.set(FACE_X + BUTTON_PLATE_T + 0.001, BUTTON_Y, BUTTON_Z);
   root.add(ring);
 
+  // The corridor-side cap and ring, turned to face across the tunnel rather
+  // than along it. Same door, same press, so it gets the same two pieces - a
+  // control that reads differently from the one on the other side would be a
+  // second mechanism as far as a player is concerned.
+  const aftFaceZ = BORE_Z + SLEEVE_INSET - BUTTON_PLATE_T;
+  const aftCapGeometry = new THREE.CylinderGeometry(0.036, 0.039, BUTTON_CAP_T, 8);
+  aftCapGeometry.rotateX(Math.PI / 2);
+  const aftCap = new THREE.Mesh(aftCapGeometry, materials.trim);
+  aftCap.position.set(AFT_BUTTON_X, BUTTON_Y, aftFaceZ - BUTTON_CAP_T / 2);
+  root.add(aftCap);
+  const aftCapRestZ = aftCap.position.z;
+
+  const aftRingGeometry = new THREE.RingGeometry(0.05, 0.062, 24);
+  const aftRing = new THREE.Mesh(aftRingGeometry, ringShut);
+  aftRing.position.set(AFT_BUTTON_X, BUTTON_Y, aftFaceZ - 0.001);
+  aftRing.rotation.y = Math.PI;
+  root.add(aftRing);
+
   /** 0 shut, 1 lifted. */
   let travel = 0;
   /** Seconds into the cycle, or null when the door is at rest and shut. */
@@ -616,8 +672,13 @@ export function createDoor(): DoorHandle {
       }
       // The cap is in while the latch is working and out once it is moving, so
       // the press has a physical consequence at the button as well.
-      cap.position.x = capRestX - (elapsed !== null && travel < 0.02 ? 0.011 : 0);
+      const pressed = elapsed !== null && travel < 0.02 ? 0.011 : 0;
+      cap.position.x = capRestX - pressed;
       ring.material = travel > 0.02 ? ringLive : ringShut;
+      // The corridor-side control depresses into its own wall, which is +z, so
+      // it moves the other way. Both report the same door.
+      aftCap.position.z = aftCapRestZ + pressed;
+      aftRing.material = ring.material;
     },
 
     dispose() {
