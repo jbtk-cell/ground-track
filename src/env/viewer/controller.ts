@@ -80,6 +80,9 @@ const MAX_DT_S = 0.1;
 /** Probe distance used to tell a doorway from a wall, metres. */
 const EDGE_PROBE_M = 1e-3;
 
+/** Spacing of the floor-continuity probe along a proposed correction. */
+const SEGMENT_PROBE_M = 0.05;
+
 /** Stick radius in CSS pixels; matches .rooms-stick in viewer.css. */
 const STICK_RADIUS_PX = 40;
 
@@ -174,6 +177,30 @@ function insideUnion(floor: readonly FloorRect[], x: number, z: number): boolean
   return floor.some((rect) => x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ);
 }
 
+/**
+ * Whether the straight line between two points stays on the floor throughout.
+ *
+ * This is the honest form of "may the player be moved there": a correction is
+ * a slide if the floor is continuous under it and a teleport if it is not.
+ * Comparing distance against the step length only ever approximated that, and
+ * it got the doorway case backwards.
+ */
+function walkable(
+  floor: readonly FloorRect[],
+  fromX: number,
+  fromZ: number,
+  toX: number,
+  toZ: number
+): boolean {
+  const span = Math.hypot(toX - fromX, toZ - fromZ);
+  const steps = Math.max(2, Math.ceil(span / SEGMENT_PROBE_M));
+  for (let i = 0; i <= steps; i += 1) {
+    const t = i / steps;
+    if (!insideUnion(floor, fromX + (toX - fromX) * t, fromZ + (toZ - fromZ) * t)) return false;
+  }
+  return true;
+}
+
 interface Standing {
   readonly x: number;
   readonly z: number;
@@ -191,44 +218,129 @@ interface Standing {
  * and the margin applies. Clamping x and z independently inside the winning
  * rectangle is what produces the slide along a wall, for free and without a
  * solver.
+ *
+ * A rectangle that already accepts the point wins outright, and that is not an
+ * optimisation. Picking by nearest-clamped-point lets a rectangle the player is
+ * LEAVING beat the one they are entering: approaching a seam off the centre
+ * line, the wide room behind returns a point 0.2 m back down the corridor, the
+ * anti-teleport guard below sees a resolution longer than the step and refuses
+ * it, and the player stops dead inside the door recess with the far room in
+ * plain sight. Nothing in a screenshot can show this, because setPose does not
+ * go through here.
  */
+function clampInto(floor: readonly FloorRect[], rect: FloorRect, x: number, z: number): Standing {
+  // Never more than half the span, so a narrow rectangle collapses onto its
+  // centre line rather than inverting.
+  const marginX = Math.min(WALL_MARGIN_M, (rect.maxX - rect.minX) / 2);
+  const marginZ = Math.min(WALL_MARGIN_M, (rect.maxZ - rect.minZ) / 2);
+  const nearX = clamp(x, rect.minX, rect.maxX);
+  const nearZ = clamp(z, rect.minZ, rect.maxZ);
+
+  const lowX = insideUnion(floor, rect.minX - EDGE_PROBE_M, nearZ)
+    ? rect.minX
+    : rect.minX + marginX;
+  const highX = insideUnion(floor, rect.maxX + EDGE_PROBE_M, nearZ)
+    ? rect.maxX
+    : rect.maxX - marginX;
+  const lowZ = insideUnion(floor, nearX, rect.minZ - EDGE_PROBE_M)
+    ? rect.minZ
+    : rect.minZ + marginZ;
+  const highZ = insideUnion(floor, nearX, rect.maxZ + EDGE_PROBE_M)
+    ? rect.maxZ
+    : rect.maxZ - marginZ;
+
+  return { x: clamp(x, lowX, highX), z: clamp(z, lowZ, highZ), floorY: rect.floorY };
+}
+
 function standingPoint(floor: readonly FloorRect[], x: number, z: number): Standing {
   let best: Standing | null = null;
   let bestDistance = Infinity;
 
   for (const rect of floor) {
-    // Never more than half the span, so a narrow rectangle collapses onto its
-    // centre line rather than inverting.
-    const marginX = Math.min(WALL_MARGIN_M, (rect.maxX - rect.minX) / 2);
-    const marginZ = Math.min(WALL_MARGIN_M, (rect.maxZ - rect.minZ) / 2);
-    const nearX = clamp(x, rect.minX, rect.maxX);
-    const nearZ = clamp(z, rect.minZ, rect.maxZ);
-
-    const lowX = insideUnion(floor, rect.minX - EDGE_PROBE_M, nearZ)
-      ? rect.minX
-      : rect.minX + marginX;
-    const highX = insideUnion(floor, rect.maxX + EDGE_PROBE_M, nearZ)
-      ? rect.maxX
-      : rect.maxX - marginX;
-    const lowZ = insideUnion(floor, nearX, rect.minZ - EDGE_PROBE_M)
-      ? rect.minZ
-      : rect.minZ + marginZ;
-    const highZ = insideUnion(floor, nearX, rect.maxZ + EDGE_PROBE_M)
-      ? rect.maxZ
-      : rect.maxZ - marginZ;
-
-    const qx = clamp(x, lowX, highX);
-    const qz = clamp(z, lowZ, highZ);
-    const distance = (qx - x) * (qx - x) + (qz - z) * (qz - z);
+    const q = clampInto(floor, rect, x, z);
+    // Already legal here: no other rectangle gets to move it.
+    if (q.x === x && q.z === z) return q;
+    const distance = (q.x - x) * (q.x - x) + (q.z - z) * (q.z - z);
     if (distance < bestDistance) {
       bestDistance = distance;
-      best = { x: qx, z: qz, floorY: rect.floorY };
+      best = q;
     }
   }
 
   // An environment with no floor at all still has to be walkable enough to
   // look around from, so the player stays where they were put.
   return best ?? { x, z, floorY: 0 };
+}
+
+/** Where one step of a walk actually lands, and whether anything stopped it. */
+export interface Advance extends Standing {
+  readonly blocked: boolean;
+}
+
+/**
+ * Resolve one step of a walk against the floor.
+ *
+ * Exported and pure so a walk can be simulated without a browser. That is not
+ * a convenience: the shot harness teleports with setPose, which does not come
+ * through here at all, so every defect that only appears while WALKING was
+ * invisible to every gate the project had. A test that calls this at 60 Hz is
+ * the cheapest honest walk there is.
+ */
+export function advance(
+  floor: readonly FloorRect[],
+  x: number,
+  z: number,
+  stepX: number,
+  stepZ: number
+): Advance {
+  const stepLength = Math.hypot(stepX, stepZ);
+  if (stepLength <= 0) return { ...standingPoint(floor, x, z), blocked: false };
+
+  const dirX = stepX / stepLength;
+  const dirZ = stepZ / stepLength;
+
+  // Every rectangle gets to propose where this step lands, and the winner is
+  // the one that gets the body FURTHEST FORWARD, not the one whose point is
+  // nearest. Nearest is what shipped, and nearest is why a doorway could not be
+  // walked through off its centre line: pinned against the end edge of the room
+  // behind, that room proposes "stay exactly here", which is a resolution of
+  // almost zero and beats every alternative on distance while making no
+  // progress at all. The player stands in the recess with the far compartment
+  // in plain sight and the key held down. Scoring by progress instead, the
+  // doorway's own rectangle proposes a point 0.1 m to the side and a whole step
+  // forward, and wins - which is the body turning its shoulders to fit.
+  let best: Standing | null = null;
+  let bestProgress = 1e-6;
+
+  for (const rect of floor) {
+    const q = clampInto(floor, rect, x + stepX, z + stepZ);
+    const progress = (q.x - x) * dirX + (q.z - z) * dirZ;
+    if (progress <= bestProgress) continue;
+    // A correction is a slide if the floor is continuous under it and a
+    // teleport if it is not. Disjoint rectangles can otherwise put a legal
+    // point across a gap: a walk may be blocked, it may never teleport.
+    if (!walkable(floor, x, z, q.x, q.z)) continue;
+    bestProgress = progress;
+    best = q;
+  }
+
+  if (best === null) return { ...standingPoint(floor, x, z), blocked: true };
+
+  // The step may be REDIRECTED into the opening but never lengthened by it.
+  // Letting the sideways correction ride on top of the forward one is what a
+  // teleport looks like when it is small enough to get away with: it covered
+  // 17.3 m of a walk that eight seconds of legs can only cover 14.8 m of.
+  // Capping the whole displacement at the step means funnelling costs forward
+  // progress, which is what turning your shoulders to fit through a door
+  // actually costs.
+  const span = Math.hypot(best.x - x, best.z - z);
+  const t = span > stepLength ? stepLength / span : 1;
+  return {
+    x: x + (best.x - x) * t,
+    z: z + (best.z - z) * t,
+    floorY: best.floorY,
+    blocked: false,
+  };
 }
 
 /** Cubic in-out. DIRECTION's ease, the same curve the exterior camera uses. */
@@ -615,20 +727,13 @@ export function createController(options: ControllerOptions): ViewerController {
     velocityX += (wantX - velocityX) * blend;
     velocityZ += (wantZ - velocityZ) * blend;
 
-    const stepX = velocityX * dt;
-    const stepZ = velocityZ * dt;
-    const stand = standingPoint(floor, x + stepX, z + stepZ);
-    const stepLength = Math.hypot(stepX, stepZ);
-    const resolved = Math.hypot(stand.x - x, stand.z - z);
-    // Disjoint rectangles can put the nearest legal point across a gap. A walk
-    // may be blocked; it may never teleport.
     const fromX = x;
     const fromZ = z;
-    if (resolved <= stepLength + 1e-6) {
-      x = stand.x;
-      z = stand.z;
-      floorY = stand.floorY;
-    } else {
+    const advanced = advance(floor, x, z, velocityX * dt, velocityZ * dt);
+    x = advanced.x;
+    z = advanced.z;
+    floorY = advanced.floorY;
+    if (advanced.blocked) {
       velocityX = 0;
       velocityZ = 0;
     }
