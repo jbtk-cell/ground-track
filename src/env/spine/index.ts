@@ -37,6 +37,7 @@ import { SEAM, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, planeClashes, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
+import { CROWN_COLOUR, REVEAL_COLOUR, bands } from '../kit/bands';
 import type { FloorRect, PointOfInterest } from '../types';
 
 const LENGTH = 11.2;
@@ -49,8 +50,6 @@ const CEILING_Y = 2.24;
 const FRAMES = 8;
 const FRAME_T = 0.09;
 const FRAME_STAND = 0.055;
-/** Wall panels between the frames, in a facet grid fine enough to shade. */
-const PANEL_SEGMENTS = 3;
 
 const SEED = 0x51e;
 const JITTER = 0.05;
@@ -164,7 +163,8 @@ function buildLiner(): THREE.BufferGeometry {
   const target = sink();
   const hull = new THREE.Color(PALETTE.HULL_SHADOW);
   const deck = new THREE.Color(PALETTE.HULL_SHADOW);
-  const roof = new THREE.Color(PALETTE.HULL);
+  const roof = new THREE.Color(CROWN_COLOUR);
+  const reveal = new THREE.Color(REVEAL_COLOUR);
   const inward = new THREE.Vector3(0, CEILING_Y / 2, 0);
   const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
@@ -195,21 +195,46 @@ function buildLiner(): THREE.BufferGeometry {
       facetColour(roof, v(mid, CEILING_Y, 0), SEED, JITTER)
     );
 
-    // Walls, in vertical strips so a grazing beam down the corridor steps.
-    for (let k = 0; k < PANEL_SEGMENTS; k += 1) {
-      const y0 = FLOOR_Y + ((CEILING_Y - FLOOR_Y) * k) / PANEL_SEGMENTS;
-      const y1 = FLOOR_Y + ((CEILING_Y - FLOOR_Y) * (k + 1)) / PANEL_SEGMENTS;
+    // Walls, in the station's three bands rather than in equal strips.
+    //
+    // Equal strips is what this was, and equal strips of one colour is why the
+    // corridor measured 43 on its walls, 44 on its ceiling and 45 on its floor:
+    // a single 8-value bucket covered 83.6% of the frame, the worst in the
+    // station. Three bands at fixed heights, with a VOID_SLATE reveal cut at
+    // each boundary, put a 60-value spread in every frame and give the eye a
+    // horizon to read the corridor's proportion against.
+    for (const band of bands(FLOOR_Y, CEILING_Y)) {
+      const base = new THREE.Color(band.colour);
+      // The band face itself, set at its own depth off the wall plane, and the
+      // reveal below it. Relief is what stops three colours reading as paint.
+      const inset = -band.relief;
       for (const side of [-1, 1] as const) {
-        const z = side * HALF_Z;
+        const z = side * (HALF_Z + inset);
+        const lip = side * HALF_Z;
         pushQuad(
           target,
-          v(x0, y0, z),
-          v(x1, y0, z),
-          v(x1, y1, z),
-          v(x0, y1, z),
+          v(x0, band.y0, z),
+          v(x1, band.y0, z),
+          v(x1, band.y1, z),
+          v(x0, band.y1, z),
           inward,
-          facetColour(hull, v(mid, (y0 + y1) / 2, z), SEED, JITTER)
+          facetColour(base, v(mid, (band.y0 + band.y1) / 2, z), SEED, JITTER)
         );
+        // The return that closes the band's depth back to the wall plane. A
+        // band floating at a depth with no return is a hole in the hull.
+        if (Math.abs(inset) > 1e-6) {
+          for (const y of [band.y0, band.y1]) {
+            pushQuad(
+              target,
+              v(x0, y, lip),
+              v(x1, y, lip),
+              v(x1, y, z),
+              v(x0, y, z),
+              inward,
+              facetColour(reveal, v(mid, y, (lip + z) / 2), SEED, JITTER)
+            );
+          }
+        }
       }
     }
   }
