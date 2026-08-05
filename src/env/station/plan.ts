@@ -37,7 +37,7 @@ const CONNECTIONS: readonly Connection[] = [
 export const STATION: StationPlan = {
   id: 'station',
   name: 'STATION KEPLER',
-  description: 'The pressurised run, streamed a few compartments at a time.',
+  description: 'The pressurised run. Walk it end to end.',
   rooms: ROOMS,
   connections: CONNECTIONS,
   anchor: 'limb-deck',

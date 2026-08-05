@@ -73,12 +73,13 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     },
   },
   {
-    // The whole station, streamed. Every compartment above can also be mounted
-    // on its own - that is how a room gets reviewed and approved - but this is
-    // the one you walk, and the only place the seams between rooms exist.
+    // The whole station. Every compartment above can also be mounted on its own
+    // - that is how a room gets reviewed and approved - but this is the one you
+    // WALK, and the only place the seams between rooms exist. The rail lists it
+    // apart from them for exactly that reason.
     id: 'station',
     name: 'Station Kepler',
-    description: 'The pressurised run, streamed a few compartments at a time.',
+    description: 'The pressurised run. Walk it end to end.',
     async load() {
       return definitionFrom(
         (await import('./station/plan')) as unknown as Record<string, unknown>,
@@ -88,8 +89,14 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
   },
 ];
 
+/**
+ * The whole station: the one you walk, and the only entry that is not a single
+ * compartment. The rail lists it apart from the rooms for that reason.
+ */
+export const STATION_ID = 'station';
+
 /** What rooms.html mounts when the fragment is empty. */
-export const DEFAULT_ENVIRONMENT_ID = 'station';
+export const DEFAULT_ENVIRONMENT_ID = STATION_ID;
 
 export function environmentById(id: string): EnvironmentEntry | undefined {
   return ENVIRONMENTS.find((entry) => entry.id === id);

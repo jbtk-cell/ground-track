@@ -86,11 +86,31 @@ describe('the limb deck: what the hand may reach for', () => {
     try {
       const operable = room.pointsOfInterest.filter((poi) => poi.operable === true);
       // Sorted, so adding a control does not depend on where it lands in the list.
-      expect(operable.map((poi) => poi.id).sort()).toEqual(['door-button', 'test-button']);
+      // Two of these are the same door, from the deck and from the corridor.
+      // A door with one control is a door that opens only from the room that
+      // owns it, and the corridor is not that room.
+      expect(operable.map((poi) => poi.id).sort()).toEqual([
+        'door-button',
+        'door-button-aft',
+        'test-button',
+      ]);
 
-      for (const poi of room.pointsOfInterest) {
-        const acted = room.interact?.(poi.id) === true;
-        expect(acted).toBe(poi.operable === true);
+      // One press per freshly built room. Pressing the deck's door control sets
+      // the door moving, after which the corridor's control correctly reports
+      // that it did nothing - and sharing one build across both would read that
+      // as a control that was never wired up. `operable` promises the control
+      // is live, not that the thing it drives is idle.
+      const ids = room.pointsOfInterest.map((poi) => ({
+        id: poi.id,
+        operable: poi.operable === true,
+      }));
+      for (const poi of ids) {
+        const fresh = LIMB_DECK.build();
+        try {
+          expect(fresh.interact?.(poi.id) === true, poi.id).toBe(poi.operable);
+        } finally {
+          fresh.dispose();
+        }
       }
     } finally {
       room.dispose();
