@@ -56,6 +56,9 @@ const LOOK_LOCKED = 0.0022;
 const LOOK_DRAG = 0.0032;
 const LOOK_TOUCH = 0.0042;
 
+/** Radians per second of turn on the arrow keys. A half-turn in about two seconds. */
+const KEY_LOOK_RATE = 1.6;
+
 /** 85 degrees. Short of vertical, where yaw and pitch stop being separable. */
 const PITCH_LIMIT = 1.4835;
 
@@ -148,6 +151,7 @@ export interface ViewerController {
 export const CONTROL_LEGEND: readonly { readonly keys: string; readonly action: string }[] = [
   { keys: 'W A S D', action: 'walk' },
   { keys: 'mouse', action: 'look - click once, then just move it' },
+  { keys: 'arrows', action: 'look, if the mouse will not' },
   { keys: 'space', action: 'use what you are reaching for' },
   { keys: 'R', action: 'recentre' },
   { keys: 'Esc', action: 'release the pointer' },
@@ -489,9 +493,7 @@ export function createController(options: ControllerOptions): ViewerController {
 
       // A mouse takes the lock on the first press and keeps it. Looking is then
       // just moving the mouse, with no button held and no cursor on screen,
-      // which is how a first-person game has worked since Quake. Drag-look used
-      // to be reachable here and it taught the wrong habit - hold to turn - so
-      // it is now only what happens when the lock is genuinely unavailable.
+      // which is how a first-person game has worked since Quake.
       if (event.pointerType === 'mouse' && !lockRefused) {
         const request = surface.requestPointerLock() as unknown;
         if (request instanceof Promise) {
@@ -499,7 +501,20 @@ export function createController(options: ControllerOptions): ViewerController {
             lockRefused = true;
           });
         }
-        return;
+        // AND FALL THROUGH TO START THE DRAG. This used to return here, so
+        // drag-look was reachable only once `lockRefused` had been set - and
+        // that is set only when requestPointerLock returns a promise AND that
+        // promise rejects. Safari returns undefined. Chrome resolves it but can
+        // still decline the lock silently, notably during the cooldown right
+        // after the player presses Escape, which the legend tells them to do.
+        // In any of those cases `locked()` stayed false, `lookPointer` stayed
+        // null, and BOTH look paths were dead - permanently, with no way back.
+        // Measured: click the canvas, move the mouse 400 px, yaw changes by 0.
+        //
+        // Reported as "I can't look around", and it is also why the door could
+        // not be walked through: the spawn faces 60 degrees off the bow, the one
+        // door is behind you, and a player who cannot turn can never reach it.
+        // If the lock does arrive, pointerlockchange below drops this drag.
       }
 
       lookPointer = event.pointerId;
@@ -518,7 +533,9 @@ export function createController(options: ControllerOptions): ViewerController {
       const dy = event.clientY - lastPointerY;
       lastPointerX = event.clientX;
       lastPointerY = event.clientY;
-      if (ease !== null) return;
+      // The lock owns the look when it is held; this is only the fallback, and
+      // applying both would turn at double rate.
+      if (locked() || ease !== null) return;
       const rate = event.pointerType === 'mouse' ? LOOK_DRAG : LOOK_TOUCH;
       applyLook(-dx * rate, -dy * rate);
     },
@@ -545,8 +562,24 @@ export function createController(options: ControllerOptions): ViewerController {
   document.addEventListener(
     'pointerlockchange',
     () => {
-      if (locked()) lockRefused = false;
+      if (locked()) {
+        lockRefused = false;
+        // The lock won; stand the fallback down so the two cannot both turn.
+        if (lookPointer !== null) {
+          if (surface.hasPointerCapture(lookPointer)) surface.releasePointerCapture(lookPointer);
+          lookPointer = null;
+        }
+      }
       onLockChange?.(locked());
+    },
+    { signal }
+  );
+  // The browser said no out loud. Stop asking and leave drag-look to it - one
+  // refusal is cheap, one refusal per click is a page that never looks anywhere.
+  document.addEventListener(
+    'pointerlockerror',
+    () => {
+      lockRefused = true;
     },
     { signal }
   );
@@ -684,9 +717,37 @@ export function createController(options: ControllerOptions): ViewerController {
     return { forward, right };
   };
 
+  /**
+   * Turning on the arrow keys, which nothing can take away.
+   *
+   * This file used to argue that a second look binding "only splits the habit".
+   * That argument assumed the first one works. Pointer lock is a permission, and
+   * when a browser declines it there is no mouse look at all - at which point a
+   * player is standing in a room unable to turn round, which is what happened.
+   * A keyboard path cannot be refused by a policy, an iframe, or an Escape
+   * keypress, so it is the one that is always there.
+   */
+  const lookInput = (): { yaw: number; pitch: number } => {
+    let yaw = 0;
+    let pitch = 0;
+    if (held.has('ArrowLeft')) yaw += 1;
+    if (held.has('ArrowRight')) yaw -= 1;
+    if (held.has('ArrowUp')) pitch += 1;
+    if (held.has('ArrowDown')) pitch -= 1;
+    return { yaw, pitch };
+  };
+
   const update = (dtRaw: number): void => {
     const dt = clamp(dtRaw, 0, MAX_DT_S);
     const input = walkInput();
+
+    const look = lookInput();
+    if (look.yaw !== 0 || look.pitch !== 0) {
+      // Turning cancels a recentre for the same reason walking does: the player
+      // asked for the camera, so they get it.
+      ease = null;
+      applyLook(look.yaw * KEY_LOOK_RATE * dt, look.pitch * KEY_LOOK_RATE * dt);
+    }
 
     if (ease !== null) {
       // Any attempt to walk hands control straight back. Stopping where the
