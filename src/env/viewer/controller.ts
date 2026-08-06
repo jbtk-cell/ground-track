@@ -489,6 +489,14 @@ export function createController(options: ControllerOptions): ViewerController {
     'pointerdown',
     (event) => {
       onGesture?.();
+      // Take focus off whatever had it - a rail link, most likely - so the
+      // keyboard belongs to the game again. Belt and braces beside the
+      // typingTarget fix: even with keys no longer swallowed, focus sitting on
+      // a link means space activates the link instead of the player's hand.
+      if (document.activeElement instanceof HTMLElement && document.activeElement !== surface) {
+        document.activeElement.blur();
+      }
+      surface.focus({ preventScroll: true });
       if (locked() || lookPointer !== null) return;
 
       // A mouse takes the lock on the first press and keeps it. Looking is then
@@ -520,7 +528,18 @@ export function createController(options: ControllerOptions): ViewerController {
       lookPointer = event.pointerId;
       lastPointerX = event.clientX;
       lastPointerY = event.clientY;
-      surface.setPointerCapture(event.pointerId);
+      // Capturing while the lock is being granted throws InvalidStateError, and
+      // an uncaught throw in a pointerdown handler is a click that half ran.
+      // The capture only matters for the drag fallback anyway - under the lock
+      // there is no pointer to capture.
+      try {
+        surface.setPointerCapture(event.pointerId);
+      } catch {
+        // Capture is a nicety - it keeps pointermove coming if the cursor
+        // leaves the canvas mid-drag. Dragging works without it, so losing the
+        // capture must NOT stand the drag down: in the browser where this
+        // actually throws, drag-look was the only look the player had left.
+      }
     },
     { signal }
   );
@@ -587,9 +606,34 @@ export function createController(options: ControllerOptions): ViewerController {
   // --- Keys. Codes, not characters, so WASD stays under the same fingers on
   // a layout where those keys carry different letters. ---
 
+  /**
+   * Whether the keyboard belongs to something the player is typing into.
+   *
+   * This used to include BUTTON and A, and that is the bug that made the game
+   * unplayable. The left rail is a list of real <a> links, one per compartment,
+   * and clicking one is the most natural first thing anybody does on the page -
+   * it is how you pick a room. A clicked link keeps DOM focus, so from that
+   * moment every keydown arrived with `event.target` set to the link and was
+   * dropped here before it reached `held`. WASD did nothing. The arrow keys did
+   * nothing. Drag-look still worked, because that hangs off the canvas's own
+   * pointer events and does not care about focus - which is exactly the reported
+   * symptom: "I can't look around and I physically can not walk", with the mouse
+   * half working.
+   *
+   * Silent, too. No error, no console output, nothing to see.
+   *
+   * A link owns ENTER and SPACE. It has never owned W.
+   */
   const typingTarget = (target: EventTarget | null): boolean =>
     target instanceof HTMLElement &&
-    (target.tagName === 'BUTTON' || target.tagName === 'A' || target.isContentEditable);
+    (target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT' ||
+      target.isContentEditable);
+
+  /** A focused link or button does own SPACE, and pressing it must not also act. */
+  const activatable = (target: EventTarget | null): boolean =>
+    target instanceof HTMLElement && (target.tagName === 'BUTTON' || target.tagName === 'A');
 
   window.addEventListener(
     'keydown',
@@ -602,6 +646,9 @@ export function createController(options: ControllerOptions): ViewerController {
         return;
       }
       if (event.code === 'Space') {
+        // A focused link or button gets its own space bar; taking it here would
+        // break the rail for anybody navigating by keyboard.
+        if (activatable(event.target)) return;
         // Whatever the hand is already reaching for is what this acts on -
         // there is no cursor and nothing to aim. The page scrolls on space by
         // default, which would move the canvas out from under the player.

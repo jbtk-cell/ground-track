@@ -63,6 +63,12 @@ try {
   await waitForServer();
   browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  // An uncaught throw in a pointerdown handler is a click that half ran, and
+  // one shipped: setPointerCapture raises InvalidStateError once the pointer
+  // lock is held, so every click in the player's browser threw. Nothing in the
+  // suite noticed, because nothing was listening.
+  const pageErrors = [];
+  page.on('pageerror', (e) => pageErrors.push(e.message));
   await page.goto(`http://localhost:${PORT}/rooms.html#station`);
   await page.waitForFunction(() => window.groundTrackRooms?.ready === true, { timeout: 20000 });
 
@@ -93,20 +99,52 @@ try {
     `yaw ${y1.toFixed(2)} -> ${y2.toFixed(2)}`
   );
 
-  // --- Walking the station, from the spawn, keyboard only, pressing nothing.
+  // --- The whole game, as a person plays it: land on the page, hold W.
+  //
+  // No turning first. The spawn must face somewhere worth walking, and for a
+  // long time it did not - it faced the fore bulkhead, a blank closeout, with
+  // the station's only door behind the player. Holding W walked 5.5 m into a
+  // wall and stopped. This check is the difference between "the door works" and
+  // "the game is playable".
   await page.evaluate(() => window.groundTrackRooms.setPose(window.groundTrackRooms.spawn()));
   await page.evaluate(() => window.groundTrackRooms.setPaused(false));
-  await page.keyboard.down('ArrowLeft');
-  await new Promise((r) => setTimeout(r, 1500));
-  await page.keyboard.up('ArrowLeft');
   await page.keyboard.down('w');
   await new Promise((r) => setTimeout(r, 9000));
   await page.keyboard.up('w');
   const end = await pose();
   check(
-    'a player can turn round at the spawn and walk out through the door',
+    'holding W from the spawn walks out through the door',
     end.x < MUST_REACH_X,
     `reached x=${end.x.toFixed(2)}, needed past ${MUST_REACH_X}`
+  );
+  check(
+    'nothing throws while the player plays',
+    pageErrors.length === 0,
+    pageErrors.slice(0, 2).join(' | ')
+  );
+
+  // --- The keyboard still works after clicking something in the rail.
+  //
+  // This is the one that made the game unplayable for a week. Every keydown was
+  // gated on `typingTarget`, which counted BUTTON and A as things being typed
+  // into. The rail is a list of <a> links - clicking one is how you pick a room
+  // - and a clicked link keeps DOM focus, so from that moment every W and every
+  // arrow was dropped before it reached the input. Drag-look still worked, so
+  // the symptom was "the mouse half works and I physically cannot walk", with
+  // no error anywhere. Reproduced and fixed; this is the guard.
+  await page.click('.rooms-link');
+  await new Promise((r) => setTimeout(r, 1200));
+  await page.waitForFunction(() => window.groundTrackRooms?.ready === true, { timeout: 20000 });
+  const railStart = await pose();
+  await page.keyboard.down('w');
+  await new Promise((r) => setTimeout(r, 3000));
+  await page.keyboard.up('w');
+  const railEnd = await pose();
+  const focused = await page.evaluate(() => document.activeElement?.tagName ?? '?');
+  check(
+    'the keyboard still walks after clicking a link in the rail',
+    Math.hypot(railEnd.x - railStart.x, railEnd.z - railStart.z) > 0.3,
+    `focus on ${focused}, moved ${Math.hypot(railEnd.x - railStart.x, railEnd.z - railStart.z).toFixed(2)} m`
   );
 } finally {
   await browser?.close();
