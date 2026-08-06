@@ -44,6 +44,8 @@ export default tseslint.config(
         Buffer: 'readonly',
         window: 'readonly',
         URL: 'readonly',
+        // The playable gate drives a real browser and has to wait on it.
+        setTimeout: 'readonly',
       },
     },
   },
