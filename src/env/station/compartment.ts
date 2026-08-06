@@ -80,6 +80,14 @@ export interface CompartmentHandle extends EnvironmentHandle {
    */
   portDoor?(portId: string): { readonly open: number; readonly inset: number } | undefined;
   /**
+   * Somebody is close enough to this port to walk through it.
+   *
+   * The station works out proximity, because only the station knows where the
+   * player is; the room decides what to do about it. A powered door opens and
+   * stays open until they have gone.
+   */
+  summonPort?(portId: string, near: boolean): void;
+  /**
    * The room's own bounding box, local. Used to decide what is worth building
    * and to place the station's rooms without overlapping them.
    */

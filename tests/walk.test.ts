@@ -41,12 +41,18 @@ interface Walked {
  * built.
  */
 function hold(
-  station: { floor: readonly FloorRect[]; observe?: (eye: THREE.Vector3) => void },
+  station: {
+    floor: readonly FloorRect[];
+    observe?: (eye: THREE.Vector3) => void;
+    update?: (t: number) => void;
+  },
   startX: number,
   startZ: number,
   dirX: number,
   dirZ: number,
-  seconds: number
+  seconds: number,
+  /** Called each step with where the eye is, for invariants along the way. */
+  watch?: (x: number, z: number) => void
 ): Walked {
   const dt = 1 / HZ;
   let x = startX;
@@ -55,6 +61,10 @@ function hold(
   const steps = Math.round(seconds * HZ);
   for (let i = 0; i < steps; i += 1) {
     station.observe?.(new THREE.Vector3(x, EYE_Y, z));
+    // The clock runs, because doors move. A walk that never advanced time would
+    // be walking at a door that can never open, which is a different station.
+    station.update?.(i * dt);
+    watch?.(x, z);
     const before = { x, z };
     const next = advance(station.floor, x, z, dirX * WALK_SPEED_MS * dt, dirZ * WALK_SPEED_MS * dt);
     x = next.x;
@@ -147,40 +157,49 @@ describe('the station: every doorway is walk-through at its full width', () => {
   });
 });
 
-describe('the station: a shut door is a wall', () => {
-  it('stops the player in front of the aft door, not inside it', () => {
-    // The defect, reported as "I still cannot physically walk through the
-    // doorway, it may not be tall enough or there is a barrier".
+describe('the station: the doors let you through', () => {
+  it('walks the whole station without pressing anything', () => {
+    // Reported three times, the last one as "I still cannot walk through the
+    // damn door, it should be fairly easy". It should, and it was not.
     //
-    // There is no collider stack here - only the floor - so nothing was stopping
-    // anybody at a closed pressure door. Walking aft, the eye passed INTO the
-    // 2 m slab and the entire viewport became one flat value for the length of
-    // the door and the sleeve behind it. Measured at x = -3.30, ten centimetres
-    // past the bulkhead: a featureless wall filling the frame. It reads exactly
-    // like a barrier you cannot get past, and every gate was blind to it because
-    // the pinned poses are all in the middle of rooms and none of them is inside
-    // a door.
+    // First the shut door was not a barrier at all, so the eye walked INTO the
+    // slab and the screen went to one flat value - which reads as a wall. Making
+    // it a real barrier fixed that and replaced it with something worse: a door
+    // that only opened from a button on a side jamb, which is a lock. There is
+    // no gameplay here to justify hunting for a control to leave a room.
+    //
+    // So the door opens when somebody walks up to it. This test presses nothing.
     const station = buildStation(STATION);
     try {
-      // Door untouched, so shut. Walk at it from the middle of the deck.
-      const end = hold(station, -2.0, 0, -1, 0, 4);
-      // The leaf's front face is at x = -3.305. Stopping short of it is the
-      // whole point; ending up past it is the bug.
-      expect(end.x, 'walked into the shut door').toBeGreaterThan(-3.3);
-      // And it really is the door that stopped them, not the room being short.
-      expect(end.x, 'stopped nowhere near the door').toBeLessThan(-2.6);
+      const end = hold(station, -2.0, 0, -1, 0, 12);
+      // Past the door, past the corridor, into the node at the far end.
+      expect(end.x, 'never got out of the first room').toBeLessThan(-15);
     } finally {
       station.dispose();
     }
   });
 
-  it('lets the player through once it is open', () => {
+  it('never puts the eye inside the door slab', () => {
+    // The invariant the barrier exists for, and the actual defect: at x = -3.30,
+    // ten centimetres past the bulkhead, the whole viewport was the inside of a
+    // 2 m pressure slab - one flat value filling the frame. Being stopped in
+    // front of it is fine and being let through it is fine; being INSIDE it
+    // while it is down is the bug.
+    //
+    // The leaves hang between x = -3.305 and -3.250 (BULKHEAD_X - REVEAL -
+    // LEAF_T, and LEAF_T thick). `mechanism.travel` is the limb deck's door,
+    // because that is the room the player is in for all of this walk.
+    const SLAB_MIN = -3.305;
+    const SLAB_MAX = -3.25;
     const station = buildStation(STATION);
     try {
-      openEveryDoor(station);
-      const end = hold(station, -2.0, 0, -1, 0, 6);
-      // Past the sleeve, past the seam at -4.35, and into the corridor.
-      expect(end.x, 'the open door did not let anyone through').toBeLessThan(-5.5);
+      const breaches: string[] = [];
+      hold(station, -2.0, 0, -1, 0, 10, (x) => {
+        if (x > SLAB_MAX || x < SLAB_MIN) return;
+        const open = station.mechanism?.travel ?? 0;
+        if (open < 0.35) breaches.push(`x=${x.toFixed(3)} with the door ${open.toFixed(2)} open`);
+      });
+      expect(breaches.slice(0, 4).join(', '), 'walked into the closed leaf').toBe('');
     } finally {
       station.dispose();
     }
