@@ -10,7 +10,9 @@
     />
   </head>
   <body class="rooms">
-    <canvas id="viewport"></canvas>
+    <!-- tabindex so the canvas can hold keyboard focus; without it a
+         clicked rail link keeps focus and the game never sees a keypress. -->
+    <canvas id="viewport" tabindex="-1"></canvas>
 
     <nav class="rooms-rail" aria-label="Environments">
       <p class="rooms-eyebrow">Station Kepler &middot; Environments</p>

@@ -62,13 +62,30 @@ const EYE_HEIGHT = 1.74;
 const DECK: FloorRect = { minX: -3.1, maxX: 3.1, minZ: -1.757, maxZ: 1.757, floorY: 0 };
 
 /**
- * Spawn: x = -2.6 on the centreline, facing forward and to port so the cupola
- * sits left of centre and the beams are a metre aft of the perch, moving toward
- * it. Yaw 0 looks down -Z (port), and -90 degrees looks along +X (fore), so 30
- * degrees to port of fore is -60. The orbital phase is pinned 25 seconds short
- * of local noon in orbit.ts, which is why the first frame is the strong one.
+ * Spawn: x = +1.4 on the centreline, facing AFT and a little to port.
+ *
+ * This used to face -60 degrees: fore and to port, framing the cupola, which is
+ * the best thing in the room and looked like the obvious thing to spawn looking
+ * at. It was the single worst decision in the project.
+ *
+ * The station's only door is aft. Facing fore, the player's first press of W
+ * walks them 5.5 m INTO THE FORE BULKHEAD, which is a blank closeout, and stops
+ * them there. Measured: spawn at x = -2.60, hold W for four seconds, end at
+ * x = +2.90 against the wall. Reported three times as "I can't walk through the
+ * door" and finally as "I physically can not walk" - and every one of those
+ * reports was accurate. There is nothing that way. There never was.
+ *
+ * The position moved too, and for the same reason. x = -2.6 is 0.6 m off the
+ * aft bulkhead: turn to face the door from there and a pressure slab fills the
+ * whole frame, which is exactly why the original spawn faced the other way. From
+ * x = +1.4 the eye has the full 4.5 m length of the deck, the cupola open on the
+ * starboard bow, and the door at the far end of the room - so the way out is
+ * visible from the first frame and is the direction the body already points.
+ *
+ * Yaw 0 looks down -Z (port) and +90 degrees looks along -X (aft); 82 is aft
+ * with just enough port in it to keep the window in shot.
  */
-const SPAWN_YAW = -60 * (Math.PI / 180);
+const SPAWN_YAW = 82 * (Math.PI / 180);
 /** Just off the horizon: the deck and its shaft in the lower frame, the arc above. */
 const SPAWN_PITCH = -0.08;
 
@@ -180,7 +197,7 @@ function buildLimbDeck(): SelfRenderingHandle {
   return {
     root,
     spawn: {
-      position: [-2.6, DECK.floorY + EYE_HEIGHT, 0],
+      position: [1.4, DECK.floorY + EYE_HEIGHT, 0],
       yaw: SPAWN_YAW,
       pitch: SPAWN_PITCH,
     },
