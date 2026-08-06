@@ -404,6 +404,38 @@ export function buildStation(plan: StationPlan): StationHandle {
     return true;
   };
 
+  /**
+   * How close the eye has to get before a door opens for it, metres.
+   *
+   * Set from the door's own timing rather than picked: the leaves take about
+   * 0.8 s to clear the head, and a walk covers 1.5 m in that time. Triggering at
+   * 2.6 m means the door is already open-enough when the player arrives, so they
+   * never stop, and the leaves are visibly moving while they approach - which is
+   * the whole reason to have a door rather than a hole.
+   */
+  const SUMMON_M = 2.6;
+
+  /** Tell every door whether somebody is standing near enough to use it. */
+  const summonDoors = (): void => {
+    for (const room of resident.values()) {
+      if (room.handle.summonPort === undefined) continue;
+      for (const p of room.handle.ports) {
+        const gate = room.handle.portDoor?.(p.id);
+        if (gate === undefined) continue;
+        const facing = new THREE.Vector3(...facingVector(p.facing));
+        const at = new THREE.Vector3(p.at[0], 0, p.at[2])
+          .add(facing.clone().multiplyScalar(-gate.inset))
+          .applyMatrix4(room.placement.matrix);
+        // Distance to the door PLANE along the way through, so standing beside
+        // it in a wide room does not hold it open from across the deck.
+        const out = facing.applyAxisAngle(new THREE.Vector3(0, 1, 0), room.placement.yaw).round();
+        const along = Math.abs((eye.x - at.x) * out.x + (eye.z - at.z) * out.z);
+        const across = Math.abs((eye.x - at.x) * -out.z + (eye.z - at.z) * out.x);
+        room.handle.summonPort(p.id, along < SUMMON_M && across < SEAM.width);
+      }
+    }
+  };
+
   const refreshLists = (): void => {
     floor.length = 0;
     points.length = 0;
@@ -507,6 +539,7 @@ export function buildStation(plan: StationPlan): StationHandle {
      */
     observe(position: THREE.Vector3): void {
       eye.copy(position);
+      summonDoors();
       // Commit to a new room when you are well inside it - OR when you are
       // simply no longer standing in the one you were in. The second clause is
       // what makes this work in a room narrower than twice the margin: the

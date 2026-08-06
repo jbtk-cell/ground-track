@@ -465,6 +465,14 @@ export function doorEnvelope(): readonly (readonly [number, number])[] {
 export interface DoorHandle extends Animated {
   /** Run the cycle. False if it is already doing something. */
   press(): boolean;
+  /**
+   * Somebody is near enough to walk through: open, and hold open until they go.
+   *
+   * The button is no longer the only way past. A shut door became a real barrier
+   * once the floor stopped running through it, and at that point a control the
+   * player has to find on a side jamb is a lock, not a door.
+   */
+  summon(near: boolean): void;
   /** 0 shut, 1 fully lifted. */
   travel(): number;
   /**
@@ -615,6 +623,17 @@ export function createDoor(): DoorHandle {
   let travel = 0;
   /** Seconds into the cycle, or null when the door is at rest and shut. */
   let elapsed: number | null = null;
+  /**
+   * Somebody is standing close enough that the door should be open.
+   *
+   * A powered pressure door that only moves when you find its button is a door
+   * with a puzzle in front of it, and there is no gameplay here to justify one.
+   * Worse, once the shut door became a real barrier, not finding the button
+   * meant not getting through at all - the fix for walking into the slab turned
+   * into a locked door. The button still works and still means something; it is
+   * just no longer the only way past.
+   */
+  let summoned = false;
   let lastT = 0;
   let started = false;
 
@@ -627,6 +646,15 @@ export function createDoor(): DoorHandle {
       if (elapsed !== null) return false;
       elapsed = 0;
       return true;
+    },
+
+    /**
+     * Somebody is near enough to walk through. Opens the door and holds it open
+     * until they are gone, then lets the ordinary dwell and close run.
+     */
+    summon(near: boolean) {
+      summoned = near;
+      if (near && elapsed === null) elapsed = 0;
     },
 
     travel() {
@@ -650,6 +678,11 @@ export function createDoor(): DoorHandle {
         const opening = LATCH_S + TRAVEL_S;
         const holding = opening + DWELL_S;
         const closing = holding + LATCH_S + TRAVEL_S;
+        // While somebody is in the doorway the dwell does not run out: the
+        // clock is pinned to the moment the leaves finished rising. A door that
+        // shut on the person walking through it would be the same defect as the
+        // one that let them walk into it, pointed the other way.
+        if (summoned && elapsed > opening) elapsed = opening;
         if (elapsed < LATCH_S) {
           travel = 0;
         } else if (elapsed < opening) {

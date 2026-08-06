@@ -238,6 +238,10 @@ function buildLimbDeck(): SelfRenderingHandle {
       if (portId !== 'aft') return undefined;
       return { open: door.travel(), inset: BULKHEAD_X - SEAM_X };
     },
+
+    summonPort(portId: string, near: boolean): void {
+      if (portId === 'aft') door.summon(near);
+    },
     // Blade pass: speed x blades, at the impeller's REAL rate rather than the
     // geared-down one it is drawn at (see IMPELLER_VISUAL_GEARING). 117.6 Hz -
     // a low hum, which is what a ventilation duct sounds like.
