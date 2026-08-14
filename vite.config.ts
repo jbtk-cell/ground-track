@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
@@ -16,7 +17,31 @@ const linkedModules = (): string[] => {
   }
 };
 
+/**
+ * A build stamp, printed on the page.
+ *
+ * Four separate times a defect was reported, fixed, and reported again, and the
+ * player's own guess was eventually "maybe I'm not looking at the right version
+ * of the game". That was a reasonable thing to suspect and there was no way to
+ * check it: three servers were running on this machine, one of them serving a
+ * different project entirely, and `vite preview` serves a static dist that only
+ * changes when somebody runs a build. Nothing on screen said which was which.
+ *
+ * Now it does. If the stamp on the page does not match `git log -1`, you are
+ * looking at an old build and no amount of fixing will show up.
+ */
+const buildStamp = (): string => {
+  try {
+    const sha = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+    const dirty = execSync('git status --porcelain', { encoding: 'utf8' }).trim().length > 0;
+    return `${sha}${dirty ? '+' : ''}`;
+  } catch {
+    return 'unknown';
+  }
+};
+
 export default defineConfig({
+  define: { __BUILD_STAMP__: JSON.stringify(buildStamp()) },
   base: process.env.VITE_BASE ?? '/',
   server: { fs: { allow: ['.', ...linkedModules()] } },
   build: {
