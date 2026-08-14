@@ -245,3 +245,11 @@ html {
   white-space: nowrap;
   opacity: 0.65;
 }
+
+/* The build stamp. Quiet, but always there - see main.ts. */
+.rooms-build {
+  display: block;
+  margin-top: 4px;
+  letter-spacing: 0.14em;
+  opacity: 0.55;
+}

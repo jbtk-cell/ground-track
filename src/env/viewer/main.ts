@@ -58,6 +58,9 @@ function selfRendering(handle: EnvironmentHandle): SelfRendering | null {
   return typeof candidate.render === 'function' ? (candidate as SelfRendering) : null;
 }
 
+/** Injected by vite at build time; see buildStamp() in vite.config.ts. */
+declare const __BUILD_STAMP__: string;
+
 declare global {
   interface Window {
     groundTrackRooms?: {
@@ -107,6 +110,12 @@ function element<T extends HTMLElement>(id: string, kind: new () => T): T {
 
 function main(): void {
   const canvas = element('viewport', HTMLCanvasElement);
+  // Which build is on screen. Printed because "maybe I'm not looking at the
+  // right version" turned out to be a question nobody could answer: several
+  // servers run on a dev machine, and a preview server hands out a static dist
+  // that only changes when a build runs.
+  const stamp = document.getElementById('rooms-build');
+  if (stamp !== null) stamp.textContent = `build ${__BUILD_STAMP__}`;
   const list = element('rooms-list', HTMLUListElement);
   const legend = element('rooms-legend', HTMLDListElement);
   const status = element('rooms-status', HTMLParagraphElement);

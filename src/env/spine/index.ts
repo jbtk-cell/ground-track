@@ -58,6 +58,26 @@ const JITTER = 0.05;
 const FLOOR_Y = 0;
 const WALK_HALF_Z = HALF_Z - 0.06;
 
+/**
+ * The lamp is one segment per bay with a gap between, so light sweeps overhead
+ * as you walk. See the note where they are built: the continuous strip is why
+ * the corridor read as motionless.
+ */
+const LAMP_SEGMENTS = 8;
+const LAMP_GAP = 0.42;
+
+/**
+ * Transverse deck joints, and how dark they are against the plate.
+ *
+ * A line running ACROSS the direction of travel is the strongest optical flow a
+ * corridor can have: it sweeps under the eye at walking pace and leaves the
+ * bottom of the frame, which is unmissable even when the far end of the tube is
+ * a flat vanishing point. Longitudinal detail cannot do this - it converges and
+ * barely moves.
+ */
+const JOINT_M = 0.05;
+const JOINTS_PER_BAY = 2;
+
 /** Lamp strip height, and how far it stands off the ceiling. */
 const LAMP_Y = CEILING_Y - 0.035;
 const LAMP_HALF_Z = 0.062;
@@ -119,18 +139,35 @@ function spineSolids(): readonly Solid[] {
   // Its top stops a few millimetres short of the ceiling rather than reaching it,
   // because the frame headers are also at the ceiling and eight of them cross it.
   // It is buried in the liner instead, which is where a light fitting sits.
-  parts.push(
-    solid(
-      'lamp',
-      'lamp',
-      -HALF_LENGTH + 0.5,
-      HALF_LENGTH - 0.5,
-      LAMP_Y,
-      CEILING_Y - 0.004,
-      -LAMP_HALF_Z,
-      LAMP_HALF_Z
-    )
-  );
+  // Broken into one segment per bay, with a dark gap between them, and that is
+  // not decoration - it is the reason the corridor can be walked.
+  //
+  // As one continuous strip, walking the full 11 m changed the image by a mean
+  // of 2 to 3 values out of 255 per 1.2 m travelled. Measured. Every surface is
+  // the same value, every frame is identical, and the one bright object is a
+  // line that looks the same from everywhere along it: there is no optical flow,
+  // so holding W produces a screen that does not appear to change. The player
+  // reported it, correctly, as "I physically can not walk".
+  //
+  // Segments sweep overhead one after another. A light that passes over you is
+  // the cheapest motion cue there is, and unlike wall detail it works even when
+  // you are looking straight down the axis at the vanishing point.
+  for (let i = 0; i < LAMP_SEGMENTS; i += 1) {
+    const span = (LENGTH - 1.0) / LAMP_SEGMENTS;
+    const x0 = -HALF_LENGTH + 0.5 + i * span;
+    parts.push(
+      solid(
+        `lamp-${i}`,
+        'lamp',
+        x0 + LAMP_GAP / 2,
+        x0 + span - LAMP_GAP / 2,
+        LAMP_Y,
+        CEILING_Y - 0.004,
+        -LAMP_HALF_Z,
+        LAMP_HALF_Z
+      )
+    );
+  }
 
   // One cable run at shoulder height down the port wall. The only asymmetry in
   // the room, and what stops the corridor reading as a rendering of a corridor.
@@ -165,6 +202,12 @@ function buildLiner(): THREE.BufferGeometry {
   const deck = new THREE.Color(PALETTE.HULL_SHADOW);
   const roof = new THREE.Color(CROWN_COLOUR);
   const reveal = new THREE.Color(REVEAL_COLOUR);
+  // A LIGHT joint on a dark deck, not a dark one. The first attempt used the
+  // crown value and barely registered: dark-on-dark moved the mean frame change
+  // from 2.4 to 3.9, which is still nothing. Plate edges catch the light in
+  // real hardware, and a bright line on a dark floor is the version a player
+  // can actually see going past.
+  const joint = new THREE.Color(PALETTE.HULL);
   const inward = new THREE.Vector3(0, CEILING_Y / 2, 0);
   const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
@@ -174,17 +217,28 @@ function buildLiner(): THREE.BufferGeometry {
     const x1 = -HALF_LENGTH + (LENGTH * (i + 1)) / bays;
     const mid = (x0 + x1) / 2;
 
-    // Floor and ceiling, one facet per bay.
+    // The deck, cut into plates by transverse joints. Each joint is a dark band
+    // running the full width, and each one sweeps under the player as they walk
+    // - which is the whole point. See JOINT_M.
     inward.set(mid, CEILING_Y / 2, 0);
-    pushQuad(
-      target,
-      v(x0, FLOOR_Y, -HALF_Z),
-      v(x1, FLOOR_Y, -HALF_Z),
-      v(x1, FLOOR_Y, HALF_Z),
-      v(x0, FLOOR_Y, HALF_Z),
-      inward,
-      facetColour(deck, v(mid, FLOOR_Y, 0), SEED, JITTER)
-    );
+    const plate = (a: number, b: number, colour: THREE.Color): void => {
+      pushQuad(
+        target,
+        v(a, FLOOR_Y, -HALF_Z),
+        v(b, FLOOR_Y, -HALF_Z),
+        v(b, FLOOR_Y, HALF_Z),
+        v(a, FLOOR_Y, HALF_Z),
+        inward,
+        colour
+      );
+    };
+    const step = (x1 - x0) / JOINTS_PER_BAY;
+    for (let j = 0; j < JOINTS_PER_BAY; j += 1) {
+      const a = x0 + j * step;
+      const b = a + step;
+      plate(a, b - JOINT_M, facetColour(deck, v((a + b) / 2, FLOOR_Y, 0), SEED, JITTER));
+      plate(b - JOINT_M, b, facetColour(joint, v(b, FLOOR_Y, 0), SEED, JITTER * 0.4));
+    }
     pushQuad(
       target,
       v(x0, CEILING_Y, -HALF_Z),
