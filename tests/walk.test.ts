@@ -20,6 +20,7 @@ import { layOut } from '../src/env/station/layout';
 import { buildStation } from '../src/env/station/index';
 import { SEAM, facingVector } from '../src/env/station/ports';
 import type { FloorRect } from '../src/env/types';
+import { doorParts, leafLift } from '../src/env/limbDeck/door';
 
 const WALK_SPEED_MS = 1.85;
 const HZ = 60;
@@ -52,7 +53,9 @@ function hold(
   dirZ: number,
   seconds: number,
   /** Called each step with where the eye is, for invariants along the way. */
-  watch?: (x: number, z: number) => void
+  watch?: (x: number, z: number) => void,
+  /** Where the clock already is, so a wait before the walk is not rewound. */
+  t0 = 0
 ): Walked {
   const dt = 1 / HZ;
   let x = startX;
@@ -63,7 +66,7 @@ function hold(
     station.observe?.(new THREE.Vector3(x, EYE_Y, z));
     // The clock runs, because doors move. A walk that never advanced time would
     // be walking at a door that can never open, which is a different station.
-    station.update?.(i * dt);
+    station.update?.(t0 + i * dt);
     watch?.(x, z);
     const before = { x, z };
     const next = advance(station.floor, x, z, dirX * WALK_SPEED_MS * dt, dirZ * WALK_SPEED_MS * dt);
@@ -75,26 +78,37 @@ function hold(
 }
 
 /**
- * Press every door control and run the clock until the doors are up.
+ * Stand where the walk is about to start and wait for the door, then report the
+ * clock so the caller can carry on from it.
  *
- * A shut pressure door is now a wall - it has to be, because there is no
- * collider stack and without it the player walked their eye into the closed
- * slab and the whole screen went to one flat value, which reads as exactly the
- * barrier they could not get past. So a test that walks a seam has to open the
- * seam first, which is a better test than the one it replaces: it covers the
- * press and the travel as well as the walk.
+ * A shut pressure door is a wall - it has to be, because there is no collider
+ * stack and without it the player walked their eye into the closed slab and the
+ * whole screen went to one flat value, which reads exactly like a barrier you
+ * cannot get past. So a test that walks a seam has to open the seam first.
+ *
+ * This used to press the door's buttons. There are none: both were unpressable
+ * by construction, because the hand only takes hold inside 1.6 m and the door
+ * opens on approach from 3.4 m, so a player near enough to reach a control
+ * always found a door already running. Standing there and waiting is not a
+ * workaround, it is the only input the door has.
+ *
+ * The clock is returned and threaded through, because a door derives its own
+ * interval from the time it is handed and a test that reset the clock to zero
+ * would hand it a negative one.
  */
-function openEveryDoor(station: {
-  pointsOfInterest: readonly { id: string; operable?: boolean }[];
-  interact?: (id: string) => boolean;
-  update(t: number): void;
-}): void {
-  for (const poi of station.pointsOfInterest) {
-    if (poi.operable === true && poi.id.includes('door-button')) station.interact?.(poi.id);
+function openDoorFrom(
+  station: { observe?: (eye: THREE.Vector3) => void; update?: (t: number) => void },
+  x: number,
+  z: number,
+  seconds = 3
+): number {
+  const dt = 1 / HZ;
+  const steps = Math.round(seconds * HZ);
+  for (let i = 0; i < steps; i += 1) {
+    station.observe?.(new THREE.Vector3(x, EYE_Y, z));
+    station.update?.(i * dt);
   }
-  // Past TRAVEL_S and short of the dwell, stepped rather than jumped so the
-  // door's own rate limiting sees a plausible frame time.
-  for (let t = 0; t <= 2.0001; t += 1 / HZ) station.update(t);
+  return steps * dt;
 }
 
 describe('the station: every doorway is walk-through at its full width', () => {
@@ -126,8 +140,6 @@ describe('the station: every doorway is walk-through at its full width', () => {
       // Across the opening, perpendicular to the way through it.
       const side = new THREE.Vector3(-axis.z, 0, axis.x);
 
-      openEveryDoor(station);
-
       const stuck: string[] = [];
       for (const offset of offsets) {
         const startX = seam.x - axis.x * approach + side.x * offset;
@@ -139,7 +151,10 @@ describe('the station: every doorway is walk-through at its full width', () => {
         );
         if (!standable) continue;
 
-        const end = hold(station, startX, startZ, axis.x, axis.z, 2);
+        // Walk up, wait for the door, then walk through it - which is what a
+        // player does, and the only thing that opens a door in this station.
+        const opened = openDoorFrom(station, startX, startZ);
+        const end = hold(station, startX, startZ, axis.x, axis.z, 2, undefined, opened);
         // How far past the seam plane the body finished, along the way through.
         const past = (end.x - seam.x) * axis.x + (end.z - seam.z) * axis.z;
         if (past <= 0.2) {
@@ -158,6 +173,48 @@ describe('the station: every doorway is walk-through at its full width', () => {
 });
 
 describe('the station: the doors let you through', () => {
+  it('opens for somebody who walks up to it and shuts again once they leave', () => {
+    // "The doors should close automatically, idk why there are multiple
+    // buttons, clicking the buttons doesn't seem to work idk if it does it
+    // automatically or what." It does, and there is now nothing to press and
+    // nothing to wonder about: both buttons are gone, because neither could
+    // ever be pressed. The hand takes hold inside 1.6 m and the door opens on
+    // approach from 3.4 m, so anybody close enough to reach a control found a
+    // door that was already running and a press that did nothing.
+    //
+    // That leaves one claim to keep, and this is it: shut when nobody is there,
+    // open for somebody who walks up, shut again behind them.
+    const station = buildStation(STATION);
+    try {
+      const standAt = (x: number, z: number, seconds: number, from: number): number => {
+        const dt = 1 / HZ;
+        const steps = Math.round(seconds * HZ);
+        for (let i = 0; i < steps; i += 1) {
+          station.observe?.(new THREE.Vector3(x, EYE_Y, z));
+          station.update(from + i * dt);
+        }
+        return from + steps * dt;
+      };
+
+      // The far end of the deck, 5.7 m from the door plane and well outside the
+      // 3.4 m it summons from. A door that is always open is a hole.
+      let t = standAt(2.5, 0, 1, 0);
+      expect(station.mechanism?.travel, 'stood open from across the room').toBe(0);
+
+      // Walk up to it. Latch, travel, and it is waiting for you.
+      t = standAt(-2, 0, 3, t);
+      expect(station.mechanism?.travel, 'did not open for somebody standing at it').toBeGreaterThan(
+        0.99
+      );
+
+      // And leave. Dwell, latch, travel, shut - with nothing pressed either way.
+      standAt(2.5, 0, 12, t);
+      expect(station.mechanism?.travel, 'never shut again once nobody was there').toBe(0);
+    } finally {
+      station.dispose();
+    }
+  });
+
   it('walks the whole station without pressing anything', () => {
     // Reported three times, the last one as "I still cannot walk through the
     // damn door, it should be fairly easy". It should, and it was not.
@@ -174,6 +231,47 @@ describe('the station: the doors let you through', () => {
       const end = hold(station, -2.0, 0, -1, 0, 12);
       // Past the door, past the corridor, into the node at the far end.
       expect(end.x, 'never got out of the first room').toBeLessThan(-15);
+    } finally {
+      station.dispose();
+    }
+  });
+
+  it('never walks the eye through a leaf, at any point in the travel', () => {
+    // Reported as "I can walk through the wall of the door sometimes", and the
+    // "sometimes" is the whole diagnosis: it depends on how far up the leaves
+    // happen to be when you get there.
+    //
+    // The floor was put back through the doorway at 35% of travel, on the
+    // reasoning that "the leaves clear the head long before they are fully
+    // parked". They do not. The leaves are geared to arrive together, so the
+    // clear opening under the lowest one is 0.016 + 1.994 x travel metres, and
+    // at 0.35 that is 0.71 m. The eye is at 1.74 m - a metre inside the stack,
+    // passing through leaf 1 and leaf 2 on the way past. The door is only 1.99 m
+    // clear when fully open, so a standing eye does not clear it until 87% of
+    // travel, and there is no slack anywhere in this to guess with.
+    //
+    // The test that was here checked one leaf's X range against a travel
+    // number, and passed the whole time. This checks every leaf where it
+    // actually is, which is the only version of the question worth asking.
+    const leaves = doorParts().filter((p) => p.leaf >= 0);
+    const station = buildStation(STATION);
+    try {
+      const breaches: string[] = [];
+      hold(station, -2.0, 0, -1, 0, 12, (x, z) => {
+        const travel = station.mechanism?.travel ?? 0;
+        for (const leaf of leaves) {
+          if (x < Math.min(leaf.x0, leaf.x1) || x > Math.max(leaf.x0, leaf.x1)) continue;
+          if (z < Math.min(leaf.z0, leaf.z1) || z > Math.max(leaf.z0, leaf.z1)) continue;
+          const lift = leafLift(leaf.leaf) * travel;
+          if (EYE_Y < leaf.y0 + lift || EYE_Y > leaf.y1 + lift) continue;
+          breaches.push(
+            `x=${x.toFixed(3)} put the eye inside ${leaf.name} ` +
+              `(${(leaf.y0 + lift).toFixed(2)}-${(leaf.y1 + lift).toFixed(2)} m) ` +
+              `with the door ${(travel * 100).toFixed(0)}% open`
+          );
+        }
+      });
+      expect(breaches.slice(0, 3).join('\n')).toBe('');
     } finally {
       station.dispose();
     }
@@ -200,6 +298,99 @@ describe('the station: the doors let you through', () => {
         if (open < 0.35) breaches.push(`x=${x.toFixed(3)} with the door ${open.toFixed(2)} open`);
       });
       expect(breaches.slice(0, 4).join(', '), 'walked into the closed leaf').toBe('');
+    } finally {
+      station.dispose();
+    }
+  });
+});
+
+describe('the station: a step goes where it was aimed', () => {
+  // Reported as "in the corridor when I press D I just move back". It was not a
+  // feeling. Strafing from the middle of the corridor moved the body 1.85 m
+  // ALONG the corridor - the full walk speed, in a direction nobody asked for -
+  // and 0.02 m sideways.
+  //
+  // `advance` lets every floor rectangle propose where a step lands and picks
+  // the proposal that gets furthest FORWARD. Scoring only the forward component
+  // means a rectangle metres away broadside can tie on progress while dragging
+  // the body across the station: pressing D in the corridor, the limb deck's
+  // rectangle clamps the target back to its own edge 4.9 m fore, keeps the
+  // 0.03 m of sideways progress intact, and wins. The displacement cap then
+  // rescales that 4.9 m vector down to one step's length - still pointing fore.
+  // Capped, so never a teleport, and never caught by the teleport test.
+  const axial = (dirX: number, dirZ: number, seconds: number): Walked => {
+    const station = buildStation(STATION);
+    try {
+      return hold(station, -8, 0, dirX, dirZ, seconds);
+    } finally {
+      station.dispose();
+    }
+  };
+
+  it('strafing in the corridor moves you sideways, not down the corridor', () => {
+    for (const side of [1, -1]) {
+      const end = axial(0, side, 1);
+      const drift = Math.abs(end.x - -8);
+      expect(
+        drift,
+        `strafing ${side > 0 ? '+z' : '-z'} slid ${drift.toFixed(2)} m along x`
+      ).toBeLessThan(0.1);
+    }
+  });
+
+  it('lands every step near where that step was aimed, at every heading', () => {
+    // The general form of the same defect, swept rather than spot-checked. A
+    // step may be redirected to fit through an opening - that is the shoulder
+    // turn a doorway costs - and it may be stopped flat by a wall. What it may
+    // not do is land somewhere else entirely.
+    //
+    // Swept offline over every legal standing point in the station on a 0.5 m
+    // grid, 22 848 of them, at 64 headings: the furthest any step ever landed
+    // from where it was aimed was 0.066 m, at the node doorway, which is the
+    // funnel doing its job. Before the fix the limb deck was proposing points
+    // 4.9 m away and winning with them. The limit here is well above the
+    // measurement and far below the defect, so it catches a return without
+    // pinning the number.
+    const LIMIT_M = 0.1;
+    const step = WALK_SPEED_MS / HZ;
+    const station = buildStation(STATION);
+    try {
+      // Legal means standing still leaves you standing still - a start inside a
+      // rectangle but inside its wall margin gets snapped, and that snap is not
+      // a walk.
+      const legal = (x: number, z: number): boolean => {
+        const still = advance(station.floor, x, z, 0, 0);
+        return Math.hypot(still.x - x, still.z - z) < 1e-9;
+      };
+
+      const strayed: string[] = [];
+      for (let turn = 0; turn < 16; turn += 1) {
+        const angle = (turn / 16) * Math.PI * 2;
+        const dirX = Math.cos(angle);
+        const dirZ = Math.sin(angle);
+        for (let gx = -19.5; gx <= 2.5; gx += 2) {
+          for (let gz = -2; gz <= 2; gz += 0.5) {
+            if (!legal(gx, gz)) continue;
+            let x = gx;
+            let z = gz;
+            for (let i = 0; i < 60; i += 1) {
+              const next = advance(station.floor, x, z, dirX * step, dirZ * step);
+              const stray = Math.hypot(next.x - (x + dirX * step), next.z - (z + dirZ * step));
+              if (stray > LIMIT_M) {
+                strayed.push(
+                  `heading ${((angle * 180) / Math.PI).toFixed(0)} deg from (${gx}, ${gz}): ` +
+                    `a step aimed at (${(x + dirX * step).toFixed(2)}, ${(z + dirZ * step).toFixed(2)}) ` +
+                    `landed ${stray.toFixed(2)} m away`
+                );
+                break;
+              }
+              x = next.x;
+              z = next.z;
+            }
+          }
+        }
+      }
+      expect(strayed.slice(0, 4).join('\n')).toBe('');
     } finally {
       station.dispose();
     }

@@ -180,23 +180,25 @@ export const DOOR_BUTTON: readonly [number, number, number] = [
 ];
 
 /**
- * The same door's control on the OTHER side, in the sleeve near its aft mouth.
+ * How tall the hole is right now, metres above the deck.
  *
- * A door with one button is a door that only opens from the room that owns it.
- * Walking back down the corridor you arrived through, there was nothing to press
- * and no way to get in - and because the shot harness only ever photographed
- * this door from inside the room, every picture of it showed a door that worked.
+ * The leaves are geared to arrive together, so the lowest one governs and the
+ * clear opening is linear in travel: nothing at rest, the full DOOR_CLEAR.height
+ * when parked.
  *
- * It sits 0.24 m into the sleeve rather than on the bulkhead's aft face, because
- * the bulkhead is 1.15 m up the tunnel and a promise the hand cannot keep is
- * worse than no button at all.
+ * Published because the station has to decide when the floor may run through
+ * this doorway, and the honest question is "is the hole tall enough to walk
+ * through" rather than "is the travel past some number somebody typed". It was
+ * a number somebody typed - 0.35 - on the reasoning that the leaves clear the
+ * head long before they are parked. They do not: this door is 1.99 m clear
+ * fully open against a 1.74 m eye, so a standing player does not clear it until
+ * 87% of travel, and at 0.35 the hole is 0.71 m tall and the eye walks through
+ * two leaves. Reported as "I can walk through the wall of the door sometimes",
+ * and the sometimes was how far up the leaves had got.
  */
-const AFT_BUTTON_X = CAP_X + 0.24;
-export const DOOR_BUTTON_AFT: readonly [number, number, number] = [
-  AFT_BUTTON_X,
-  BUTTON_Y,
-  BORE_Z + SLEEVE_INSET - BUTTON_PLATE_T - BUTTON_CAP_T,
-];
+export function clearHeight(travel: number): number {
+  return SILL_Y + (PARK_Y - SILL_Y) * travel;
+}
 
 /**
  * The face of the head panel over the opening, for anything mounted on it.
@@ -423,25 +425,6 @@ export function doorParts(): readonly DoorPart[] {
     part('button-plate', 'frame', FACE_X, plateX1, plateY[0], plateY[1], plateZ[0], plateZ[1])
   );
 
-  // --- The same control on the corridor side, on the sleeve's starboard wall.
-  //
-  // Its outer face lands in the sleeve wall's inner plane, which is legal and
-  // deliberate: the two faces are back to back, pointing opposite ways, and only
-  // SAME-facing coplanar pairs fight for pixels.
-  const aftInnerZ = BORE_Z + SLEEVE_INSET;
-  parts.push(
-    part(
-      'button-plate-aft',
-      'frame',
-      AFT_BUTTON_X - 0.1,
-      AFT_BUTTON_X + 0.1,
-      plateY[0],
-      plateY[1],
-      aftInnerZ - BUTTON_PLATE_T,
-      aftInnerZ
-    )
-  );
-
   return parts;
 }
 
@@ -463,14 +446,17 @@ export function doorEnvelope(): readonly (readonly [number, number])[] {
 }
 
 export interface DoorHandle extends Animated {
-  /** Run the cycle. False if it is already doing something. */
-  press(): boolean;
   /**
    * Somebody is near enough to walk through: open, and hold open until they go.
    *
-   * The button is no longer the only way past. A shut door became a real barrier
-   * once the floor stopped running through it, and at that point a control the
-   * player has to find on a side jamb is a lock, not a door.
+   * The only way this door moves, and there is no longer a button beside it.
+   * There were two, one per side, and both were unpressable by construction:
+   * the hand only takes hold inside 1.6 m, the door opens on approach from
+   * 3.4 m, so by the time a player could reach a control the door was already
+   * running and the press did nothing. Reported as "idk why there are multiple
+   * buttons, clicking the buttons doesn't seem to work". They were right - a
+   * control that cannot change anything is not a control, it is scenery that
+   * lies. The plate and its ring stay, as the lamp that reports the door.
    */
   summon(near: boolean): void;
   /** 0 shut, 1 fully lifted. */
@@ -601,24 +587,6 @@ export function createDoor(): DoorHandle {
   ring.position.set(FACE_X + BUTTON_PLATE_T + 0.001, BUTTON_Y, BUTTON_Z);
   root.add(ring);
 
-  // The corridor-side cap and ring, turned to face across the tunnel rather
-  // than along it. Same door, same press, so it gets the same two pieces - a
-  // control that reads differently from the one on the other side would be a
-  // second mechanism as far as a player is concerned.
-  const aftFaceZ = BORE_Z + SLEEVE_INSET - BUTTON_PLATE_T;
-  const aftCapGeometry = new THREE.CylinderGeometry(0.036, 0.039, BUTTON_CAP_T, 8);
-  aftCapGeometry.rotateX(Math.PI / 2);
-  const aftCap = new THREE.Mesh(aftCapGeometry, materials.trim);
-  aftCap.position.set(AFT_BUTTON_X, BUTTON_Y, aftFaceZ - BUTTON_CAP_T / 2);
-  root.add(aftCap);
-  const aftCapRestZ = aftCap.position.z;
-
-  const aftRingGeometry = new THREE.RingGeometry(0.05, 0.062, 24);
-  const aftRing = new THREE.Mesh(aftRingGeometry, ringShut);
-  aftRing.position.set(AFT_BUTTON_X, BUTTON_Y, aftFaceZ - 0.001);
-  aftRing.rotation.y = Math.PI;
-  root.add(aftRing);
-
   /** 0 shut, 1 lifted. */
   let travel = 0;
   /** Seconds into the cycle, or null when the door is at rest and shut. */
@@ -641,12 +609,6 @@ export function createDoor(): DoorHandle {
 
   return {
     root,
-
-    press() {
-      if (elapsed !== null) return false;
-      elapsed = 0;
-      return true;
-    },
 
     /**
      * Somebody is near enough to walk through. Opens the door and holds it open
@@ -682,7 +644,18 @@ export function createDoor(): DoorHandle {
         // clock is pinned to the moment the leaves finished rising. A door that
         // shut on the person walking through it would be the same defect as the
         // one that let them walk into it, pointed the other way.
-        if (summoned && elapsed > opening) elapsed = opening;
+        //
+        // And if the leaves are already coming down when somebody walks back up
+        // to it, they REVERSE from where they are. Pinning the clock to
+        // `opening` in that case is what the line above used to do on its own,
+        // and it teleported the door: half shut on one frame, fully open on the
+        // next, which is the one thing DIRECTION's motion law forbids outright.
+        // Smoothstep is symmetric about its midpoint, so the opening time that
+        // puts the leaves exactly where the closing time has them is its mirror.
+        if (summoned && elapsed > opening && elapsed < closing) {
+          const shutFor = (elapsed - holding - LATCH_S) / TRAVEL_S;
+          elapsed = shutFor <= 0 ? opening : LATCH_S + TRAVEL_S * (1 - shutFor);
+        }
         if (elapsed < LATCH_S) {
           travel = 0;
         } else if (elapsed < opening) {
@@ -703,15 +676,12 @@ export function createDoor(): DoorHandle {
         const group = leaves[i];
         if (group !== undefined) group.position.y = leafLift(i) * travel;
       }
-      // The cap is in while the latch is working and out once it is moving, so
-      // the press has a physical consequence at the button as well.
-      const pressed = elapsed !== null && travel < 0.02 ? 0.011 : 0;
-      cap.position.x = capRestX - pressed;
+      // The cap sinks while the latch is working and comes back out once the
+      // leaves are moving. Nobody presses it - the door opens on approach - but
+      // the latch releasing is a real event in the mechanism and this is where
+      // it is legible, so the fitting still reports it.
+      cap.position.x = capRestX - (elapsed !== null && travel < 0.02 ? 0.011 : 0);
       ring.material = travel > 0.02 ? ringLive : ringShut;
-      // The corridor-side control depresses into its own wall, which is +z, so
-      // it moves the other way. Both report the same door.
-      aftCap.position.z = aftCapRestZ + pressed;
-      aftRing.material = ring.material;
     },
 
     dispose() {

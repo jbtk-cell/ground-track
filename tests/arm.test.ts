@@ -86,20 +86,21 @@ describe('the limb deck: what the hand may reach for', () => {
     try {
       const operable = room.pointsOfInterest.filter((poi) => poi.operable === true);
       // Sorted, so adding a control does not depend on where it lands in the list.
-      // Two of these are the same door, from the deck and from the corridor.
-      // A door with one control is a door that opens only from the room that
-      // owns it, and the corridor is not that room.
-      expect(operable.map((poi) => poi.id).sort()).toEqual([
-        'door-button',
-        'door-button-aft',
-        'test-button',
-      ]);
+      //
+      // One entry, and it used to be three. Two of them were the same door, one
+      // control per side, and NEITHER could ever be pressed: the hand takes
+      // hold inside 1.6 m and the door opens on approach from 3.4 m, so a
+      // player near enough to reach either one always found a door that was
+      // already running and a press that did nothing. Reported as "idk why
+      // there are multiple buttons, clicking the buttons doesn't seem to work".
+      // The door is automatic and its plate is now an indicator, `door-lamp`,
+      // which is not operable and so is not in this list.
+      expect(operable.map((poi) => poi.id).sort()).toEqual(['test-button']);
 
-      // One press per freshly built room. Pressing the deck's door control sets
-      // the door moving, after which the corridor's control correctly reports
-      // that it did nothing - and sharing one build across both would read that
-      // as a control that was never wired up. `operable` promises the control
-      // is live, not that the thing it drives is idle.
+      // One press per freshly built room, so a control whose mechanism another
+      // control already set going is not read as a control that was never
+      // wired up. `operable` promises the control is live, not that the thing
+      // it drives is idle.
       const ids = room.pointsOfInterest.map((poi) => ({
         id: poi.id,
         operable: poi.operable === true,

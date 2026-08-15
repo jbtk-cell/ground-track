@@ -73,12 +73,17 @@ export interface CompartmentHandle extends EnvironmentHandle {
    * was invisible to every gate, because the pinned poses are all in the middle
    * of rooms and none of them is 0.1 m inside a door.
    *
-   * `open` is 0 shut to 1 fully lifted. `inset` is how far the door plane sits
-   * INSIDE the room from the port plane, metres, so the station can cut the
-   * walkable tunnel at the right place without knowing anything about how this
-   * particular door is built.
+   * `clear` is how tall the hole is RIGHT NOW, metres above the deck, and it is
+   * a height rather than a 0-to-1 travel on purpose. The station's question is
+   * "can a standing player walk through this", which a height answers and a
+   * fraction cannot: travel meant nothing without also knowing the door's own
+   * proportions, so the station guessed a fraction, guessed it three times too
+   * low, and put the floor back under a doorway 0.71 m tall. `inset` is how far
+   * the door plane sits INSIDE the room from the port plane, metres, so the
+   * station can cut the walkable tunnel at the right place without knowing
+   * anything about how this particular door is built.
    */
-  portDoor?(portId: string): { readonly open: number; readonly inset: number } | undefined;
+  portDoor?(portId: string): { readonly clear: number; readonly inset: number } | undefined;
   /**
    * Somebody is close enough to this port to walk through it.
    *

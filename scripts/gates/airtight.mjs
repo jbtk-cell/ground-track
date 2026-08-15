@@ -48,6 +48,12 @@ const SEALED = [
   'node-across',
   'station-run',
   'station-seam',
+  // Off the centre line, which every other pose in this list is on. A slot in a
+  // side wall is edge-on from the middle of a room and covers no pixels, so a
+  // gate made entirely of centred poses cannot see one - and did not see the
+  // corridor's band recess running off the end of the room uncapped, 886 pixels
+  // of open space at eye height, for as long as the bands have existed.
+  'station-off-line',
 ];
 
 /** Space, and the darkest value in the game. Nothing interior may reach it. */

@@ -112,14 +112,13 @@ const INTERIOR_PRESETS = [
     name: 'deck-door',
     room: 'limb-deck',
     t: 19.3,
-    // Pressed from arm's length and shot from a step back. The limb only takes
-    // hold inside 0.95 m of the shoulder, and at 0.95 m from a door you cannot
-    // see the door - so the press happens at the button and the frame is taken
-    // where the whole opening, its head and the tunnel behind it are visible.
-    pressFrom: { x: -2.375, z: 0.74, yaw: Math.PI / 2, pitch: -0.05 },
+    // Stood in front of and waited out, which is now the only way this door
+    // opens - it has no button, because neither of the two it had could be
+    // reached before the door was already running. 2.6 s covers the 0.28 s
+    // latch and the 1.55 s travel with room to spare, and the pose is inside
+    // the 3.4 m the door summons from, so standing here is the whole input.
     pose: { x: -1.55, z: 0.35, yaw: Math.PI / 2, pitch: -0.02 },
-    press: true,
-    settle: 2.0,
+    settle: 2.6,
   },
   {
     // THE SPINE, from one end. The room is a proportion and a vanishing point
@@ -160,6 +159,25 @@ const INTERIOR_PRESETS = [
     room: 'station',
     t: 19.3,
     pose: { x: -7, z: 0, yaw: Math.PI / 2, pitch: 0 },
+  },
+  {
+    // The same corridor, OFF the centre line, looking back at the door.
+    //
+    // Every other interior pose in this file stands dead centre, and that is a
+    // blind spot rather than a style: a slot in a side wall is exactly edge-on
+    // from the middle of the room and covers no pixels at all. The work band is
+    // recessed 0.08 m into the wall and its groove ran off the end of the room
+    // uncapped, which is a slot straight through to space for the full length
+    // of both walls at eye height - and every centred pose walked past it.
+    //
+    // Reported as "I can see through holes on either side of the door". This is
+    // the pose that shows them: 886 pixels of VOID_SLATE before the fix, none
+    // after. Held at the wall margin, which is as far off the line as a player
+    // can actually stand.
+    name: 'station-off-line',
+    room: 'station',
+    t: 19.3,
+    pose: { x: -8.04, z: 0.55, yaw: -Math.PI / 2, pitch: 0 },
   },
 ];
 
@@ -263,24 +281,30 @@ async function main() {
       // travelled state rather than the frame the key went down.
       const acted = await page.evaluate(() => window.groundTrackRooms.interact());
       if (!acted) throw new Error(`${preset.name}: nothing to press at this pose`);
-      // Default nudge is the 60 ms press spring; anything with real travel says
-      // how long it needs. The door takes a latch plus 1.55 s to stand open.
-      //
-      // Stepped rather than jumped, and that is not a nicety: a mechanism
-      // derives its own interval from this clock and clamps it to 0.1 s so that
-      // a dropped frame cannot teleport it. Setting the time two seconds ahead
-      // in one call advances the door by a tenth of a second.
+    }
+    // Let the clock run on where the preset asks for it. Pressing implies it -
+    // a spring needs an interval - but it is no longer only for presses: the
+    // aft door has no button any more and opens because somebody is standing in
+    // front of it, so the shot of it standing open is a pose plus a wait.
+    //
+    // Stepped rather than jumped, and that is not a nicety: a mechanism derives
+    // its own interval from this clock and clamps it to 0.1 s so that a dropped
+    // frame cannot teleport it. Setting the time two seconds ahead in one call
+    // advances the door by a tenth of a second. `setTime` also re-observes, so
+    // a door that opens on approach is told, every step, that somebody is there.
+    const settle = preset.settle ?? (preset.press === true ? 0.08 : 0);
+    if (settle > 0) {
       await page.evaluate(
-        ({ from, settle }) => {
-          for (let t = from; t < from + settle; t += 0.05) {
-            window.groundTrackRooms.setTime(Math.min(t + 0.05, from + settle));
+        ({ from, span }) => {
+          for (let t = from; t < from + span; t += 0.05) {
+            window.groundTrackRooms.setTime(Math.min(t + 0.05, from + span));
           }
         },
-        { from: preset.t, settle: preset.settle ?? 0.08 }
+        { from: preset.t, span: settle }
       );
-      if (preset.pressFrom !== undefined) {
-        await page.evaluate((pose) => window.groundTrackRooms.setPose(pose), preset.pose);
-      }
+    }
+    if (preset.pressFrom !== undefined) {
+      await page.evaluate((pose) => window.groundTrackRooms.setPose(pose), preset.pose);
     }
     await sleep(250);
     await page.screenshot({ path: path.join(outDir, `${preset.name}.png`) });
