@@ -86,6 +86,13 @@ const EDGE_PROBE_M = 1e-3;
 /** Spacing of the floor-continuity probe along a proposed correction. */
 const SEGMENT_PROBE_M = 0.05;
 
+/**
+ * Two proposed steps this close in forward progress are the same step, and the
+ * one that lands nearest what the player aimed at wins. A tenth of a
+ * millimetre: far below anything a body could feel, far above float noise.
+ */
+const TIE_M = 1e-4;
+
 /** Stick radius in CSS pixels; matches .rooms-stick in viewer.css. */
 const STICK_RADIUS_PX = 40;
 
@@ -302,6 +309,18 @@ export function advance(
 
   const dirX = stepX / stepLength;
   const dirZ = stepZ / stepLength;
+  const aimX = x + stepX;
+  const aimZ = z + stepZ;
+
+  // How far a rectangle's clamp may move the aim before it stops being a slide.
+  //
+  // A wall can stop you and it can hold you off by its margin. It cannot carry
+  // you. If the aim is already inside the rectangle the clamp moves it by at
+  // most the margin; if the aim is outside but the body was inside, the aim is
+  // at most one step out, so the clamp moves it by at most a step plus the
+  // margin. Anything beyond that is not a wall acting on this step - it is some
+  // other rectangle, somewhere else, projecting the aim onto itself.
+  const reach = stepLength + WALL_MARGIN_M;
 
   // Every rectangle gets to propose where this step lands, and the winner is
   // the one that gets the body FURTHEST FORWARD, not the one whose point is
@@ -313,18 +332,39 @@ export function advance(
   // in plain sight and the key held down. Scoring by progress instead, the
   // doorway's own rectangle proposes a point 0.1 m to the side and a whole step
   // forward, and wins - which is the body turning its shoulders to fit.
+  //
+  // But progress is only the component along the way you asked to go, and on
+  // its own it does not care where the rest of the proposal points. That was
+  // the next defect, reported as "in the corridor when I press D I just move
+  // back": strafing at the middle of the corridor, the limb deck's rectangle
+  // 4.9 m fore clamps the aim onto its own edge, keeps every millimetre of the
+  // sideways progress while doing it, ties the corridor's own honest proposal
+  // and wins on array order. The cap below then rescaled that 4.9 m vector to
+  // one step's length - still pointing fore. Measured: one second of strafing
+  // moved the body 1.85 m along the corridor and 0.02 m sideways. Capped, so
+  // never a teleport, so never caught by the test that looks for one.
+  //
+  // `reach` is what makes a proposal a slide rather than a projection.
   let best: Standing | null = null;
   let bestProgress = 1e-6;
+  let bestOffset = Infinity;
 
   for (const rect of floor) {
-    const q = clampInto(floor, rect, x + stepX, z + stepZ);
+    const q = clampInto(floor, rect, aimX, aimZ);
+    const offset = Math.hypot(q.x - aimX, q.z - aimZ);
+    if (offset > reach) continue;
     const progress = (q.x - x) * dirX + (q.z - z) * dirZ;
-    if (progress <= bestProgress) continue;
+    if (progress < bestProgress - TIE_M) continue;
+    // Ties used to go to whichever rectangle the station happened to push into
+    // the array first, which is not a decision anybody made. The proposal that
+    // lands nearest what was actually aimed at is.
+    if (progress < bestProgress + TIE_M && offset >= bestOffset) continue;
     // A correction is a slide if the floor is continuous under it and a
     // teleport if it is not. Disjoint rectangles can otherwise put a legal
     // point across a gap: a walk may be blocked, it may never teleport.
     if (!walkable(floor, x, z, q.x, q.z)) continue;
-    bestProgress = progress;
+    bestProgress = Math.max(bestProgress, progress);
+    bestOffset = offset;
     best = q;
   }
 

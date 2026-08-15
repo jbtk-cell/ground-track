@@ -26,10 +26,10 @@ import { createMotes } from './motes';
 import {
   BULKHEAD_X,
   DOOR_BUTTON,
-  DOOR_BUTTON_AFT,
   DOOR_FULL_RATE_S,
   SEAM_X,
   createDoor,
+  clearHeight,
   doorParts,
   leafLift,
 } from './door';
@@ -92,18 +92,13 @@ const SPAWN_PITCH = -0.08;
 const POINTS_OF_INTEREST: readonly PointOfInterest[] = [
   { id: 'bay', label: 'the cupola', position: [-0.58, 1.42, -2.55] },
   { id: 'perch', label: 'the perch', position: [-0.6, 0.72, -1.82] },
-  // The door itself is not operable; its BUTTON is. Reaching for a two-metre
-  // pressure slab and having it open is a different and worse promise than
-  // pressing the thing that opens it.
-  { id: 'door-button', label: 'the aft door control', position: DOOR_BUTTON, operable: true },
-  // The same door, from the corridor. A door you can only open from one side is
-  // a door that works in every screenshot and strands you in the run outside it.
-  {
-    id: 'door-button-aft',
-    label: 'the aft door control',
-    position: DOOR_BUTTON_AFT,
-    operable: true,
-  },
+  // The door's indicator, and NOT operable. It was a button, on both sides, and
+  // neither could ever be pressed: the hand takes hold inside 1.6 m and the
+  // door opens on approach from 3.4 m, so a player near enough to reach one
+  // always found a door that was already running. Reported as "idk why there
+  // are multiple buttons, clicking the buttons doesn't seem to work". Named for
+  // what it does now - it reports the door, it does not work it.
+  { id: 'door-lamp', label: 'the aft door indicator', position: DOOR_BUTTON },
   { id: 'dial', label: 'the sun-bearing dial', position: [-3.19, 1.05, -0.85] },
   { id: 'grille', label: 'the ventilation grille', position: [3.16, 1.05, -1.62] },
   // Wired to nothing, and the only operable thing in the room: the hand reaches
@@ -253,7 +248,7 @@ function buildLimbDeck(): SelfRenderingHandle {
      */
     portDoor(portId: string) {
       if (portId !== 'aft') return undefined;
-      return { open: door.travel(), inset: BULKHEAD_X - SEAM_X };
+      return { clear: clearHeight(door.travel()), inset: BULKHEAD_X - SEAM_X };
     },
 
     summonPort(portId: string, near: boolean): void {
@@ -293,7 +288,6 @@ function buildLimbDeck(): SelfRenderingHandle {
     interact(id: string): boolean {
       // One operable thing in this room so far, and it is deliberately inert.
       if (id === 'test-button') return testButton.press();
-      if (id === 'door-button' || id === 'door-button-aft') return door.press();
       return false;
     },
 

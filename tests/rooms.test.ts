@@ -232,10 +232,14 @@ describe('the station: you can actually walk between the compartments', () => {
       // floor now - that is what stops the player walking their eye into the
       // closed slab - so "continuous through every seam" is a claim about a
       // seam you are allowed through, and the door has to be raised to test it.
-      for (const poi of station.pointsOfInterest) {
-        if (poi.operable === true && poi.id.includes('door-button')) station.interact?.(poi.id);
+      // By standing in front of it and waiting, which is the only way a door in
+      // this station opens - there are no door buttons, because neither of the
+      // two this door had could ever be reached before the door was already
+      // running. The eye is parked at the seam so every door is summoned.
+      for (let i = 0; i < 240; i += 1) {
+        station.observe?.(new THREE.Vector3(-3.4, 1.74, 0));
+        station.update(i / 60);
       }
-      for (let t = 0; t <= 2.0001; t += 1 / 60) station.update(t);
 
       const placed = layOut(STATION.rooms, STATION.connections, STATION.anchor);
       for (const link of STATION.connections) {

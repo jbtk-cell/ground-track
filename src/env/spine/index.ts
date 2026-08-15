@@ -37,7 +37,7 @@ import { SEAM, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, planeClashes, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
-import { CROWN_COLOUR, REVEAL_COLOUR, bands } from '../kit/bands';
+import { CROWN_COLOUR, REVEAL_COLOUR, bands, deepestRelief } from '../kit/bands';
 import type { FloorRect, PointOfInterest } from '../types';
 
 const LENGTH = 11.2;
@@ -298,6 +298,11 @@ function buildLiner(): THREE.BufferGeometry {
   // was only ever needed because the first room's bulkhead was a polar fan.
   const halfW = SEAM.width / 2;
   const top = SEAM.height;
+  // Out to the deepest band face, not out to the nominal wall plane. The work
+  // band is recessed 0.08 m past HALF_Z, so an end wall stopping at HALF_Z
+  // leaves that recess open at both ends of the room - a slot 0.08 m wide and
+  // 1.10 m tall, at eye height, straight through to space. See deepestRelief.
+  const outerZ = HALF_Z + deepestRelief(FLOOR_Y, CEILING_Y);
   for (const side of [-1, 1] as const) {
     const x = side * HALF_LENGTH;
     inward.set(x - side * 1, CEILING_Y / 2, 0);
@@ -312,8 +317,8 @@ function buildLiner(): THREE.BufferGeometry {
         facetColour(hull, v(x, (y0 + y1) / 2, (z0 + z1) / 2), SEED, JITTER)
       );
     };
-    wall(FLOOR_Y, CEILING_Y, -HALF_Z, -halfW);
-    wall(FLOOR_Y, CEILING_Y, halfW, HALF_Z);
+    wall(FLOOR_Y, CEILING_Y, -outerZ, -halfW);
+    wall(FLOOR_Y, CEILING_Y, halfW, outerZ);
     wall(top, CEILING_Y, -halfW, halfW);
   }
 

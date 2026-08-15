@@ -78,13 +78,22 @@ const COMMIT_M = 0.45;
 const COMMIT_FRACTION = 0.3;
 
 /**
- * How far up its travel a door has to be before the floor runs through it.
+ * Headroom over a standing eye a doorway needs before the floor runs through it.
  *
- * Low, because the leaves clear the head long before they are fully parked and
- * a door you have to wait out after it is already tall enough to walk under is
- * a door that feels stuck.
+ * This used to be a fraction of the door's travel, 0.35, on the reasoning that
+ * "the leaves clear the head long before they are fully parked". A fraction
+ * cannot answer this question at all - it says nothing about how tall the door
+ * is - and the guess was three times too low. The aft door's leaves are geared
+ * to arrive together, so its clear opening is 0.016 + 1.994 x travel metres: at
+ * 0.35 the hole is 0.71 m tall, and the floor ran straight through it while the
+ * eye at 1.74 m passed through two leaves. Reported as "I can walk through the
+ * wall of the door sometimes", and the sometimes was how far up the leaves had
+ * got when you arrived.
+ *
+ * Asking the door how tall its hole is instead makes the rule the obvious one,
+ * and it stays right for a door built to any other proportion.
  */
-const DOOR_OPEN_ENOUGH = 0.35;
+const DOOR_HEAD_M = 0.1;
 
 /** How far in front of a shut door the floor stops, metres. */
 const DOOR_STOP_M = 0.12;
@@ -292,6 +301,13 @@ export function buildStation(plan: StationPlan): StationHandle {
    */
   const eye = new THREE.Vector3();
 
+  /** How high the eye rides when standing. The anchor's, since it owns the deck. */
+  const standingEye = (): number => resident.get(startId)?.handle.eyeHeight ?? 1.74;
+
+  /** Is this doorway a hole a standing player fits through, right now? */
+  const tallEnough = (gate: { readonly clear: number }): boolean =>
+    gate.clear >= standingEye() + DOOR_HEAD_M;
+
   const seamFloors = (): readonly FloorRect[] => {
     const out: FloorRect[] = [];
     for (const link of plan.connections) {
@@ -347,7 +363,7 @@ export function buildStation(plan: StationPlan): StationHandle {
         [b, link.to[1]],
       ] as const) {
         const gate = room.handle.portDoor?.(side);
-        if (gate === undefined || gate.open >= DOOR_OPEN_ENOUGH) continue;
+        if (gate === undefined || tallEnough(gate)) continue;
         // The door plane in tunnel coordinates. `axis` runs out of A into B, so
         // A's own fittings are at negative projection and B's at positive.
         const plane = room === a ? -gate.inset : gate.inset;
@@ -391,7 +407,7 @@ export function buildStation(plan: StationPlan): StationHandle {
       for (const p of room.handle.ports) {
         const gate = room.handle.portDoor?.(p.id);
         if (gate === undefined) continue;
-        parts.push(`${room.id}/${p.id}:${gate.open >= DOOR_OPEN_ENOUGH ? 1 : 0}`);
+        parts.push(`${room.id}/${p.id}:${tallEnough(gate) ? 1 : 0}`);
       }
     }
     return parts.join(',');
@@ -407,13 +423,19 @@ export function buildStation(plan: StationPlan): StationHandle {
   /**
    * How close the eye has to get before a door opens for it, metres.
    *
-   * Set from the door's own timing rather than picked: the leaves take about
-   * 0.8 s to clear the head, and a walk covers 1.5 m in that time. Triggering at
-   * 2.6 m means the door is already open-enough when the player arrives, so they
-   * never stop, and the leaves are visibly moving while they approach - which is
-   * the whole reason to have a door rather than a hole.
+   * Set from the door's own timing, and reset once that timing was measured
+   * honestly. The aft door releases its latch for 0.28 s and then runs for
+   * 1.55 s on a smoothstep, and it is not tall enough to walk through until 92%
+   * of that travel - which is 1.51 s from the trigger, or 2.80 m at a walk. The
+   * old 2.6 m was set against a threshold that let the player through a 0.71 m
+   * hole, so it was measuring the wrong moment.
+   *
+   * 3.4 m leaves half a second of slack, so the door is standing open by the
+   * time anybody reaches it and nobody is ever held up by it - while still being
+   * shut, from the far end of the deck, when they set off towards it. A door
+   * that is always open is a hole.
    */
-  const SUMMON_M = 2.6;
+  const SUMMON_M = 3.4;
 
   /** Tell every door whether somebody is standing near enough to use it. */
   const summonDoors = (): void => {

@@ -105,6 +105,32 @@ export function bands(floorY: number, ceilingY: number): readonly Band[] {
 }
 
 /**
+ * How far OUTBOARD of the nominal wall plane the deepest band face sits.
+ *
+ * A recessed band is a groove cut into the wall, and a groove has to be closed
+ * off wherever the wall ends or it is not a groove, it is a slot through the
+ * pressure hull. The corridor's end walls were built to the nominal plane -
+ * which is the obvious thing to build them to, and which the work band's 0.08 m
+ * recess quietly runs straight past.
+ *
+ * Measured: 886 pixels of exact VOID_SLATE, open space seen through the wall,
+ * in a 0.08 m by 1.10 m slot up each side of the doorway at eye height, running
+ * the full 11 m of the room. Reported as "I can see through holes on either
+ * side of the door which should of course be walls".
+ *
+ * It survived the airtight gate because every pose in that gate stands on the
+ * centre line, where a slot in the side wall is exactly edge-on and covers no
+ * pixels at all. Step off the centre line and it opens up. There is now a pose
+ * in that gate which does.
+ *
+ * Any room that cuts its walls into bands has to close them out to this, not to
+ * its own half-width.
+ */
+export function deepestRelief(floorY: number, ceilingY: number): number {
+  return Math.max(0, ...bands(floorY, ceilingY).map((band) => -band.relief));
+}
+
+/**
  * Crown value. Darker than HULL_SHADOW and lighter than VOID_SLATE, which is
  * the floor of the whole game - the crown is the darkest thing in a room and
  * still never the darkest thing on screen.
