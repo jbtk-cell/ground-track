@@ -99,23 +99,67 @@ try {
     `yaw ${y1.toFixed(2)} -> ${y2.toFixed(2)}`
   );
 
-  // --- The whole game, as a person plays it: land on the page, hold W.
+  // --- The whole game, as a person plays it: land on the page and hold W.
   //
-  // No turning first. The spawn must face somewhere worth walking, and for a
-  // long time it did not - it faced the fore bulkhead, a blank closeout, with
-  // the station's only door behind the player. Holding W walked 5.5 m into a
-  // wall and stopped. This check is the difference between "the door works" and
-  // "the game is playable".
+  // The door is shut and a shut door is a wall, so this must STOP. That is the
+  // barrier working, and it is checked here because the opposite defect - the
+  // eye walking into a two-metre pressure slab, whole screen one flat value -
+  // is what "I can't walk through the door" turned out to mean the first time.
   await page.evaluate(() => window.groundTrackRooms.setPose(window.groundTrackRooms.spawn()));
   await page.evaluate(() => window.groundTrackRooms.setPaused(false));
   await page.keyboard.down('w');
+  await new Promise((r) => setTimeout(r, 4000));
+  await page.keyboard.up('w');
+  const atDoor = await pose();
+  check(
+    'a shut door stops you rather than letting you walk into it',
+    atDoor.x > -3.5 && atDoor.x < -2.0,
+    `stopped at x=${atDoor.x.toFixed(2)}, door plane is -3.20`
+  );
+
+  // --- Turn to the control, press it, turn back, walk through.
+  //
+  // This is the mechanic, and it is the whole interaction model: no cursor, no
+  // prompt, no highlight, just an arm that reaches for whatever is in front of
+  // it. The button sits on the starboard jamb, 73 degrees off the axis you
+  // arrive on, so it takes a deliberate look to the side - and the arm only
+  // deploys inside a 55 degree cone, which is why that look is required rather
+  // than optional.
+  //
+  // It has been broken in both directions. Once the button was the ONLY way
+  // through and nobody found it, so the door was a lock. Then the door was made
+  // to open on approach and the buttons were deleted as redundant, which took
+  // the arm away from the one place in the room a player walks to - reported as
+  // "my arm is gone and it doesn't do anything". Both halves are checked here:
+  // the door does not open until it is pressed, and pressing it works.
+  //
+  // There is a second number here that matters as much as the cone, and it is
+  // the one that bit twice: the arm DEPLOYS at 1.6 m but only GRIPS at 0.95 m.
+  // In between, the limb visibly reaches for a control it will never take hold
+  // of and the space bar does nothing - which is what "clicking the buttons
+  // doesn't seem to work" actually was. The spawn now points straight down the
+  // room's axis so the walk has no lateral component and the eye arrives at the
+  // middle of the doorway, 0.73 m from the control, inside the grip.
+  //
+  // ArrowLeft turns toward +z, which is the side the jamb is on. 73 degrees at
+  // the 1.6 rad/s key rate is 0.80 s, then a beat for the couplings to close.
+  await page.keyboard.down('ArrowLeft');
+  await new Promise((r) => setTimeout(r, 800));
+  await page.keyboard.up('ArrowLeft');
+  await new Promise((r) => setTimeout(r, 500));
+  await page.keyboard.press('Space');
+  await new Promise((r) => setTimeout(r, 300));
+  await page.keyboard.down('ArrowRight');
+  await new Promise((r) => setTimeout(r, 800));
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.down('w');
   await new Promise((r) => setTimeout(r, 9000));
   await page.keyboard.up('w');
-  const end = await pose();
+  const out = await pose();
   check(
-    'holding W from the spawn walks out through the door',
-    end.x < MUST_REACH_X,
-    `reached x=${end.x.toFixed(2)}, needed past ${MUST_REACH_X}`
+    'turning to the door control, pressing it and walking through gets you out',
+    out.x < MUST_REACH_X,
+    `reached x=${out.x.toFixed(2)}, needed past ${MUST_REACH_X}`
   );
   check(
     'nothing throws while the player plays',
@@ -132,9 +176,14 @@ try {
   // arrow was dropped before it reached the input. Drag-look still worked, so
   // the symptom was "the mouse half works and I physically cannot walk", with
   // no error anywhere. Reproduced and fixed; this is the guard.
+  //
+  // Done out in the corridor, where there is open floor to cover: back on the
+  // deck the player is standing against a shut door, and "did not move" would
+  // be the door working rather than the keyboard failing.
   await page.click('.rooms-link');
   await new Promise((r) => setTimeout(r, 1200));
   await page.waitForFunction(() => window.groundTrackRooms?.ready === true, { timeout: 20000 });
+  await page.evaluate(() => window.groundTrackRooms.setPaused(false));
   const railStart = await pose();
   await page.keyboard.down('w');
   await new Promise((r) => setTimeout(r, 3000));

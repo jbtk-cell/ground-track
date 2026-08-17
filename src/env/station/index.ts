@@ -229,10 +229,18 @@ export function buildStation(plan: StationPlan): StationHandle {
       port.facing === '+x' || port.facing === '-x' ? 2 * half : depth
     );
     const [ax, , az] = facingVector(port.facing);
+    // Lapped 6 mm back INTO the room rather than sat on the port plane.
+    //
+    // A blank whose inner face lands exactly in the shell it covers is two
+    // surfaces at one depth facing one way, which shimmers - 1.45 m2 of it on
+    // each of the node's two spare ports. Overlapping in solid material is how
+    // the rest of the station handles this (see SLEEVE_INSET in door.ts) and it
+    // seals as well as it separates: there is no slot for a grazing ray.
+    const lap = 0.006;
     geometry.translate(
-      port.at[0] + (ax * depth) / 2,
+      port.at[0] + ax * (depth / 2 - lap),
       port.floorY + top / 2,
-      port.at[2] + (az * depth) / 2
+      port.at[2] + az * (depth / 2 - lap)
     );
     const mesh = new THREE.Mesh(geometry, blankMaterial);
     mesh.name = `blank-${port.id}`;
@@ -421,26 +429,26 @@ export function buildStation(plan: StationPlan): StationHandle {
   };
 
   /**
-   * How close the eye has to get before a door opens for it, metres.
+   * How far past the door plane still counts as standing IN the doorway, metres.
    *
-   * Set from the door's own timing, and reset once that timing was measured
-   * honestly. The aft door releases its latch for 0.28 s and then runs for
-   * 1.55 s on a smoothstep, and it is not tall enough to walk through until 92%
-   * of that travel - which is 1.51 s from the trigger, or 2.80 m at a walk. The
-   * old 2.6 m was set against a threshold that let the player through a 0.71 m
-   * hole, so it was measuring the wrong moment.
+   * This is a safety, not a trigger. It cannot open a door; all it does is stop
+   * one closing on somebody in the opening. So it is sized to the opening: the
+   * collar the door sits in, plus a step either side of it.
    *
-   * 3.4 m leaves half a second of slack, so the door is standing open by the
-   * time anybody reaches it and nobody is ever held up by it - while still being
-   * shut, from the far end of the deck, when they set off towards it. A door
-   * that is always open is a hole.
+   * It used to be 3.4 m and it used to open the door, and that one decision
+   * caused three of the things reported next. The door became automatic, so
+   * both of its buttons were dead - the hand only takes hold inside 1.6 m, so
+   * anybody near enough to press one found a door already running. With no
+   * operable control at the doorway the ARM stopped deploying there, which is
+   * the one place in the room a player walks to. And the deck is 6.2 m long, so
+   * standing almost anywhere on it held the door open and it never shut.
    */
-  const SUMMON_M = 3.4;
+  const doorwayDepth = (inset: number): number => inset + 0.3;
 
-  /** Tell every door whether somebody is standing near enough to use it. */
-  const summonDoors = (): void => {
+  /** Tell every door whether somebody is standing in its opening. */
+  const holdDoors = (): void => {
     for (const room of resident.values()) {
-      if (room.handle.summonPort === undefined) continue;
+      if (room.handle.holdPort === undefined) continue;
       for (const p of room.handle.ports) {
         const gate = room.handle.portDoor?.(p.id);
         if (gate === undefined) continue;
@@ -449,11 +457,11 @@ export function buildStation(plan: StationPlan): StationHandle {
           .add(facing.clone().multiplyScalar(-gate.inset))
           .applyMatrix4(room.placement.matrix);
         // Distance to the door PLANE along the way through, so standing beside
-        // it in a wide room does not hold it open from across the deck.
+        // it in a wide room is not standing in it.
         const out = facing.applyAxisAngle(new THREE.Vector3(0, 1, 0), room.placement.yaw).round();
         const along = Math.abs((eye.x - at.x) * out.x + (eye.z - at.z) * out.z);
         const across = Math.abs((eye.x - at.x) * -out.z + (eye.z - at.z) * out.x);
-        room.handle.summonPort(p.id, along < SUMMON_M && across < SEAM.width);
+        room.handle.holdPort(p.id, along < doorwayDepth(gate.inset) && across < SEAM.width / 2);
       }
     }
   };
@@ -561,7 +569,7 @@ export function buildStation(plan: StationPlan): StationHandle {
      */
     observe(position: THREE.Vector3): void {
       eye.copy(position);
-      summonDoors();
+      holdDoors();
       // Commit to a new room when you are well inside it - OR when you are
       // simply no longer standing in the one you were in. The second clause is
       // what makes this work in a room narrower than twice the margin: the

@@ -1417,8 +1417,11 @@ function buildRadiator(palette: Palette): THREE.Group {
     ribs.push(boxAt(1.66, 0.01, 0.028, centre.x, centre.y - 0.052, z));
   }
   // And a header at each end, which is what the tubes actually run between.
+  // Dropped 3 mm below where it reads naturally: at y - 0.05 the header's top
+  // face landed in exactly the plane of the panel's own top face, both pointing
+  // up, and 0.10 m2 of the brightest surface out there shimmered.
   for (const end of [-1, 1]) {
-    ribs.push(boxAt(1.7, 0.03, 0.06, centre.x, centre.y - 0.05, centre.z + end * 0.55));
+    ribs.push(boxAt(1.7, 0.03, 0.06, centre.x, centre.y - 0.053, centre.z + end * 0.55));
   }
   group.add(meshOf(merge(ribs), palette(PALETTE.HULL_SHADOW), 'radiator-tubes'));
 

@@ -26,6 +26,7 @@ import { createMotes } from './motes';
 import {
   BULKHEAD_X,
   DOOR_BUTTON,
+  DOOR_BUTTON_AFT,
   DOOR_FULL_RATE_S,
   SEAM_X,
   createDoor,
@@ -82,23 +83,54 @@ const DECK: FloorRect = { minX: -3.1, maxX: 3.1, minZ: -1.757, maxZ: 1.757, floo
  * starboard bow, and the door at the far end of the room - so the way out is
  * visible from the first frame and is the direction the body already points.
  *
- * Yaw 0 looks down -Z (port) and +90 degrees looks along -X (aft); 82 is aft
- * with just enough port in it to keep the window in shot.
+ * Yaw 0 looks down -Z (port) and +90 degrees looks along -X (aft). This was 82
+ * - aft with 8 degrees of port in it, to keep the cupola in the opening frame -
+ * and those 8 degrees cost more than the window was worth.
+ *
+ * The body walks where it looks. Eight degrees over the 4.6 m to the aft
+ * bulkhead is 0.65 m of drift, and then the shut door is a wall to slide along,
+ * so every further second of holding W adds another 0.26 m. Holding W from the
+ * spawn - the first thing anybody does - put the eye in the aft PORT corner at
+ * z = -1.04, and from there the door control is 1.76 m away.
+ *
+ * That is fatal in a way the numbers hide unless you know both of them. The arm
+ * DEPLOYS at 1.6 m but only GRIPS at 0.95 m, so there is a band where the limb
+ * visibly reaches for a control it will never take hold of and the space bar
+ * does nothing at all. Reported, twice now, as the buttons not working.
+ *
+ * Straight down the axis, the walk has no lateral component, so the eye arrives
+ * at the middle of the doorway and stays there however long the key is held -
+ * 0.86 m from the control, inside the grip. The cupola is two metres to port
+ * and one turn away; being able to open the door is worth more than having it
+ * in the first frame.
  */
-const SPAWN_YAW = 82 * (Math.PI / 180);
+const SPAWN_YAW = Math.PI / 2;
 /** Just off the horizon: the deck and its shaft in the lower frame, the arc above. */
 const SPAWN_PITCH = -0.08;
 
 const POINTS_OF_INTEREST: readonly PointOfInterest[] = [
   { id: 'bay', label: 'the cupola', position: [-0.58, 1.42, -2.55] },
   { id: 'perch', label: 'the perch', position: [-0.6, 0.72, -1.82] },
-  // The door's indicator, and NOT operable. It was a button, on both sides, and
-  // neither could ever be pressed: the hand takes hold inside 1.6 m and the
-  // door opens on approach from 3.4 m, so a player near enough to reach one
-  // always found a door that was already running. Reported as "idk why there
-  // are multiple buttons, clicking the buttons doesn't seem to work". Named for
-  // what it does now - it reports the door, it does not work it.
-  { id: 'door-lamp', label: 'the aft door indicator', position: DOOR_BUTTON },
+  // The door itself is not operable; its BUTTON is. Reaching for a two-metre
+  // pressure slab and having it open is a different and worse promise than
+  // pressing the thing that opens it.
+  //
+  // These went away for a version, when the door opened on approach instead,
+  // and the door being automatic took the arm with it: the hand only deploys
+  // for something operable within 1.6 m, so with nothing to reach for at the
+  // doorway there was no arm at the one place in the room a player goes.
+  // Reported as "my arm is gone and it doesn't do anything". The door opens on
+  // a press again, which is also what lets it shut - an approach trigger wide
+  // enough to be useful covered most of a 6.2 m deck, so it never closed.
+  { id: 'door-button', label: 'the aft door control', position: DOOR_BUTTON, operable: true },
+  // The same door, from the corridor. A door you can only open from one side is
+  // a door that works in every screenshot and strands you in the run outside it.
+  {
+    id: 'door-button-aft',
+    label: 'the aft door control',
+    position: DOOR_BUTTON_AFT,
+    operable: true,
+  },
   { id: 'dial', label: 'the sun-bearing dial', position: [-3.19, 1.05, -0.85] },
   { id: 'grille', label: 'the ventilation grille', position: [3.16, 1.05, -1.62] },
   // Wired to nothing, and the only operable thing in the room: the hand reaches
@@ -251,8 +283,8 @@ function buildLimbDeck(): SelfRenderingHandle {
       return { clear: clearHeight(door.travel()), inset: BULKHEAD_X - SEAM_X };
     },
 
-    summonPort(portId: string, near: boolean): void {
-      if (portId === 'aft') door.summon(near);
+    holdPort(portId: string, inDoorway: boolean): void {
+      if (portId === 'aft') door.hold(inDoorway);
     },
     // Blade pass: speed x blades, at the impeller's REAL rate rather than the
     // geared-down one it is drawn at (see IMPELLER_VISUAL_GEARING). 117.6 Hz -
@@ -288,6 +320,7 @@ function buildLimbDeck(): SelfRenderingHandle {
     interact(id: string): boolean {
       // One operable thing in this room so far, and it is deliberately inert.
       if (id === 'test-button') return testButton.press();
+      if (id === 'door-button' || id === 'door-button-aft') return door.press();
       return false;
     },
 
