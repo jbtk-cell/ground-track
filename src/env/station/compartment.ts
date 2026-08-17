@@ -85,13 +85,16 @@ export interface CompartmentHandle extends EnvironmentHandle {
    */
   portDoor?(portId: string): { readonly clear: number; readonly inset: number } | undefined;
   /**
-   * Somebody is close enough to this port to walk through it.
+   * Somebody is standing IN this port's opening.
    *
-   * The station works out proximity, because only the station knows where the
-   * player is; the room decides what to do about it. A powered door opens and
-   * stays open until they have gone.
+   * The station works out where the player is, because only the station knows;
+   * the room decides what to do about it. A powered door refuses to close on
+   * them - and only that. This used to mean "near enough to walk through" and
+   * open the door on approach, which made the door automatic, made both its
+   * buttons unpressable, took the arm away with them, and stopped it ever
+   * closing, because on a 6.2 m deck almost everywhere was inside the trigger.
    */
-  summonPort?(portId: string, near: boolean): void;
+  holdPort?(portId: string, inDoorway: boolean): void;
   /**
    * The room's own bounding box, local. Used to decide what is worth building
    * and to place the station's rooms without overlapping them.

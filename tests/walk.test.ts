@@ -86,22 +86,22 @@ function hold(
  * whole screen went to one flat value, which reads exactly like a barrier you
  * cannot get past. So a test that walks a seam has to open the seam first.
  *
- * This used to press the door's buttons. There are none: both were unpressable
- * by construction, because the hand only takes hold inside 1.6 m and the door
- * opens on approach from 3.4 m, so a player near enough to reach a control
- * always found a door already running. Standing there and waiting is not a
- * workaround, it is the only input the door has.
- *
  * The clock is returned and threaded through, because a door derives its own
  * interval from the time it is handed and a test that reset the clock to zero
  * would hand it a negative one.
  */
 function openDoorFrom(
-  station: { observe?: (eye: THREE.Vector3) => void; update?: (t: number) => void },
+  station: {
+    observe?: (eye: THREE.Vector3) => void;
+    update?: (t: number) => void;
+    pointsOfInterest: readonly { id: string; operable?: boolean }[];
+    interact?: (id: string) => boolean;
+  },
   x: number,
   z: number,
   seconds = 3
 ): number {
+  pressEveryDoor(station);
   const dt = 1 / HZ;
   const steps = Math.round(seconds * HZ);
   for (let i = 0; i < steps; i += 1) {
@@ -109,6 +109,16 @@ function openDoorFrom(
     station.update?.(i * dt);
   }
   return steps * dt;
+}
+
+/** Press every door control there is. A busy door refuses, which is harmless. */
+function pressEveryDoor(station: {
+  pointsOfInterest: readonly { id: string; operable?: boolean }[];
+  interact?: (id: string) => boolean;
+}): void {
+  for (const poi of station.pointsOfInterest) {
+    if (poi.operable === true && poi.id.includes('door-button')) station.interact?.(poi.id);
+  }
 }
 
 describe('the station: every doorway is walk-through at its full width', () => {
@@ -173,17 +183,18 @@ describe('the station: every doorway is walk-through at its full width', () => {
 });
 
 describe('the station: the doors let you through', () => {
-  it('opens for somebody who walks up to it and shuts again once they leave', () => {
-    // "The doors should close automatically, idk why there are multiple
-    // buttons, clicking the buttons doesn't seem to work idk if it does it
-    // automatically or what." It does, and there is now nothing to press and
-    // nothing to wonder about: both buttons are gone, because neither could
-    // ever be pressed. The hand takes hold inside 1.6 m and the door opens on
-    // approach from 3.4 m, so anybody close enough to reach a control found a
-    // door that was already running and a press that did nothing.
+  it('opens when its button is pressed and shuts itself about five seconds later', () => {
+    // "The doors should close automatically ... maybe 5 seconds", and "my arm
+    // is gone and it doesn't do anything". Those are one fix. The door had been
+    // made to open on approach from 3.4 m, which killed the button - the hand
+    // only takes hold inside 1.6 m, so anybody close enough to press it found a
+    // door already running - and with no operable control at the doorway the
+    // arm stopped deploying at the one place in the room a player walks to. It
+    // also meant the door never closed, because on a 6.2 m deck almost
+    // everywhere is inside a 3.4 m trigger.
     //
-    // That leaves one claim to keep, and this is it: shut when nobody is there,
-    // open for somebody who walks up, shut again behind them.
+    // So: pressed open, shut by itself, and nothing but the opening itself can
+    // hold it.
     const station = buildStation(STATION);
     try {
       const standAt = (x: number, z: number, seconds: number, from: number): number => {
@@ -196,26 +207,25 @@ describe('the station: the doors let you through', () => {
         return from + steps * dt;
       };
 
-      // The far end of the deck, 5.7 m from the door plane and well outside the
-      // 3.4 m it summons from. A door that is always open is a hole.
-      let t = standAt(2.5, 0, 1, 0);
-      expect(station.mechanism?.travel, 'stood open from across the room').toBe(0);
+      // Standing right at the door, touching nothing. It must stay shut - an
+      // approach trigger is exactly what this is not.
+      let t = standAt(-2, 0, 2, 0);
+      expect(station.mechanism?.travel, 'opened for somebody who only walked up').toBe(0);
 
-      // Walk up to it. Latch, travel, and it is waiting for you.
-      t = standAt(-2, 0, 3, t);
-      expect(station.mechanism?.travel, 'did not open for somebody standing at it').toBeGreaterThan(
-        0.99
-      );
+      // Press it.
+      pressEveryDoor(station);
+      t = standAt(-2, 0, 2.2, t);
+      expect(station.mechanism?.travel, 'the button did not open it').toBeGreaterThan(0.99);
 
-      // And leave. Dwell, latch, travel, shut - with nothing pressed either way.
-      standAt(2.5, 0, 12, t);
-      expect(station.mechanism?.travel, 'never shut again once nobody was there').toBe(0);
+      // Walk off the deck's far end and let it run. Dwell, latch, travel, shut.
+      standAt(2.5, 0, 9, t);
+      expect(station.mechanism?.travel, 'never shut again').toBe(0);
     } finally {
       station.dispose();
     }
   });
 
-  it('walks the whole station without pressing anything', () => {
+  it('walks the whole station, pressing the door on the way', () => {
     // Reported three times, the last one as "I still cannot walk through the
     // damn door, it should be fairly easy". It should, and it was not.
     //
@@ -225,10 +235,12 @@ describe('the station: the doors let you through', () => {
     // that only opened from a button on a side jamb, which is a lock. There is
     // no gameplay here to justify hunting for a control to leave a room.
     //
-    // So the door opens when somebody walks up to it. This test presses nothing.
+    // So the door opens on its button, the button is where the arm can take
+    // hold of it, and a shut door holds you in front of it rather than letting
+    // you walk into it. This walks the whole station doing what a player does.
     const station = buildStation(STATION);
     try {
-      const end = hold(station, -2.0, 0, -1, 0, 12);
+      const end = hold(station, -2.0, 0, -1, 0, 14, () => pressEveryDoor(station));
       // Past the door, past the corridor, into the node at the far end.
       expect(end.x, 'never got out of the first room').toBeLessThan(-15);
     } finally {

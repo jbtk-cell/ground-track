@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { couplingGaps, couplingRelease, limbSolidLength } from '../src/env/player/arm';
+import * as THREE from 'three';
+import { couplingGaps, couplingRelease, createArm, limbSolidLength } from '../src/env/player/arm';
+import { NEAR_PLANE_M } from '../src/env/viewer/controller';
 import { LIMB_DECK } from '../src/env/limbDeck';
 import { hullMountAt } from '../src/env/limbDeck/shell';
+import { buildStation } from '../src/env/station/index';
+import { STATION } from '../src/env/station/plan';
+
+/** The controller's wall margin: twice the near plane, held off every outer edge. */
+const MARGIN_M = NEAR_PLANE_M * 2;
 
 describe('the magnetic limb', () => {
   it('is shorter than anything it has to touch', () => {
@@ -86,16 +93,14 @@ describe('the limb deck: what the hand may reach for', () => {
     try {
       const operable = room.pointsOfInterest.filter((poi) => poi.operable === true);
       // Sorted, so adding a control does not depend on where it lands in the list.
-      //
-      // One entry, and it used to be three. Two of them were the same door, one
-      // control per side, and NEITHER could ever be pressed: the hand takes
-      // hold inside 1.6 m and the door opens on approach from 3.4 m, so a
-      // player near enough to reach either one always found a door that was
-      // already running and a press that did nothing. Reported as "idk why
-      // there are multiple buttons, clicking the buttons doesn't seem to work".
-      // The door is automatic and its plate is now an indicator, `door-lamp`,
-      // which is not operable and so is not in this list.
-      expect(operable.map((poi) => poi.id).sort()).toEqual(['test-button']);
+      // Two of these are the same door, from the deck and from the corridor.
+      // A door with one control is a door that opens only from the room that
+      // owns it, and the corridor is not that room.
+      expect(operable.map((poi) => poi.id).sort()).toEqual([
+        'door-button',
+        'door-button-aft',
+        'test-button',
+      ]);
 
       // One press per freshly built room, so a control whose mechanism another
       // control already set going is not read as a control that was never
@@ -139,6 +144,83 @@ describe('the limb deck: what the hand may reach for', () => {
       expect(z).toBeGreaterThan(1.757);
     } finally {
       room.dispose();
+    }
+  });
+});
+
+describe('the station: the hand can actually get to every control', () => {
+  it('takes hold of each operable point from somewhere a player can stand', () => {
+    // "My arm is gone and it doesn't do anything."
+    //
+    // The arm is the entire interaction model - no cursor, no prompt, no
+    // highlight - and it only deploys for an operable point within 1.6 m of the
+    // shoulder and inside a 55 degree cone. So a control the hand cannot get to
+    // is not a control, and the failure is completely silent: the arm simply
+    // never appears, and the room looks like a room with nothing in it.
+    //
+    // It has failed twice. Once by placement, a button 73 degrees off the only
+    // axis you could approach it from. Once by deletion, when the door was made
+    // to open on approach and its buttons were taken out as redundant - which
+    // removed the only operable thing at the doorway, and with it the arm, at
+    // the one place in the room a player actually walks to.
+    //
+    // Run against the STATION rather than the room, because that is where a
+    // player stands: the corridor-side door control sits 0.24 m inside the
+    // sleeve, and the sleeve is floor the station owns and the room does not.
+    // Checked with every door SHUT, which is the state you have to be able to
+    // reach a door control in - a button you can only press once the door is
+    // already open is the same nothing as no button at all.
+    //
+    // This drives the real arm with a real camera and asks it what it is
+    // holding. Nothing else in the suite proves a control can be operated at
+    // all, as opposed to being wired up correctly to nothing anybody can reach.
+    const station = buildStation(STATION);
+    const arm = createArm(false);
+    try {
+      station.observe?.(new THREE.Vector3(1.4, 1.74, 0));
+      station.update(0);
+      const operable = station.pointsOfInterest.filter((poi) => poi.operable === true);
+      expect(operable.length, 'the station has no controls at all').toBeGreaterThan(0);
+      expect(station.mechanism?.travel, 'a door was already open, so this proves less').toBe(0);
+
+      const camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.1, 100);
+      const targets = operable.map((p) => ({
+        id: p.id,
+        position: new THREE.Vector3(...p.position),
+      }));
+      const unreachable: string[] = [];
+
+      for (const poi of operable) {
+        const at = new THREE.Vector3(...poi.position);
+        // Every place a body could stand, on a 0.1 m grid, and whether the hand
+        // takes hold from any of them. Standing is the floor rectangles inset
+        // by the same wall margin the controller holds off every outer edge.
+        let grabbed = false;
+        for (const rect of station.floor) {
+          for (let x = rect.minX + MARGIN_M; x <= rect.maxX - MARGIN_M && !grabbed; x += 0.1) {
+            for (let z = rect.minZ + MARGIN_M; z <= rect.maxZ - MARGIN_M && !grabbed; z += 0.1) {
+              const eye = new THREE.Vector3(x, rect.floorY + station.eyeHeight, z);
+              if (eye.distanceTo(at) > 2) continue;
+              // Looking straight at it, which a player can always choose to do.
+              camera.position.copy(eye);
+              camera.lookAt(at);
+              camera.updateMatrixWorld(true);
+              // A few frames, because the couplings ramp rather than snap.
+              for (let f = 0; f < 8; f += 1) arm.update(camera, targets, 1 / 60);
+              if (arm.held() === poi.id) grabbed = true;
+            }
+          }
+        }
+        if (!grabbed) unreachable.push(poi.id);
+      }
+
+      expect(
+        unreachable.join(', '),
+        'operable, and the hand can never get to it from anywhere a player can stand'
+      ).toBe('');
+    } finally {
+      arm.dispose();
+      station.dispose();
     }
   });
 });

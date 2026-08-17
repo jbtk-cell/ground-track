@@ -303,8 +303,21 @@ function buildLiner(): THREE.BufferGeometry {
   // leaves that recess open at both ends of the room - a slot 0.08 m wide and
   // 1.10 m tall, at eye height, straight through to space. See deepestRelief.
   const outerZ = HALF_Z + deepestRelief(FLOOR_Y, CEILING_Y);
+  // Held 6 mm INBOARD of the seam plane, and that 6 mm is the whole fix for
+  // "every place where the door meets the hallways it keeps glitching".
+  //
+  // Both neighbours build right up to this room's ends: the limb deck's door
+  // sleeve stops exactly on x = -4.35 at the fore end, the node's door-frame
+  // trim exactly on x = -15.55 at the aft one. An end wall built to the same
+  // plane, facing the same way, is two surfaces at one depth - and which one
+  // the depth buffer picks is decided per pixel by float noise, so it shimmers
+  // as the camera moves. 0.85 m2 of it at the fore seam, 0.65 m2 at the aft.
+  //
+  // Inboard rather than outboard, so the neighbour's own material still runs
+  // through to the true seam and covers the strip this vacates. Nothing opens.
+  const END_INSET = 0.006;
   for (const side of [-1, 1] as const) {
-    const x = side * HALF_LENGTH;
+    const x = side * (HALF_LENGTH - END_INSET);
     inward.set(x - side * 1, CEILING_Y / 2, 0);
     const wall = (y0: number, y1: number, z0: number, z1: number): void => {
       pushQuad(

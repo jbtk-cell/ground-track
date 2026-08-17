@@ -178,24 +178,23 @@ describe('the aft door: where it is allowed to be', () => {
   });
 });
 
-describe('the aft door: what it does when somebody walks up to it', () => {
+describe('the aft door: what it does when it is pressed', () => {
   /**
    * Runs the door forward from rest, sampling travel at fixed steps.
    *
-   * There is no press any more. Both of this door's buttons were unpressable by
-   * construction - the hand takes hold inside 1.6 m, the door opens on approach
-   * from 3.4 m - so walking up to it is the only input it has. `leaveAt` is when
-   * the player walks away again, which is what lets the dwell run out.
+   * A press is the only thing that opens this door. `standingInItUntil` is how
+   * long somebody occupies the opening, which does not open anything - it only
+   * refuses to let the door close on them.
    */
-  function run(seconds: number, leaveAt = Infinity, step = 1 / 60) {
+  function run(seconds: number, standingInItUntil = 0, step = 1 / 60) {
     const door = createDoor();
     let t = 0;
     door.update(frameAt(t));
-    door.summon(true);
+    door.press();
     let peak = 0;
     while (t < seconds) {
       t += step;
-      if (t >= leaveAt) door.summon(false);
+      door.hold(t < standingInItUntil);
       door.update(frameAt(t));
       peak = Math.max(peak, door.travel());
     }
@@ -207,73 +206,96 @@ describe('the aft door: what it does when somebody walks up to it', () => {
     expect(opened.door.travel()).toBeGreaterThan(0.99);
     opened.door.dispose();
 
-    // Latch, travel, dwell, latch, travel - and then shut, with nobody doing
-    // anything but walking away from it.
-    const cycled = run(12, 2.5);
+    // Latch, travel, a 5 s dwell, latch, travel - and then shut, with nothing
+    // pressed a second time. Asked for as "automatically close after some time
+    // maybe 5 seconds", and the whole cycle from press to shut is 8.7 s.
+    const cycled = run(12);
     expect(cycled.peak).toBeGreaterThan(0.99);
     expect(cycled.door.travel()).toBe(0);
     cycled.door.dispose();
+  });
+
+  it('closes about five seconds after it finished opening', () => {
+    // The number the dwell actually is, measured rather than asserted from the
+    // constant, so shortening the travel cannot quietly lengthen the wait.
+    const door = createDoor();
+    let t = 0;
+    door.update(frameAt(t));
+    door.press();
+    let fullyOpen = null;
+    let leftFull = null;
+    while (t < 12) {
+      t += 1 / 60;
+      door.update(frameAt(t));
+      if (fullyOpen === null && door.travel() > 0.999) fullyOpen = t;
+      if (fullyOpen !== null && leftFull === null && door.travel() < 0.999) leftFull = t;
+    }
+    expect(fullyOpen, 'never reached the top of its travel').not.toBeNull();
+    expect(leftFull, 'never started back down').not.toBeNull();
+    const dwell = (leftFull ?? 0) - (fullyOpen ?? 0);
+    // The latch re-seats before the leaves move, so the wait is the dwell plus
+    // that latch. Five seconds, give or take the frame it is sampled on.
+    expect(dwell).toBeGreaterThan(5);
+    expect(dwell).toBeLessThan(5.6);
+    door.dispose();
   });
 
   it('stays open while somebody is still standing in it', () => {
     // The dwell must not run out under a player who has not left. A door that
     // shut on the person walking through it would be the barrier defect again,
     // pointed the other way.
-    const held = run(20);
+    const held = run(20, Infinity);
     expect(held.door.travel()).toBe(1);
     held.door.dispose();
   });
 
-  it('is not restarted by being told again while it is already opening', () => {
-    // The normal case: the station says this every frame the player is near.
+  it('refuses a second press while it is moving', () => {
     const door = createDoor();
-    let t = 0;
-    door.update(frameAt(t));
-    // Stepped at 60 Hz, because the door clamps the interval it derives at
-    // 0.1 s so a backgrounded tab cannot jump it - one 0.9 s update advances
-    // the mechanism by a tenth of a second, not by nine.
-    while (t < 0.9) {
-      t += 1 / 60;
-      door.summon(true);
-      door.update(frameAt(t));
-    }
-    const halfway = door.travel();
-    expect(halfway).toBeGreaterThan(0);
-    expect(halfway).toBeLessThan(1);
-    while (t < 1.1) {
-      t += 1 / 60;
-      door.summon(true);
-      door.update(frameAt(t));
-    }
-    expect(door.travel()).toBeGreaterThan(halfway);
+    door.update(frameAt(0));
+    expect(door.press()).toBe(true);
+    expect(door.press()).toBe(false);
+    door.update(frameAt(0.5));
+    expect(door.press()).toBe(false);
     door.dispose();
   });
 
-  it('reverses smoothly when somebody comes back while it is closing', () => {
-    // Walk away, let the dwell run out, then walk back at the worst possible
-    // moment - halfway down. The leaves have to go back up from where they are.
-    // Pinning the clock to the top of the travel instead made the door jump
-    // from half shut to fully open in a single frame.
+  it('is never opened by somebody merely standing in the doorway', () => {
+    // `hold` is a safety, not a trigger. If it could open a door it would be
+    // the approach trigger again, which is what made the buttons pointless and
+    // took the arm away with them.
     const door = createDoor();
     let t = 0;
     door.update(frameAt(t));
-    door.summon(true);
+    while (t < 5) {
+      t += 1 / 60;
+      door.hold(true);
+      door.update(frameAt(t));
+    }
+    expect(door.travel()).toBe(0);
+    door.dispose();
+  });
+
+  it('reverses smoothly when somebody steps into it while it is closing', () => {
+    // Press it, let the dwell run out, then step back into the opening at the
+    // worst possible moment - halfway down. The leaves have to go back up from
+    // where they are. Pinning the clock to the top of the travel instead made
+    // the door jump from half shut to fully open in a single frame.
+    const door = createDoor();
+    let t = 0;
+    door.update(frameAt(t));
+    door.press();
     let previous = 0;
     let biggest = 0;
-    let sawMidClose = false;
-    while (t < 14) {
+    let steppedIn = false;
+    while (t < 16) {
       t += 1 / 60;
-      // Leave once it is open, and come back the moment it is halfway down.
-      if (t >= 2.5) door.summon(false);
-      if (!sawMidClose && t > 2.5 && door.travel() > 0.4 && door.travel() < 0.6) {
-        sawMidClose = true;
-      }
-      if (sawMidClose) door.summon(true);
+      if (!steppedIn && door.travel() > 0.4 && door.travel() < 0.6 && t > 2) steppedIn = true;
+      door.hold(steppedIn);
       door.update(frameAt(t));
       biggest = Math.max(biggest, Math.abs(door.travel() - previous));
       previous = door.travel();
     }
-    expect(sawMidClose, 'the door never got halfway down, so nothing was tested').toBe(true);
+    expect(steppedIn, 'the door never got halfway down, so nothing was tested').toBe(true);
     // Back at the top, having gone up rather than teleported there.
     expect(door.travel()).toBeGreaterThan(0.99);
     expect(biggest).toBeLessThan((1.5 / 60 / DOOR_FULL_RATE_S) * 1.2);
@@ -295,12 +317,11 @@ describe('the aft door: what it does when somebody walks up to it', () => {
     const door = createDoor();
     let t = 0;
     door.update(frameAt(t));
-    door.summon(true);
+    door.press();
     let previous = 0;
     let biggest = 0;
     while (t < 12) {
       t += 1 / 60;
-      if (t >= 2.5) door.summon(false);
       door.update(frameAt(t));
       biggest = Math.max(biggest, Math.abs(door.travel() - previous));
       previous = door.travel();
