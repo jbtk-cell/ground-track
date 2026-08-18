@@ -10,11 +10,31 @@ it records the design AND the corrections the judges forced on it.
 An **environment** is a place the player stands in and walks around. Each one is
 a self-contained module implementing `EnvironmentHandle` (`src/env/types.ts`).
 
-**Environments are separate from the game.** They are built, viewed and approved
-one at a time through the standalone viewer at `rooms.html`, which mounts
-exactly one environment and nothing else. No environment imports game state. An
-approved environment is later mounted by the game unchanged - the separation
-lives in the viewer, not in the room.
+**Environments are built separately from the game.** They are built, viewed and
+approved one at a time through the standalone viewer at `rooms.html`, which
+mounts exactly one environment and nothing else. No environment imports game
+state. An approved environment is later mounted by the game unchanged - the
+separation lives in the viewer, not in the room.
+
+**But the station is where the game is played.** Owner decision, 2026-08-18,
+recorded here because until now this file said "separate from the game" and
+STRUCTURE.md described the whole game as a camera and a card with no station in
+it - and a set of rooms built against those two sentences is a set of rooms with
+nothing to do in them. That is exactly what an outside review found: "it is not
+currently worth walking through."
+
+So every compartment houses one thing the player does, and the room list is
+derived from STRUCTURE.md's systems rather than from architecture alone. THE PLOT
+is where the PAD prints and the number is typed. THE CROSSING posts the offer
+queue. THE CROWN holds the regime map and the coverage quilt. THE RACKS hold
+hardware and the manifest, THE GANTRY the propellant, THE SILL the salvage
+register, THE BEND the frame album, THE MAGAZINE the deep-space probe's late
+check-in, THE BERTH the resupply. THE CRAWL houses nothing, deliberately - it is
+the compression that makes the room after it read as big.
+
+The build-time separation above still holds and still matters: a room is
+approved alone in the viewer, and no room imports game state. What changed is
+where an approved room ends up, and therefore what a room is FOR.
 
 ## Non-negotiables
 

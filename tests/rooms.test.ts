@@ -18,7 +18,7 @@ import { STATION } from '../src/env/station/plan';
 import { corners, planeClashes } from '../src/env/kit/solids';
 import { layOut, overlaps } from '../src/env/station/layout';
 import { buildStation } from '../src/env/station/index';
-import { SEAM, facingVector } from '../src/env/station/ports';
+import { facingVector } from '../src/env/station/ports';
 import type { CompartmentDefinition } from '../src/env/station/compartment';
 
 const ROOMS: readonly CompartmentDefinition[] = STATION.rooms;
@@ -136,9 +136,14 @@ describe('every room: its seams are walk-through sized', () => {
       // the multi-room form of the mistake that shipped a door 70 mm over the
       // eye: measured against the doorway the hull was cut to, not the gap a
       // person walks through.
-      expect(p.at[1] - p.floorY).toBeCloseTo(SEAM.height / 2, 6);
-      expect(SEAM.height).toBeGreaterThan(1.99);
-      expect(SEAM.width).toBeGreaterThan(1.0);
+      // Against the port's OWN seam, not the standard one. There are two sizes
+      // now - the pressure seam and the wide, low GALLERY_SEAM into the two
+      // rooms whose point is volume - and a check written against the module
+      // constant would have quietly held every gallery port to the wrong
+      // rectangle while reading as though it were checking something.
+      expect(p.at[1] - p.floorY).toBeCloseTo(p.seam.height / 2, 6);
+      expect(p.seam.height, `${room.id}/${p.id} is too low to walk through`).toBeGreaterThan(1.99);
+      expect(p.seam.width, `${room.id}/${p.id} is too narrow`).toBeGreaterThan(1.0);
     }
   });
 });

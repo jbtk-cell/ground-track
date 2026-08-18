@@ -50,6 +50,34 @@ Five regimes plus one horizon. They do not all ship at once — the build order 
 
 **HORIZON · FARSIDE** (lunar, post-launch) — grows out of DIRECTION's deep-space probe. The Moon's limb takes over the 30–40% law so nothing ever sits against black; typed digits echo back a beat late because light delay is real. Unlocked the day a delivered tank can honestly print a translunar card.
 
+## The station you stand in
+
+Owner decision, 2026-08-18. Everything above describes the game as a camera over
+a regime map with a card docked lower-left, and never mentions the player having
+a body. That was true when it was written and it is no longer the plan: the
+first-person station in `src/env/` is where the game is played from, and every
+compartment in it houses one of the systems named in this document.
+
+| Compartment      | What the player does there                                                      |
+| ---------------- | ------------------------------------------------------------------------------- |
+| **THE PLOT**     | The PAD exchange. Cards print, the number is typed, the burn commits            |
+| **THE CROSSING** | The offer queue - `SITUATIONS` posted at the hub you cross every session        |
+| **THE CROWN**    | The map: regime rings overhead, and territory quilting the Earth across weeks   |
+| **THE RACKS**    | Hardware and the manifest, on shelves. Packing it is itself grade arithmetic    |
+| **THE GANTRY**   | Propellant. The tank column as 24 tanks you walk among                          |
+| **THE SILL**     | The salvage register - caught derelicts refitting in the sump under the grating |
+| **THE BEND**     | The frame album, hung along the curve, each still stamped with its own offset   |
+| **THE MAGAZINE** | The deep-space probe's check-in, arriving late, in the only silent room         |
+| **THE BERTH**    | Resupply, and a launch watched climbing off the limb                            |
+| **THE CRAWL**    | Nothing, deliberately. Compression, so the room after it reads as big           |
+
+This does not change a single rule above it. The typed number is still executed
+and never graded, the only gate is still Δv aboard, and there is still no score
+anywhere. It changes where the player is standing when the card prints, and it
+means the rooms are laid out by what happens in them rather than by proportion
+alone - which is the one thing the architecture brief in `docs/review/` could not
+decide for itself, because it was written without reading this file.
+
 ## The map, and travel
 
 No second art pipeline and no cut: the map is the camera pulling back (the mandated 2.5–4 s cubic ease) until the regime rings fit — Earth's disc holding 30–40% of frame, each regime a labeled hairline annulus with a mono eyebrow (`LOW FIELD 400 KM · THE RING 35 786 KM`), your birds as livery beads, lit coverage cells quilting the disc, open transfers as dashed conics. Clicking a regime eases the camera down through the haze to it.

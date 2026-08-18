@@ -36,7 +36,7 @@ import {
   isPainter,
 } from './compartment';
 import { type Connection, type Placement, layOut } from './layout';
-import { SEAM, type Port, facingVector } from './ports';
+import { type Port, facingVector } from './ports';
 
 export interface StationPlan {
   readonly id: string;
@@ -220,8 +220,8 @@ export function buildStation(plan: StationPlan): StationHandle {
    * behind a door that now opens onto somewhere.
    */
   const capFor = (port: Port): THREE.Mesh => {
-    const half = SEAM.width / 2 + 0.25;
-    const top = SEAM.height + 0.25;
+    const half = port.seam.width / 2 + 0.25;
+    const top = port.seam.height + 0.25;
     const depth = 0.12;
     const geometry = new THREE.BoxGeometry(
       port.facing === '+x' || port.facing === '-x' ? depth : 2 * half,
@@ -381,7 +381,7 @@ export function buildStation(plan: StationPlan): StationHandle {
         else far0 = Math.min(far0, plane - DOOR_STOP_M);
       }
       if (near0 >= far0) continue;
-      const half = SEAM.width / 2;
+      const half = near.seam.width / 2;
       const floorY = a.placement.position.y + near.floorY;
       const p0 = new THREE.Vector3(seam.x + axis.x * near0, 0, seam.z + axis.z * near0);
       const p1 = new THREE.Vector3(seam.x + axis.x * far0, 0, seam.z + axis.z * far0);
@@ -461,7 +461,7 @@ export function buildStation(plan: StationPlan): StationHandle {
         const out = facing.applyAxisAngle(new THREE.Vector3(0, 1, 0), room.placement.yaw).round();
         const along = Math.abs((eye.x - at.x) * out.x + (eye.z - at.z) * out.z);
         const across = Math.abs((eye.x - at.x) * -out.z + (eye.z - at.z) * out.x);
-        room.handle.holdPort(p.id, along < doorwayDepth(gate.inset) && across < SEAM.width / 2);
+        room.handle.holdPort(p.id, along < doorwayDepth(gate.inset) && across < p.seam.width / 2);
       }
     }
   };
