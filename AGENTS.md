@@ -69,7 +69,10 @@ prints its findings, and exits non-zero to fail.
 Gates in place today:
 
 - `palette` - there is no black anywhere; `VOID_SLATE` (`#101B26`) is the
-  darkest value.
+  darkest value. Also: no red anywhere except the sanctioned warm tokens
+  (`CAUTION_RUST`, `ACCENT`, `FOIL`, `SETTLEMENT`, and the dawn/earthshine
+  tones) - a hue/saturation/value scan flags pixels in the red band, excluding
+  any within colour distance of a sanctioned token.
 - `shots-diff` - every preset in `shots/current` must stay within pixel-drift
   tolerance of the committed `shots/baseline`; a missing or an unexpected
   extra preset always fails, in any environment. The byte-level pixel
@@ -118,7 +121,6 @@ These rules are in DIRECTION.md and are not yet automated - hold them by hand,
 and turning one into a gate is always welcome work:
 
 - **Earth's limb holds 30-40% of frame.** No shot is an object against black.
-- **No red.** The only warm-negative is desaturated rust `#A8624B`, hairline.
 - **No score, XP, percentage or star rating.** Coverage is expressed as geometry.
 - **No multiple choice.** Typed digits into fixed-width cells.
 
