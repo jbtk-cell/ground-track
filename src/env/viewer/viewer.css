@@ -1,0 +1,255 @@
+/*
+  Chrome for the environment viewer.
+
+  A tool in the game's voice, not a screen in the game: IBM Plex Mono
+  throughout, mint on slate, hairline rules, nothing that competes with the
+  room behind it. The accent is not spelled anywhere in this file: it belongs
+  to the primary action and the live burn, and a room has neither. Focus
+  speaks in the instrument colour instead.
+*/
+
+html {
+  height: 100%;
+}
+
+.rooms {
+  --slate: #101b26;
+  --mint: #c6dccc;
+  --dim: #8fa0ac;
+  --vellum: #f0eee9;
+  --hairline: rgba(143, 160, 172, 0.28);
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--slate);
+  color: var(--vellum);
+  font-family: var(--mono);
+  font-size: 12px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.rooms * {
+  box-sizing: border-box;
+}
+
+#viewport {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  /* The whole canvas is a look surface; a drag must never scroll the page. */
+  touch-action: none;
+  cursor: grab;
+}
+
+#viewport:active {
+  cursor: grabbing;
+}
+
+/* --- The catalogue, top left. --- */
+
+.rooms-rail {
+  position: fixed;
+  top: 26px;
+  left: 40px;
+  max-width: 34ch;
+}
+
+.rooms-eyebrow {
+  margin: 0 0 14px;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--dim);
+  /* Tracked-out caps wrap badly; the rail's width belongs to the room names. */
+  white-space: nowrap;
+}
+
+.rooms-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rooms-item {
+  border-left: 1px solid transparent;
+  padding-left: 12px;
+  margin-bottom: 10px;
+}
+
+.rooms-item.is-current {
+  border-left-color: var(--mint);
+}
+
+.rooms-link {
+  display: block;
+  text-decoration: none;
+  opacity: 0.45;
+  transition: opacity 120ms linear;
+}
+
+.rooms-item.is-current .rooms-link,
+.rooms-link:hover,
+.rooms-link:focus-visible {
+  opacity: 1;
+}
+
+.rooms-name {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+
+.rooms-note {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--dim);
+}
+
+/* The accent is spoken for; focus speaks in the instrument colour. */
+.rooms :focus-visible {
+  outline: 1px solid var(--mint);
+  outline-offset: 3px;
+}
+
+/* --- What the viewer is doing, top right. The machine's own voice. --- */
+
+.rooms-status {
+  position: fixed;
+  top: 26px;
+  right: 40px;
+  margin: 0;
+  max-width: 40ch;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-align: right;
+  text-transform: uppercase;
+  color: var(--dim);
+  pointer-events: none;
+}
+
+/* --- Controls, bottom right. --- */
+
+.rooms-controls {
+  position: fixed;
+  right: 40px;
+  bottom: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.rooms-legend {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 14px;
+  margin: 0;
+  text-align: right;
+  pointer-events: none;
+}
+
+.rooms-legend dt {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mint);
+  opacity: 0.75;
+}
+
+.rooms-legend dd {
+  margin: 0;
+  font-size: 11px;
+  color: var(--dim);
+  text-align: left;
+}
+
+/* --- The stick. Built by controller.ts on coarse pointers only. --- */
+
+.rooms-stick {
+  position: fixed;
+  left: 40px;
+  bottom: 34px;
+  width: 108px;
+  height: 108px;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  touch-action: none;
+  opacity: 0.7;
+  transition: opacity 120ms linear;
+}
+
+.rooms-stick.is-live {
+  opacity: 1;
+}
+
+.rooms-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(198, 220, 204, 0.55);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 720px) {
+  .rooms-rail {
+    left: 22px;
+    top: 20px;
+    max-width: 24ch;
+  }
+  .rooms-status {
+    right: 22px;
+    top: 20px;
+    max-width: 18ch;
+  }
+  .rooms-controls {
+    right: 22px;
+    bottom: 26px;
+  }
+  .rooms-stick {
+    left: 22px;
+    bottom: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rooms,
+  .rooms * {
+    transition-property: opacity;
+    transition-duration: 120ms;
+  }
+}
+
+/*
+ * The divider between the station and the compartments.
+ *
+ * The rail used to be four equally weighted links, which read as a menu - and a
+ * menu is what a player reaches for when the doors do not work. The station is
+ * the thing you walk; what sits under this heading is the review workflow, where
+ * one room is mounted alone to be approved.
+ */
+.rooms-heading {
+  margin: 18px 0 8px;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--dim);
+  white-space: nowrap;
+  opacity: 0.65;
+}
+
+/* The build stamp. Quiet, but always there - see main.ts. */
+.rooms-build {
+  display: block;
+  margin-top: 4px;
+  letter-spacing: 0.14em;
+  opacity: 0.55;
+}

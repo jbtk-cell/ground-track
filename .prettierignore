@@ -2,3 +2,7 @@ dist
 node_modules
 package-lock.json
 shots
+
+# Outside-review documents. Their ASCII plans and sections are dimensioned
+# drawings; reflowing them destroys the drawing.
+docs/review/

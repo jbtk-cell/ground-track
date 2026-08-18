@@ -6,14 +6,30 @@ export interface EarthOptions {
   readonly radius: number;
   /**
    * Icosahedron subdivision. three.js splits each edge into detail+1 segments,
-   * so faces = 20 * (detail+1)^2. 28 gives 16820 facets: fine enough to draw a
-   * coastline, coarse enough that every facet still reads as a facet.
+   * so faces = 20 * (detail+1)^2. 42 gives 36980 facets.
+   *
+   * Raised from 28 (16820). The planet is the one thing in the bay the eye
+   * lingers on, and through a window it is seen much closer to full frame than
+   * it ever is on the orbital map - at 28 a coastline is drawn in triangles you
+   * can count. This is still comfortably a FACETED Earth, which is the point:
+   * every facet has to stay big enough to read as one, or the low-poly language
+   * quietly becomes a smooth sphere with noise on it. Twice the facets is about
+   * 1.4x finer in each direction, which is the largest step that keeps them
+   * legible at the bay's framing.
    */
   readonly detail: number;
   readonly seed: number;
 }
 
-export const DEFAULT_EARTH: EarthOptions = { radius: 1, detail: 28, seed: 1337 };
+export const DEFAULT_EARTH: EarthOptions = { radius: 1, detail: 42, seed: 1337 };
+
+/**
+ * Specular colour of the sea. Warm, because it is reflecting the sun, and dark
+ * because a specular term ADDS: this is the amount of extra brightness a facet
+ * gains at perfect mirror alignment, on top of a lit ocean that is already
+ * halfway up the range.
+ */
+const GLINT = '#7A6E58';
 
 const SEA_LEVEL = 0.505;
 /** Relief as a fraction of radius. Small, so the silhouette stays clean. */
@@ -72,6 +88,36 @@ function colourFor(
   }
 }
 
+/**
+ * The surface colour under a geodetic point, without building any geometry.
+ *
+ * An interior lights its earthshine with the colour of the ground actually
+ * below the station, and that colour has to come from this terrain field or
+ * the fill light and the planet seen through the window disagree about which
+ * continent you are over. Pure and allocation-free when given a target.
+ *
+ * Longitude follows the frame in units.ts - sim +x is scene +x and sim +y is
+ * scene -z - so the same longitude names the same ground here and on the mesh.
+ */
+export function albedoAt(
+  latitude: number,
+  longitude: number,
+  target: THREE.Color = new THREE.Color(),
+  seed: number = DEFAULT_EARTH.seed
+): THREE.Color {
+  const cosLat = Math.cos(latitude);
+  const x = cosLat * Math.cos(longitude);
+  const y = Math.sin(latitude);
+  const z = -cosLat * Math.sin(longitude);
+
+  const { elevation, land } = sampleSurface(x, y, z, seed);
+  const ridge = land ? ridged(x * 3.4, y * 3.4, z * 3.4, seed + 313) : 0;
+  // colourFor's third argument is sin(latitude), which is what buildEarth
+  // passes it as well - the vertical component of the unit normal, not degrees.
+  colourFor(elevation, land, y, ridge, target);
+  return target;
+}
+
 export interface EarthBuild {
   readonly mesh: THREE.Mesh;
   /** Points on land, in local space, for settlement lights. */
@@ -91,6 +137,7 @@ export function buildEarth(options: EarthOptions = DEFAULT_EARTH): EarthBuild {
   const colours = new Float32Array(count * 3);
   const colour = new THREE.Color();
   const candidateLand: number[] = [];
+  const isWater = new Uint8Array(count / 3);
 
   // Per facet: one sample at the centroid, one colour across all three corners.
   for (let f = 0; f < count; f += 3) {
@@ -123,6 +170,8 @@ export function buildEarth(options: EarthOptions = DEFAULT_EARTH): EarthBuild {
     }
 
     if (land && Math.abs(ny) < 0.82) candidateLand.push(nx, ny, nz);
+    // Which facets are water. Only these are allowed to catch the sun.
+    isWater[f / 3] = land ? 0 : 1;
   }
 
   // Displacement by position, so co-located corners agree.
@@ -142,20 +191,83 @@ export function buildEarth(options: EarthOptions = DEFAULT_EARTH): EarthBuild {
   }
 
   position.needsUpdate = true;
-  geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
-  geometry.computeVertexNormals();
 
-  const material = new THREE.MeshLambertMaterial({
-    vertexColors: true,
-    flatShading: true,
-    // An emissive floor, not an ambient one. Ambient light multiplies albedo,
-    // so dark ocean under a dark ambient lands below VOID_SLATE; emissive adds
-    // a constant instead and holds the palette's darkest value as a true floor.
+  // --- Sort water facets to the front, so the mesh can be drawn in two groups.
+  //
+  // The glint has to be water only - a specular highlight sliding across a
+  // continent is a plastic planet - and a material is per draw call, not per
+  // facet. Reordering the facets so all the ocean is contiguous buys a second
+  // draw group on the SAME geometry and the same mesh: one extra draw call, no
+  // second object to keep in step, and land stays exactly the Lambert surface
+  // it was.
+  const facets = count / 3;
+  const sorted = new Float32Array(count * 3);
+  const sortedColours = new Float32Array(count * 3);
+  let write = 0;
+  let waterVerts = 0;
+  for (const wantWater of [1, 0]) {
+    for (let f = 0; f < facets; f += 1) {
+      if (isWater[f] !== wantWater) continue;
+      for (let k = 0; k < 3; k += 1) {
+        const from = (f * 3 + k) * 3;
+        sorted[write] = position.getX(f * 3 + k);
+        sorted[write + 1] = position.getY(f * 3 + k);
+        sorted[write + 2] = position.getZ(f * 3 + k);
+        sortedColours[write] = colours[from] ?? 0;
+        sortedColours[write + 1] = colours[from + 1] ?? 0;
+        sortedColours[write + 2] = colours[from + 2] ?? 0;
+        write += 3;
+      }
+      if (wantWater === 1) waterVerts += 3;
+    }
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(sorted, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(sortedColours, 3));
+  geometry.computeVertexNormals();
+  geometry.clearGroups();
+  geometry.addGroup(0, waterVerts, 0);
+  geometry.addGroup(waterVerts, count - waterVerts, 1);
+
+  // An emissive floor, not an ambient one. Ambient light multiplies albedo, so
+  // dark ocean under a dark ambient lands below VOID_SLATE; emissive adds a
+  // constant instead and holds the palette's darkest value as a true floor.
+  const floor = {
     emissive: new THREE.Color(PALETTE.NIGHT_SIDE),
     emissiveIntensity: 0.62,
+  };
+
+  /**
+   * Ocean, with the sun in it.
+   *
+   * Sunglint is the one thing you actually see from a window in low orbit that
+   * a diffuse planet cannot produce: a hard bright patch where the water's
+   * mirror direction lines up with your eye, sliding across the sea as the
+   * orbit carries you. Here it costs a specular term and nothing else. No
+   * bloom, no sprite, no post pass - DIRECTION bans all three - and because the
+   * mesh is flat shaded the highlight lands per FACET, so it reads as a scatter
+   * of stepped water facets rather than as a soft blob airbrushed on the ocean.
+   * That is the same language the rest of the planet is drawn in.
+   *
+   * `shininess` is high and `specular` deliberately dim. A wide lobe would wash
+   * half an ocean and clip; this keeps the patch small and its brightest facet
+   * measured well under 255 at every orbital phase.
+   */
+  const ocean = new THREE.MeshPhongMaterial({
+    vertexColors: true,
+    flatShading: true,
+    specular: new THREE.Color(GLINT),
+    shininess: 7,
+    ...floor,
   });
 
-  const mesh = new THREE.Mesh(geometry, material);
+  const land = new THREE.MeshLambertMaterial({
+    vertexColors: true,
+    flatShading: true,
+    ...floor,
+  });
+
+  const mesh = new THREE.Mesh(geometry, [ocean, land]);
   mesh.name = 'earth';
 
   return { mesh, landPoints: new Float32Array(candidateLand) };

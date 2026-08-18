@@ -16,7 +16,11 @@ const noBloomImports = {
 };
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'shots'] },
+  // '.gt-*' is the scratch namespace for throwaway probe scripts driven at the
+  // browser (see .gitignore). They are not source, they are not typed, and
+  // linting them has now twice broken a verify run over a file that was never
+  // going to be committed.
+  { ignores: ['dist', 'node_modules', 'shots', '.gt-*'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -39,6 +43,11 @@ export default tseslint.config(
         fetch: 'readonly',
         Buffer: 'readonly',
         window: 'readonly',
+        URL: 'readonly',
+        // The playable gate drives a real browser: it waits on it, and it runs
+        // snippets inside the page where `document` is the page's own.
+        setTimeout: 'readonly',
+        document: 'readonly',
       },
     },
   },
