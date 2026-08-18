@@ -6,6 +6,12 @@
  * and judges them against docs/DIRECTION.md; unexplained drift from
  * shots/baseline blocks a merge. See docs/LOOP.md.
  *
+ * Two pages are shot, because the project has two: index.html, which is the
+ * game, and rooms.html, which mounts one environment and nothing else
+ * (docs/ENVIRONMENTS.md). The interior presets below drive the second one -
+ * they are poses inside a room rather than framings of a planet, so they carry
+ * their own clock time and standing position instead of naming a CameraPreset.
+ *
  *   npm run shots                  render into shots/current
  *   npm run shots -- --baseline    overwrite shots/baseline (deliberate act)
  *   npm run shots -- --url <url>   shoot an already-running server
@@ -21,6 +27,101 @@ const HEIGHT = 900;
 /** Frozen clock, so a screenshot is a function of the code alone. */
 const FIXED_TIME = 0;
 const PORT = 4318;
+
+/**
+ * Interior presets: one pose inside one environment, at one pinned second of
+ * the orbital clock.
+ *
+ * deck-eclipse is first deliberately. docs/ENVIRONMENTS.md: eclipse is where an
+ * interior fails, and it fails by going flat and grey rather than by going
+ * black, so it is the frame to look at before anything else is polished.
+ *
+ * Times are wall seconds since the room was built, and the room runs at 20x, so
+ * one revolution is 277.7 s. Phase 0 is local noon; the room spawns at 335
+ * degrees, twenty-five seconds short of it.
+ */
+const INTERIOR_PRESETS = [
+  {
+    // Deep umbra, phase 185 degrees. Same pose as deck-noon, so the pair is a
+    // controlled comparison: what is left when the sun goes out is the lamps,
+    // the earthshine through the bay, and whether the hull still has facets.
+    name: 'deck-eclipse',
+    room: 'limb-deck',
+    t: 158.1,
+    pose: { x: -1.6, z: 0.9, yaw: -0.75, pitch: -0.16 },
+  },
+  {
+    // Local noon, phase 0. The shaft stands on the deck under the bay and the
+    // starboard hull carries the sun.
+    name: 'deck-noon',
+    room: 'limb-deck',
+    t: 19.3,
+    pose: { x: -1.6, z: 0.9, yaw: -0.75, pitch: -0.16 },
+  },
+  {
+    // At the bay, which is the shot the compositional law is checked against:
+    // Earth's lit surface across 30-40 per cent of the aperture, at the 62
+    // degree interior FOV that shipped.
+    name: 'deck-window',
+    room: 'limb-deck',
+    t: 30,
+    pose: { x: -0.7, z: -1.5, yaw: -0.04, pitch: -0.22 },
+  },
+  {
+    // The aft bulkhead: the closed hatch that is the future door, the name
+    // placard, and the sun-bearing dial with its needle 25 degrees short of
+    // twelve o'clock.
+    name: 'deck-aft',
+    room: 'limb-deck',
+    t: 0,
+    pose: { x: -1.45, z: -0.32, yaw: Math.PI / 2, pitch: -0.03 },
+  },
+  {
+    // At the test button, mid-orbit, with the limb strung out across the lower
+    // frame: the couplings open, the hand stands off the last segment, and the
+    // state ring sits in clear air outside the gripper.
+    name: 'deck-reach',
+    room: 'limb-deck',
+    t: 19.3,
+    pose: { x: 2.15, z: 1.35, yaw: Math.PI, pitch: -0.334 },
+  },
+  {
+    // The same pose with the button pressed, in ECLIPSE, and it is here because
+    // the four shots above missed a real defect. The live ring used to be lit
+    // MINT plus a MINT emissive term, which rendered at 255,255,247 across eight
+    // thousand pixels - blown white, in a game with no white and no bloom - and
+    // the palette gate passed the whole time, because no pinned shot had ever
+    // stood at a control and operated it. A gate only covers the states it
+    // renders. Eclipse rather than noon so the step is measured with nothing
+    // else in the room to hide behind.
+    name: 'deck-press',
+    room: 'limb-deck',
+    t: 158.1,
+    pose: { x: 2.15, z: 1.35, yaw: Math.PI, pitch: -0.334 },
+    press: true,
+  },
+  {
+    // The aft door standing open, from close enough that the jamb, the pocket
+    // over the opening and the tunnel behind are all in frame at once.
+    //
+    // The open state had no pinned shot, and that is how a door shipped whose
+    // header stood out through the roof and whose bulkhead was missing a
+    // 140-degree cone either side of it. An interior frame containing any
+    // VOID_SLATE at all is a hole to space; this is the pose most likely to
+    // show one.
+    name: 'deck-door',
+    room: 'limb-deck',
+    t: 19.3,
+    // Pressed from arm's length and shot from a step back. The limb only takes
+    // hold inside 0.95 m of the shoulder, and at 0.95 m from a door you cannot
+    // see the door - so the press happens at the button and the frame is taken
+    // where the whole opening, its head and the tunnel behind it are visible.
+    pressFrom: { x: -2.375, z: 0.74, yaw: Math.PI / 2, pitch: -0.05 },
+    pose: { x: -1.55, z: 0.35, yaw: Math.PI / 2, pitch: -0.02 },
+    press: true,
+    settle: 2.0,
+  },
+];
 
 const args = process.argv.slice(2);
 const writeBaseline = args.includes('--baseline');
@@ -86,6 +187,66 @@ async function main() {
     console.log(`shot ${preset}`);
   }
 
+  // The environment viewer. A separate page with its own harness hooks, and no
+  // import of anything the game owns - that separation is the whole point of
+  // rooms.html, so the shot script keeps it too rather than folding the rooms
+  // into window.groundTrack.
+  let mounted = null;
+  for (const preset of INTERIOR_PRESETS) {
+    if (mounted !== preset.room) {
+      await page.goto(new URL(`rooms.html#${preset.room}`, url).href, {
+        waitUntil: 'networkidle',
+      });
+      await page.waitForFunction(() => window.groundTrackRooms?.ready === true, {
+        timeout: 30000,
+      });
+      const failure = await page.evaluate(() => window.groundTrackRooms.error);
+      if (failure !== null) throw new Error(`${preset.room} failed to build: ${failure}`);
+      await page.evaluate(() => window.groundTrackRooms.setPaused(true));
+      mounted = preset.room;
+    }
+
+    // Time first, then pose: setPose draws, and a pose drawn against the
+    // previous preset's clock is a frame nobody asked for.
+    await page.evaluate((t) => window.groundTrackRooms.setTime(t), preset.t);
+    // A preset that presses may do it from somewhere other than where it is
+    // shot from; the final pose is set again below, after the mechanism has run.
+    await page.evaluate(
+      (pose) => window.groundTrackRooms.setPose(pose),
+      preset.pressFrom ?? preset.pose
+    );
+    if (preset.press === true) {
+      // setPose resolves the reach outright at dt 0, so the hand already has
+      // hold of whatever is in front of it and interact() lands. The cap and
+      // its ring are on a spring, though, and a spring needs an interval: the
+      // clock is nudged past the 60 ms press time so the shot catches the
+      // travelled state rather than the frame the key went down.
+      const acted = await page.evaluate(() => window.groundTrackRooms.interact());
+      if (!acted) throw new Error(`${preset.name}: nothing to press at this pose`);
+      // Default nudge is the 60 ms press spring; anything with real travel says
+      // how long it needs. The door takes a latch plus 1.55 s to stand open.
+      //
+      // Stepped rather than jumped, and that is not a nicety: a mechanism
+      // derives its own interval from this clock and clamps it to 0.1 s so that
+      // a dropped frame cannot teleport it. Setting the time two seconds ahead
+      // in one call advances the door by a tenth of a second.
+      await page.evaluate(
+        ({ from, settle }) => {
+          for (let t = from; t < from + settle; t += 0.05) {
+            window.groundTrackRooms.setTime(Math.min(t + 0.05, from + settle));
+          }
+        },
+        { from: preset.t, settle: preset.settle ?? 0.08 }
+      );
+      if (preset.pressFrom !== undefined) {
+        await page.evaluate((pose) => window.groundTrackRooms.setPose(pose), preset.pose);
+      }
+    }
+    await sleep(250);
+    await page.screenshot({ path: path.join(outDir, `${preset.name}.png`) });
+    console.log(`shot ${preset.name}`);
+  }
+
   await browser.close();
   if (server) server.child.kill();
 
@@ -95,7 +256,8 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`\nwrote ${presets.length} shots to ${path.relative(process.cwd(), outDir)}`);
+  const total = presets.length + INTERIOR_PRESETS.length;
+  console.log(`\nwrote ${total} shots to ${path.relative(process.cwd(), outDir)}`);
 }
 
 main().catch((error) => {

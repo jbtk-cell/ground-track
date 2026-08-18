@@ -11,7 +11,7 @@ loop is meant to run.
 ## Verify with this
 
 ```bash
-npm run verify     # typecheck, lint, test, build
+npm run verify     # typecheck, lint, format:check, test, build - the same list CI runs
 npm run shots      # render every camera preset to shots/current
 npm run gates      # run every gate in scripts/gates/ against those PNGs
 npm run palette    # just the palette gate, when that is all you changed
