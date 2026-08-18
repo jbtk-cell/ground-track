@@ -62,13 +62,13 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     },
   },
   {
-    id: 'node',
-    name: 'The Node',
-    description: 'A four-way junction, 4.6 m across the flats.',
+    id: 'crossing',
+    name: 'The Crossing',
+    description: 'The hub, 5.4 by 4.2 m, its ceiling climbing 2.6 to 4.4.',
     async load() {
       return definitionFrom(
-        (await import('./node/index')) as unknown as Record<string, unknown>,
-        'node'
+        (await import('./crossing/index')) as unknown as Record<string, unknown>,
+        'crossing'
       );
     },
   },

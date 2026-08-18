@@ -141,14 +141,24 @@ const INTERIOR_PRESETS = [
     pose: { x: -8, z: 0, yaw: -Math.PI / 2, pitch: 0 },
   },
   {
-    // THE NODE, across the room from one doorway toward the opposite one, so
-    // both corner stacks and three of the four seams are in frame. The room's
-    // whole claim is that it is radially symmetric where everything else on the
-    // station is long, and this is the pose where that is true or it is not.
-    name: 'node-across',
-    room: 'node',
+    // THE CROSSING, from just inside the door you arrive by, looking up the
+    // room. The room's whole claim is that its ceiling climbs away from you and
+    // that no two of its four openings are alike, and this is the one pose where
+    // both are true at once or neither is.
+    name: 'crossing-run',
+    room: 'crossing',
     t: 19.3,
-    pose: { x: 1.95, z: 0, yaw: Math.PI / 2, pitch: -0.02 },
+    pose: { x: 1.9, z: 0, yaw: Math.PI / 2, pitch: 0.06 },
+  },
+  {
+    // The same room off the centre line, which is where the raised platform, the
+    // wide gallery opening and the diagonal trunk all separate from each other.
+    // Also the airtight pose: a slot in a side wall is edge-on from the middle
+    // of a room and covers no pixels, so a centred frame cannot see one.
+    name: 'crossing-off-line',
+    room: 'crossing',
+    t: 19.3,
+    pose: { x: 1.9, z: 1.3, yaw: Math.PI / 2, pitch: 0.04 },
   },
   {
     // Deep in the corridor with the limb deck streamed in behind. Same pose as
