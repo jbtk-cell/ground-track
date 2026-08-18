@@ -46,6 +46,8 @@ const SEALED = [
   // check rather than by looking.
   'spine-run',
   'crossing-run',
+  'crown-up',
+  'crown-off-line',
   'crossing-off-line',
   'station-run',
   'station-seam',

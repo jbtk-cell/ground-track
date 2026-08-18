@@ -171,6 +171,23 @@ const INTERIOR_PRESETS = [
     pose: { x: -7, z: 0, yaw: Math.PI / 2, pitch: 0 },
   },
   {
+    // THE CROWN, from the deck looking up. The room is a height and nothing else,
+    // so the pinned pose is the one that contains the height: the plot table in
+    // the lower frame, three galleries stacked above it, the aperture at the top.
+    name: 'crown-up',
+    room: 'crown',
+    t: 19.3,
+    pose: { x: 2.2, z: 0, yaw: Math.PI / 2, pitch: 0.42 },
+  },
+  {
+    // And off the centre line at eye level, which is the pose that finds a slot
+    // in a side wall. Nine metres of wall is a lot of groove to leave open.
+    name: 'crown-off-line',
+    room: 'crown',
+    t: 19.3,
+    pose: { x: 2.2, z: 1.7, yaw: Math.PI / 2, pitch: 0.05 },
+  },
+  {
     // The same corridor, OFF the centre line, looking back at the door.
     //
     // Every other interior pose in this file stands dead centre, and that is a

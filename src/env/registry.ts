@@ -87,6 +87,17 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
       );
     },
   },
+  {
+    id: 'crown',
+    name: 'The Crown',
+    description: 'A 9.6 m shaft with three galleries, on the upper deck.',
+    async load() {
+      return definitionFrom(
+        (await import('./crown/index')) as unknown as Record<string, unknown>,
+        'crown'
+      );
+    },
+  },
 ];
 
 /**
