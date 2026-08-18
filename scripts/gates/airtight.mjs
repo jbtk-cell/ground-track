@@ -45,7 +45,8 @@ const SEALED = [
   // walked - a hole the size of a doorway, in a brand new room, found by this
   // check rather than by looking.
   'spine-run',
-  'node-across',
+  'crossing-run',
+  'crossing-off-line',
   'station-run',
   'station-seam',
   // Off the centre line, which every other pose in this list is on. A slot in a
