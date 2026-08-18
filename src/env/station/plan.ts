@@ -24,16 +24,26 @@ import { LIMB_DECK_COMPARTMENT } from '../limbDeck';
 import { SPINE } from '../spine';
 import { CROSSING } from '../crossing';
 import { CROWN } from '../crown';
+import { PLOT } from '../plot';
+import { RACKS } from '../racks';
+import { CRAWL } from '../crawl';
+import { MAGAZINE } from '../magazine';
+import { BEND } from '../bend';
 import type { CompartmentDefinition } from './compartment';
 import { type Connection, connect } from './ports';
 import { type StationHandle, type StationPlan, buildStation } from './index';
 
-const ROOMS: readonly CompartmentDefinition[] = [LIMB_DECK_COMPARTMENT, SPINE, CROSSING, CROWN];
+const ROOMS: readonly CompartmentDefinition[] = [LIMB_DECK_COMPARTMENT, SPINE, CROSSING, CROWN, MAGAZINE, PLOT, CRAWL, RACKS, BEND];
 
 const CONNECTIONS: readonly Connection[] = [
   connect('limb-deck', 'aft', 'spine', 'fore'),
   connect('spine', 'aft', 'crossing', 'fore'),
   connect('crossing', 'high', 'crown', 'fore'),
+  connect('crown', 'aft', 'magazine', 'fore'),
+  connect('crossing', 'aft', 'plot', 'fore'),
+  connect('plot', 'port', 'crawl', 'fore'),
+  connect('crossing', 'low', 'racks', 'fore'),
+  connect('plot', 'aft', 'bend', 'fore'),
 ];
 
 export const STATION: StationPlan = {

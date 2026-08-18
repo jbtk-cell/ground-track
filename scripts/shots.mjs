@@ -188,6 +188,47 @@ const INTERIOR_PRESETS = [
     pose: { x: 2.2, z: 1.7, yaw: Math.PI / 2, pitch: 0.05 },
   },
   {
+    // THE BEND, from just inside the fore end, looking round the turn. The room
+    // is the fact that you cannot see the other end of it, so this is the pose
+    // where that is true or the fourteen facets were not worth building.
+    name: 'bend-turn',
+    room: 'bend',
+    t: 19.3,
+    pose: { x: 0.42, z: 3.3, yaw: -Math.PI / 2, pitch: 0 },
+  },
+  {
+    // THE PLOT, off the centre line, from the door toward the console. The room
+    // is where the card prints, so the pose is the one a player stands in.
+    name: 'plot-console',
+    room: 'plot',
+    t: 19.3,
+    pose: { x: 1.6, z: 0.9, yaw: Math.PI / 2, pitch: -0.04 },
+  },
+  {
+    // THE RACKS, down the aisle. The aisle is 0.95 m wide, so "off the centre
+    // line" here is 0.3 m; any further and you are inside a rack.
+    name: 'racks-aisle',
+    room: 'racks',
+    t: 19.3,
+    pose: { x: 3.4, z: 0.3, yaw: Math.PI / 2, pitch: 0 },
+  },
+  {
+    // THE CRAWL, from the mouth toward the blind end, where the deck rises and
+    // the headroom closes to 0.21 m over a standing eye.
+    name: 'crawl-run',
+    room: 'crawl',
+    t: 19.3,
+    pose: { x: 2.8, z: 0.2, yaw: Math.PI / 2, pitch: 0.02 },
+  },
+  {
+    // THE MAGAZINE, off centre, on the upper deck. The only silent room and the
+    // only one with no artificial light in it at all.
+    name: 'magazine-bay',
+    room: 'magazine',
+    t: 19.3,
+    pose: { x: 1.8, z: 1.2, yaw: Math.PI / 2, pitch: 0.06 },
+  },
+  {
     // The same corridor, OFF the centre line, looking back at the door.
     //
     // Every other interior pose in this file stands dead centre, and that is a

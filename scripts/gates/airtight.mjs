@@ -46,6 +46,11 @@ const SEALED = [
   // check rather than by looking.
   'spine-run',
   'crossing-run',
+  'bend-turn',
+  'plot-console',
+  'racks-aisle',
+  'crawl-run',
+  'magazine-bay',
   'crown-up',
   'crown-off-line',
   'crossing-off-line',

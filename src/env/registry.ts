@@ -98,6 +98,61 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
       );
     },
   },
+  {
+    id: 'plot',
+    name: 'The Plot',
+    description: 'The flight deck, 4.6 by 3.4 m. The card prints here.',
+    async load() {
+      return definitionFrom(
+        (await import('./plot/index')) as unknown as Record<string, unknown>,
+        'plot'
+      );
+    },
+  },
+  {
+    id: 'racks',
+    name: 'The Racks',
+    description: '8.4 m of rack bays, one aisle wide.',
+    async load() {
+      return definitionFrom(
+        (await import('./racks/index')) as unknown as Record<string, unknown>,
+        'racks'
+      );
+    },
+  },
+  {
+    id: 'crawl',
+    name: 'The Crawl',
+    description: 'A 7.2 m duct that closes in as it goes.',
+    async load() {
+      return definitionFrom(
+        (await import('./crawl/index')) as unknown as Record<string, unknown>,
+        'crawl'
+      );
+    },
+  },
+  {
+    id: 'magazine',
+    name: 'The Magazine',
+    description: 'A 5 m square, silent, on the upper deck.',
+    async load() {
+      return definitionFrom(
+        (await import('./magazine/index')) as unknown as Record<string, unknown>,
+        'magazine'
+      );
+    },
+  },
+  {
+    id: 'bend',
+    name: 'The Bend',
+    description: 'A 90 degree turn in fourteen flat facets, 1.9 m wide.',
+    async load() {
+      return definitionFrom(
+        (await import('./bend/index')) as unknown as Record<string, unknown>,
+        'bend'
+      );
+    },
+  },
 ];
 
 /**
