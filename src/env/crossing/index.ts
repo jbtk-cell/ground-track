@@ -249,6 +249,8 @@ function buildShell(): THREE.BufferGeometry {
   const reveal = new THREE.Color(REVEAL_COLOUR);
   const hull = new THREE.Color(PALETTE.HULL_SHADOW);
   const inward = new THREE.Vector3();
+  /** Where a single-sided surface is looked at from, when not the room centre. */
+  const seen = new THREE.Vector3();
   const v = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
 
   const deckQuad = (x0: number, x1: number, z0: number, z1: number, y: number): void => {
@@ -305,43 +307,107 @@ function buildShell(): THREE.BufferGeometry {
 
   // --- The two long walls, in the station's three bands, split per ceiling
   // facet so the crown band's top follows the slope.
+  /** Where a wall is opened, in the wall's own run coordinate and in height. */
+  interface Opening {
+    readonly x0: number;
+    readonly x1: number;
+    readonly y0: number;
+    readonly y1: number;
+  }
+  const OPENINGS: Record<'-1' | '1', Opening> = {
+    '1': {
+      x0: -1.4 - GALLERY_SEAM.width / 2,
+      x1: -1.4 + GALLERY_SEAM.width / 2,
+      y0: PLATFORM_Y,
+      y1: PLATFORM_Y + GALLERY_SEAM.height,
+    },
+    '-1': {
+      x0: 0.9 - SEAM.width / 2,
+      x1: 0.9 + SEAM.width / 2,
+      y0: FLOOR_Y,
+      y1: FLOOR_Y + SEAM.height,
+    },
+  };
+
+  /**
+   * A run of wall, in the station's three bands, cut around its own doorway.
+   *
+   * The cut is the part that was missing. Both side walls were drawn straight
+   * across their openings and a three-plane recess painted on top, which looks
+   * right only for as long as neither port is connected - the station blanks an
+   * unjoined port, so nothing showed. Join one and the player walks through what
+   * is still, as far as the geometry is concerned, solid hull.
+   */
   const wallBands = (x0: number, x1: number, side: -1 | 1): void => {
     const top0 = ceilingAt(x0);
     const top1 = ceilingAt(x1);
+    const open = OPENINGS[side > 0 ? '1' : '-1'];
     inward.set((x0 + x1) / 2, Math.min(top0, top1) / 2, 0);
+
     for (const band of bands(FLOOR_Y, Math.min(top0, top1))) {
       const z = side * (HALF_Z - band.relief);
       const lip = side * HALF_Z;
-      const cap0 = band.name === 'crown' ? top0 : band.y1;
-      const cap1 = band.name === 'crown' ? top1 : band.y1;
-      pushQuad(
-        target,
-        v(x0, band.y0, z),
-        v(x1, band.y0, z),
-        v(x1, cap1, z),
-        v(x0, cap0, z),
-        inward,
-        facetColour(
-          new THREE.Color(band.colour),
-          v((x0 + x1) / 2, band.y0 + 0.4, z),
-          SEED + 3,
-          JITTER
-        )
-      );
+      const isCrown = band.name === 'crown';
+      const topAt = (x: number): number => (isCrown ? ceilingAt(x) : band.y1);
+      const colour = new THREE.Color(band.colour);
+
+      /** One trapezoid of wall: flat at the bottom, following the crown on top. */
+      const slab = (xa: number, xb: number, ya: number, yb0: number, yb1: number): void => {
+        if (xb - xa < 1e-6 || (yb0 - ya < 1e-6 && yb1 - ya < 1e-6)) return;
+        pushQuad(
+          target,
+          v(xa, ya, z),
+          v(xb, ya, z),
+          v(xb, Math.max(yb1, ya), z),
+          v(xa, Math.max(yb0, ya), z),
+          inward,
+          facetColour(colour, v((xa + xb) / 2, ya + 0.4, z), SEED + 3, JITTER)
+        );
+      };
+
+      /** The same run, with the doorway taken out of it. */
+      const cut = (xa: number, xb: number): void => {
+        if (open.y0 > band.y0) {
+          slab(xa, xb, band.y0, Math.min(open.y0, topAt(xa)), Math.min(open.y0, topAt(xb)));
+        }
+        slab(xa, xb, Math.max(open.y1, band.y0), topAt(xa), topAt(xb));
+      };
+
+      const a = Math.max(x0, open.x0);
+      const b = Math.min(x1, open.x1);
+      if (b <= a) {
+        slab(x0, x1, band.y0, topAt(x0), topAt(x1));
+      } else {
+        slab(x0, a, band.y0, topAt(x0), topAt(a));
+        cut(a, b);
+        slab(b, x1, band.y0, topAt(b), topAt(x1));
+      }
+
       // The returns that close each band's depth back to the nominal plane. A
       // band floating at a depth with no return is a hole in the hull.
       if (Math.abs(band.relief) > 1e-6) {
-        for (const [ya, yb] of [
-          [band.y0, band.y0],
-          [cap0, cap1],
+        for (const [ya, yb, top] of [
+          [band.y0, band.y0, false],
+          [topAt(x0), topAt(x1), true],
         ] as const) {
+          // Not in the deck's plane or the crown's. A return landing in a plane
+          // the deck or the ceiling already owns, facing the same way, is two
+          // surfaces fighting for every pixel - 2.05 m2 of it here, invisible to
+          // the room-scoped checker, which reads solids rather than liner.
+          if (Math.abs(ya - FLOOR_Y) < 1e-6) continue;
+          if (top && isCrown) continue;
+          // Seen from one side, and which side depends on both which end of the
+          // band it is and which way it is relieved: a proud band's top is a
+          // shelf you look down onto, a recessed band's is a soffit.
+          const above = top === band.relief > 0;
+          seen.set((x0 + x1) / 2, above ? ya + 1 : ya - 1, 0);
           pushQuad(
             target,
             v(x0, ya, lip),
             v(x1, yb, lip),
             v(x1, yb, z),
             v(x0, ya, z),
-            inward,
+            seen,
             facetColour(reveal, v((x0 + x1) / 2, ya, (lip + z) / 2), SEED + 5, JITTER)
           );
         }
@@ -396,7 +462,10 @@ function buildShell(): THREE.BufferGeometry {
     seamH: number
   ): void => {
     const z = side * HALF_Z;
-    const depth = 0.2;
+    // Shallower than the 0.12 the station's blank plate is thick, so a solo
+    // review of this room cannot see past the plate and out along the reveal.
+    // In the station the collar fills this; on its own, nothing does.
+    const depth = 0.09;
     const halfW = seamW / 2;
     inward.set(atX, sillY + seamH / 2, 0);
     for (const a of [atX - halfW, atX + halfW]) {

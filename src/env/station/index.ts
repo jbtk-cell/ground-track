@@ -221,7 +221,13 @@ export function buildStation(plan: StationPlan): StationHandle {
    */
   const capFor = (port: Port): THREE.Mesh => {
     const half = port.seam.width / 2 + 0.25;
-    const top = port.seam.height + 0.25;
+    // Run below the deck as well as above the head. A blank that starts exactly
+    // at the floor shares that edge with the deck, and a ray grazing along the
+    // deck slips between the two and out - a hairline of space right across the
+    // doorway, 455 pixels of it, which appeared the moment the openings became
+    // real holes instead of walls with a recess painted on them.
+    const drop = 0.2;
+    const top = port.seam.height + 0.25 + drop;
     const depth = 0.12;
     const geometry = new THREE.BoxGeometry(
       port.facing === '+x' || port.facing === '-x' ? depth : 2 * half,
@@ -239,7 +245,7 @@ export function buildStation(plan: StationPlan): StationHandle {
     const lap = 0.006;
     geometry.translate(
       port.at[0] + ax * (depth / 2 - lap),
-      port.floorY + top / 2,
+      port.floorY - drop + top / 2,
       port.at[2] + az * (depth / 2 - lap)
     );
     const mesh = new THREE.Mesh(geometry, blankMaterial);

@@ -209,6 +209,8 @@ function buildLiner(): THREE.BufferGeometry {
   // can actually see going past.
   const joint = new THREE.Color(PALETTE.HULL);
   const inward = new THREE.Vector3(0, CEILING_Y / 2, 0);
+  /** Where a single-sided surface is looked at from, when not the room centre. */
+  const seen = new THREE.Vector3();
   const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
   const bays = FRAMES * 2;
@@ -278,13 +280,25 @@ function buildLiner(): THREE.BufferGeometry {
         // band floating at a depth with no return is a hole in the hull.
         if (Math.abs(inset) > 1e-6) {
           for (const y of [band.y0, band.y1]) {
+            // Not at the deck or the crown. A return in either of those planes
+            // faces the same way as the surface that already owns it, and the
+            // two fight for every pixel - 4.45 m2 of it in this room, which
+            // nothing could see: the room-scoped clash checker reads SOLIDS, and
+            // a liner is not solids.
+            if (Math.abs(y - FLOOR_Y) < 1e-6 || Math.abs(y - CEILING_Y) < 1e-6) continue;
+            // A horizontal return is seen from ONE side, and which side depends
+            // on both which end of the band it is and which way it is relieved:
+            // a proud band's top is a shelf you look down onto, a recessed
+            // band's top is a soffit you look up at.
+            const above = (y === band.y1) === band.relief > 0;
+            seen.set(mid, above ? y + 1 : y - 1, 0);
             pushQuad(
               target,
               v(x0, y, lip),
               v(x1, y, lip),
               v(x1, y, z),
               v(x0, y, z),
-              inward,
+              seen,
               facetColour(reveal, v(mid, y, (lip + z) / 2), SEED, JITTER)
             );
           }

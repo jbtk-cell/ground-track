@@ -219,9 +219,11 @@ describe('the station: nothing fights for pixels with anything else', () => {
             const other = bucket[j];
             if (other === undefined) continue;
             if (other.d - one.d > COPLANAR_M) break;
-            // Within one mesh this is already covered, by `planeClashes` on the
-            // room's own boxes. Across meshes nothing was covering it.
-            if (other.mesh === one.mesh) continue;
+            // Within one mesh too, now. It was skipped on the reasoning that
+            // `planeClashes` already covers a room's own geometry - but that
+            // reads the room's SOLIDS, and a liner is not solids. A deck quad
+            // and a wall band's bottom return are both liner, both in one mesh,
+            // and were being checked by nothing at all.
             const area = sharedArea(here, flat(other));
             if (area < MIN_AREA_M2) continue;
             const pair = [one.mesh, other.mesh].sort().join(' vs ');
