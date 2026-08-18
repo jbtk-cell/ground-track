@@ -25,11 +25,10 @@
  * approved on its own and then placed in a station without touching a line of it.
  */
 
-/** The standard pressure seam. Every port in the station is this size. */
-export const SEAM = {
+export interface SeamSize {
   /** Clear width and height of the opening, metres. */
-  width: 1.18,
-  height: 2.06,
+  readonly width: number;
+  readonly height: number;
   /**
    * How far the mating flange stands aft of the seam plane.
    *
@@ -39,8 +38,36 @@ export const SEAM = {
    * the multi-room form of the defect that cost this project three rounds of
    * z-fighting inside a single door.
    */
+  readonly collar: number;
+}
+
+/** The standard pressure seam. Nearly every port in the station is this size. */
+export const SEAM: SeamSize = {
+  width: 1.18,
+  height: 2.06,
   collar: 1.24,
-} as const;
+};
+
+/**
+ * The wide, low opening, and the only other one there will ever be.
+ *
+ * A doorway is how a room announces itself before you are in it, and every
+ * doorway in the station being one rectangle means every room announces itself
+ * identically. This one is 0.92 m wider and 0.24 m taller, which is enough to
+ * read as a different KIND of opening from across a room rather than as the same
+ * opening slightly bigger.
+ *
+ * Used exactly twice, entering THE CROWN and entering THE GANTRY - the two
+ * rooms whose whole point is volume, one upward and one outward. Passing through
+ * something wide into something huge is the oldest trick in architecture and it
+ * costs nothing here. Used a third time it stops meaning anything, so it is a
+ * named constant with a stated budget rather than a parameter.
+ */
+export const GALLERY_SEAM: SeamSize = {
+  width: 2.1,
+  height: 2.3,
+  collar: 1.24,
+};
 
 /** Which way a port faces, in its own room's local frame. */
 export type Facing = '+x' | '-x' | '+z' | '-z';
@@ -57,15 +84,24 @@ export interface Port {
   readonly facing: Facing;
   /** Deck height on this side of the seam, room-local. Floors must agree. */
   readonly floorY: number;
+  /**
+   * How big the opening is. Carried by the port rather than read from the
+   * module, because there are now two sizes and a room on one side of a seam
+   * cutting a hole to a different size than the room on the other is a draught
+   * - which is the exact failure the seam constant was introduced to stop.
+   * `disagreement` refuses the connection.
+   */
+  readonly seam: SeamSize;
 }
 
 export function port(
   id: string,
   at: readonly [number, number, number],
   facing: Facing,
-  floorY = 0
+  floorY = 0,
+  seam: SeamSize = SEAM
 ): Port {
-  return { id, at, facing, floorY };
+  return { id, at, facing, floorY, seam };
 }
 
 /** Unit vector for a facing, in the room's own frame. */
@@ -121,6 +157,12 @@ export function connect(
  * find it late or never.
  */
 export function disagreement(a: Port, b: Port): string | null {
+  if (a.seam.width !== b.seam.width || a.seam.height !== b.seam.height) {
+    return (
+      `openings are different sizes: ${a.id} is ${a.seam.width}x${a.seam.height}, ` +
+      `${b.id} is ${b.seam.width}x${b.seam.height}`
+    );
+  }
   if (a.floorY !== b.floorY) {
     return `deck heights differ across the seam: ${a.id} at ${a.floorY}, ${b.id} at ${b.floorY}`;
   }
