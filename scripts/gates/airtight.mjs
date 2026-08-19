@@ -54,6 +54,12 @@ const SEALED = [
   'crown-up',
   'crown-off-line',
   'crossing-off-line',
+  // Both off the centre line by construction, and both rooms whose floor is not
+  // a plain deck: THE SILL is stood on a grating over an open sump, THE GANTRY
+  // is lit only from below, so in each the surface most likely to be missing is
+  // the one a centred pose sees edge-on.
+  'sill-drop',
+  'gantry-aisle',
   'station-run',
   'station-seam',
   // Off the centre line, which every other pose in this list is on. A slot in a

@@ -29,6 +29,8 @@ import { RACKS } from '../racks';
 import { CRAWL } from '../crawl';
 import { MAGAZINE } from '../magazine';
 import { BEND } from '../bend';
+import { SILL } from '../sill';
+import { GANTRY } from '../gantry';
 import type { CompartmentDefinition } from './compartment';
 import { type Connection, connect } from './ports';
 import { type StationHandle, type StationPlan, buildStation } from './index';
@@ -43,6 +45,8 @@ const ROOMS: readonly CompartmentDefinition[] = [
   CRAWL,
   RACKS,
   BEND,
+  SILL,
+  GANTRY,
 ];
 
 const CONNECTIONS: readonly Connection[] = [
@@ -54,6 +58,14 @@ const CONNECTIONS: readonly Connection[] = [
   connect('plot', 'port', 'crawl', 'fore'),
   connect('crossing', 'low', 'racks', 'fore'),
   connect('plot', 'aft', 'bend', 'fore'),
+  // Round the corner is the half of the station made of material rather than
+  // information. Everything on the near side of THE BEND is something you read
+  // - the plot, the map, the manifest, the probe. Everything beyond it is
+  // something you have: what was recovered, and what is left to burn. Salvage
+  // and propellant are the same fact twice over in STRUCTURE.md, so the two
+  // rooms that hold them are adjacent, and in that order.
+  connect('bend', 'aft', 'sill', 'fore'),
+  connect('sill', 'aft', 'gantry', 'fore'),
 ];
 
 export const STATION: StationPlan = {

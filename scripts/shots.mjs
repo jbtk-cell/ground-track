@@ -247,6 +247,39 @@ const INTERIOR_PRESETS = [
     t: 19.3,
     pose: { x: -8.04, z: 0.55, yaw: -Math.PI / 2, pitch: 0 },
   },
+  {
+    // THE SILL from the port aisle, looking diagonally across the hole at the
+    // wide door in the far wall.
+    //
+    // The first version of this pose stood on the grating itself, on the centre
+    // line of the room, looking straight down its long axis - which is the one
+    // place in the compartment the coves deliberately do not reach, aimed at
+    // the one direction with nothing in it. It measured a fifteen-value range
+    // across the whole frame. A pinned pose is an argument about what a room
+    // is, and standing in a room's blind spot makes the argument that it is
+    // empty.
+    //
+    // From here the kerb, both rails, the bars and the lit sump under them are
+    // all in frame at once, and so is the register on the far side - and it is
+    // still off the centre line, which is the rule the pose has to keep.
+    name: 'sill-drop',
+    room: 'sill',
+    t: 19.3,
+    pose: { x: 2.05, z: 1.45, yaw: 1.05, pitch: -0.3 },
+  },
+  {
+    // THE GANTRY from one aisle in, not the middle one. The room's claim is
+    // that it is the widest deck in the station under the lowest ceiling, and
+    // both of those are only legible off the centre line: down the central
+    // aisle the ranks frame the shot symmetrically and the ceiling reads as a
+    // corridor roof. From here it is a forest, and the lighting inversion -
+    // tanks brighter at their bases, deck lighter than the roof - is measurable
+    // against three ranks at once.
+    name: 'gantry-aisle',
+    room: 'gantry',
+    t: 19.3,
+    pose: { x: 3.8, z: 1.64, yaw: Math.PI / 2, pitch: -0.06 },
+  },
 ];
 
 /**

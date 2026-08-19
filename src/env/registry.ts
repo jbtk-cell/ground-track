@@ -153,6 +153,28 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
       );
     },
   },
+  {
+    id: 'sill',
+    name: 'The Sill',
+    description: 'A grating over a 4.5 m sump, and the salvage register.',
+    async load() {
+      return definitionFrom(
+        (await import('./sill/index')) as unknown as Record<string, unknown>,
+        'sill'
+      );
+    },
+  },
+  {
+    id: 'gantry',
+    name: 'The Gantry',
+    description: '11 by 7.6 m of tanks under a 2.15 m ceiling, lit from below.',
+    async load() {
+      return definitionFrom(
+        (await import('./gantry/index')) as unknown as Record<string, unknown>,
+        'gantry'
+      );
+    },
+  },
 ];
 
 /**
