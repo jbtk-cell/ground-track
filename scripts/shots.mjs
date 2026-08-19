@@ -280,6 +280,18 @@ const INTERIOR_PRESETS = [
     t: 19.3,
     pose: { x: 3.8, z: 1.64, yaw: Math.PI / 2, pitch: -0.06 },
   },
+  {
+    // THE BERTH, off the centre line, looking across the empty deck at the
+    // round hatch. The room's whole argument is that there is nothing in the
+    // middle of it, and an argument about absence needs the absence in frame:
+    // deck, sockets, wear, and the far wall, with the eye finding no object
+    // between here and there. Off-centre both because that is the rule and
+    // because a drum shot down its own axis is a bullseye rather than a room.
+    name: 'berth-empty',
+    room: 'berth',
+    t: 19.3,
+    pose: { x: 1.5, z: 0.75, yaw: Math.PI / 2, pitch: -0.06 },
+  },
 ];
 
 /**

@@ -165,6 +165,17 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     },
   },
   {
+    id: 'berth',
+    name: 'The Berth',
+    description: 'A 4.8 m octagon kept empty, with the only round hatch aboard.',
+    async load() {
+      return definitionFrom(
+        (await import('./berth/index')) as unknown as Record<string, unknown>,
+        'berth'
+      );
+    },
+  },
+  {
     id: 'gantry',
     name: 'The Gantry',
     description: '11 by 7.6 m of tanks under a 2.15 m ceiling, lit from below.',

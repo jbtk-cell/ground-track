@@ -31,6 +31,7 @@ import { MAGAZINE } from '../magazine';
 import { BEND } from '../bend';
 import { SILL } from '../sill';
 import { GANTRY } from '../gantry';
+import { BERTH } from '../berth';
 import type { CompartmentDefinition } from './compartment';
 import { type Connection, connect } from './ports';
 import { type StationHandle, type StationPlan, buildStation } from './index';
@@ -47,6 +48,7 @@ const ROOMS: readonly CompartmentDefinition[] = [
   BEND,
   SILL,
   GANTRY,
+  BERTH,
 ];
 
 const CONNECTIONS: readonly Connection[] = [
@@ -66,6 +68,10 @@ const CONNECTIONS: readonly Connection[] = [
   // rooms that hold them are adjacent, and in that order.
   connect('bend', 'aft', 'sill', 'fore'),
   connect('sill', 'aft', 'gantry', 'fore'),
+  // The last room on the run, and it hangs off the manifest rather than off
+  // anything else on purpose: what arrives has to be counted before it can be
+  // stowed, so THE RACKS sits between the way in and the rest of the station.
+  connect('racks', 'aft', 'berth', 'fore'),
 ];
 
 export const STATION: StationPlan = {

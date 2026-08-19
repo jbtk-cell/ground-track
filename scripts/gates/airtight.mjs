@@ -60,6 +60,10 @@ const SEALED = [
   // the one a centred pose sees edge-on.
   'sill-drop',
   'gantry-aisle',
+  // The only room with a round opening in it, and a round hole cut out of a
+  // square one leaves four crescents of open space between them - 0.28 m2 of
+  // it, before the hatch got the mounting plate it should always have had.
+  'berth-empty',
   'station-run',
   'station-seam',
   // Off the centre line, which every other pose in this list is on. A slot in a
