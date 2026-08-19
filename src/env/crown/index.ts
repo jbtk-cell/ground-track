@@ -52,6 +52,7 @@ import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
 import { CROWN_COLOUR, REVEAL_COLOUR, WORK_TOP_M, bands, deepestRelief } from '../kit/bands';
+import { REGIMES, mapFraction } from '../../sim';
 import type { FloorRect, PointOfInterest } from '../types';
 
 const HALF_X = 3.3;
@@ -174,14 +175,43 @@ function crownSolids(): readonly Solid[] {
     solid('table', 'frame', -1.05, 1.05, FOOT_TOP, TABLE_TOP, -0.8, 0.8),
     solid('table-foot', 'trim', -1.12, 1.12, FLOOR_Y, FOOT_TOP, -0.87, 0.87)
   );
-  for (const [n, r] of [0.34, 0.58, 0.86].entries()) {
+  // Four rings now, not three, and their radii are not typed here any more.
+  //
+  // They were [0.34, 0.58, 0.86] with a comment saying "three is what the
+  // station can currently reach", which was true and is not any more: THE DAWN
+  // LINE, THE SHELL and THE RING exist in src/sim/regime.ts, derived from
+  // their own defining physics. A map of the areas that does not change when
+  // the areas do is a decoration of a map.
+  //
+  // mapFraction carries the whole argument about scale - THE RING is 90 times
+  // further out than THE LOW FIELD, so the spacing is part logarithmic and
+  // part ordinal, for reasons set out where it is defined. Here it is only
+  // stretched onto the table: the innermost ring at 0.30 m and the outermost
+  // at 0.86, which is as far as the top will take one.
+  const INNER_M = 0.3;
+  const OUTER_M = 0.86;
+  /**
+   * The rings are SIMILAR rectangles - z scales with x - and the third one is
+   * why.
+   *
+   * The old code clamped the short side to 0.72 m so the outermost ring fitted
+   * the table. With three rings nothing reached the clamp but the last, so it
+   * never showed. With four, THE SHELL lands at 0.694 and THE RING at 0.720,
+   * and the clamp squeezed both onto the same short side: two rings 26 mm
+   * apart, drawn 35 mm wide, which is 0.045 m2 of two surfaces in one plane
+   * facing one way. A clamp is a collision waiting for a fourth item.
+   */
+  const Z_RATIO = 0.72 / OUTER_M;
+  for (const regime of REGIMES) {
+    const r = INNER_M + (OUTER_M - INNER_M) * mapFraction(regime);
     const t = 0.035;
-    const rz = Math.min(r, 0.72);
+    const rz = r * Z_RATIO;
+    const top = TABLE_TOP + 0.012;
     parts.push(
-      solid(`ring-${n}-a`, 'trim', -r, r, TABLE_TOP, TABLE_TOP + 0.012, -rz, -rz + t),
-      solid(`ring-${n}-b`, 'trim', -r, r, TABLE_TOP, TABLE_TOP + 0.012, rz - t, rz),
-      solid(`ring-${n}-c`, 'trim', -r, -r + t, TABLE_TOP, TABLE_TOP + 0.012, -rz + t, rz - t),
-      solid(`ring-${n}-d`, 'trim', r - t, r, TABLE_TOP, TABLE_TOP + 0.012, -rz + t, rz - t)
+      solid(`ring-${regime.id}-a`, 'trim', -r, r, TABLE_TOP, top, -rz, -rz + t),
+      solid(`ring-${regime.id}-b`, 'trim', -r, r, TABLE_TOP, top, rz - t, rz),
+      solid(`ring-${regime.id}-c`, 'trim', -r, -r + t, TABLE_TOP, top, -rz + t, rz - t),
+      solid(`ring-${regime.id}-d`, 'trim', r - t, r, TABLE_TOP, top, -rz + t, rz - t)
     );
   }
 

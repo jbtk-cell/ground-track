@@ -54,3 +54,20 @@ export type {
   PadField,
   SpacingCard,
 } from './types';
+export type { Light, Regime, Weather } from './regime';
+export {
+  DAWN_LINE,
+  J2,
+  LOW_FIELD,
+  REGIMES,
+  RING,
+  SHELL,
+  SIDEREAL_DAY_S,
+  SUN_DRIFT_RATE,
+  TROPICAL_YEAR_S,
+  eyebrow,
+  mapFraction,
+  nodalPrecession,
+  radiusForPeriod,
+  sunSynchronousInclination,
+} from './regime';

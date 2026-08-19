@@ -36,7 +36,11 @@ The one deliberate departure from Prodigy is the whole design: Prodigy grades ev
 
 An area is an orbital regime: an altitude/inclination band defined by three real things at once — its **weather** (the perturbation that regenerates its encounters), its **tempo** (rev period, which sets the pace of play there), and its **light** (which expression of the fixed palette dominates the frame). Nothing is themed; every distinction falls out of where you physically are.
 
-Five regimes plus one horizon. They do not all ship at once — the build order below stands up the Low Field and the Ring first, the Dawn Line after, the Shell and the Long Swing when the coverage and constellation machinery exists.
+Five regimes plus one horizon. They do not all ship at once.
+
+**Four of them now exist**, in `src/sim/regime.ts`: THE LOW FIELD, THE DAWN LINE, THE SHELL and THE RING, each carrying its weather, its tempo and its light, and each derived from the one physical fact that makes it that regime rather than from a table of numbers. THE LOW FIELD and THE DAWN LINE declare an altitude; THE SHELL and THE RING declare a _period_ and are handed an altitude by Kepler, so neither 20 200 km nor 35 786 km is typed anywhere in the source. THE DAWN LINE's inclination is likewise solved rather than quoted — it is the root of "make the J2 nodal precession equal one turn per year", which is the same function, with the same sign, that makes drift the weather everywhere else. That is the quiet lesson below, written as code instead of as a comment.
+
+THE LONG SWING is deliberately still absent, and for a reason worth stating: it is the only regime that is not circular, and every quantity in that file takes e = 0 as a shortcut. Half-adding Molniya would mean an apogee dwell — the entire point of the area — computed as if it were a circle. FARSIDE remains lunar and remains a horizon.
 
 **1 · THE LOW FIELD** (LEO, 300–600 km) — the starter area, where the existing apogee-raise slice already lives. Weather: atmospheric drag, the gentlest and most legible perturbation — perigee sinks, cards come more often the lower you get. Tempo: fast, 90-minute revs, day/night strobing past. Light: cream altitude haze at full strength, the limb as a floor. Encounters: REBOOST, THE CROSSING, CORRIDOR ENTRY, low TASKED PASSES.
 
