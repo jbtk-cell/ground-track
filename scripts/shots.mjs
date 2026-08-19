@@ -249,6 +249,45 @@ const INTERIOR_PRESETS = [
   },
 ];
 
+/**
+ * How far the eye may end up from where the preset put it, metres.
+ *
+ * Not zero, because `setPose` is allowed to snap: it stands the camera on the
+ * floor, and a pose authored a centimetre outside a rectangle is meant to be
+ * pulled back onto it rather than refused. Nothing legitimate moves further
+ * than a hand's width, so anything past this is the pose not having been
+ * applied at all.
+ */
+const POSE_TOLERANCE_M = 0.2;
+
+/**
+ * Write one frame, and do not let a slow one be mistaken for a broken one.
+ *
+ * Everything here renders through SwiftShader, in software, on the CPU. A
+ * single frame of the nine-compartment station is a great deal more work than
+ * a frame of one room, and Playwright's default screenshot timeout is short
+ * enough that a machine under load loses it now and then - not always, and not
+ * on the same preset twice, which is exactly the signature of a timing limit
+ * rather than a fault.
+ *
+ * A run that dies two thirds of the way through leaves a shots directory that
+ * is part fresh and part missing, and the gates downstream then report the
+ * absent frames as failures of the room. So: a longer patience, and one retry,
+ * and a loud failure if the second attempt does not land either.
+ */
+async function capture(page, file, name) {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      await page.screenshot({ path: file, timeout: 60000 });
+      return;
+    } catch (error) {
+      if (attempt === 2) throw new Error(`${name}: could not be photographed - ${error.message}`);
+      console.log(`  ${name}: screenshot timed out, retrying`);
+      await sleep(1000);
+    }
+  }
+}
+
 const args = process.argv.slice(2);
 const writeBaseline = args.includes('--baseline');
 const urlFlag = args.indexOf('--url');
@@ -323,9 +362,16 @@ async function main() {
       await page.goto(new URL(`rooms.html#${preset.room}`, url).href, {
         waitUntil: 'networkidle',
       });
-      await page.waitForFunction(() => window.groundTrackRooms?.ready === true, {
-        timeout: 30000,
-      });
+      // Wait for THIS room, by name. `ready` alone is not enough on its own
+      // even now that it is lowered on mount: naming the room is what makes the
+      // wait impossible to satisfy with a leftover answer from the last one.
+      await page.waitForFunction(
+        (id) =>
+          window.groundTrackRooms?.ready === true &&
+          (window.groundTrackRooms.environment === id || window.groundTrackRooms.error !== null),
+        preset.room,
+        { timeout: 30000 }
+      );
       const failure = await page.evaluate(() => window.groundTrackRooms.error);
       if (failure !== null) throw new Error(`${preset.room} failed to build: ${failure}`);
       await page.evaluate(() => window.groundTrackRooms.setPaused(true));
@@ -375,7 +421,30 @@ async function main() {
       await page.evaluate((pose) => window.groundTrackRooms.setPose(pose), preset.pose);
     }
     await sleep(250);
-    await page.screenshot({ path: path.join(outDir, `${preset.name}.png`) });
+
+    // Check the eye is where the preset put it BEFORE the frame is written.
+    //
+    // A screenshot records what the camera saw, not what it was told to see,
+    // and those came apart silently for as long as the station has existed:
+    // the first shot of a freshly mounted room was taken while the room was
+    // still building, `setPose` hit a null controller and vanished down an
+    // optional chain, and the picture that went to disk was the spawn pose
+    // under the previous pose's filename. Every gate downstream then measured
+    // the wrong room and blamed the geometry.
+    //
+    // Verifying the pose is the cheapest possible defence and it is exact.
+    const landed = await page.evaluate(() => window.groundTrackRooms.pose());
+    const drift = Math.hypot(landed.x - preset.pose.x, landed.z - preset.pose.z);
+    if (drift > POSE_TOLERANCE_M) {
+      throw new Error(
+        `${preset.name}: camera is not where the preset put it - asked ` +
+          `(${preset.pose.x}, ${preset.pose.z}), stood at ` +
+          `(${landed.x.toFixed(2)}, ${landed.z.toFixed(2)}), ${drift.toFixed(2)} m away. ` +
+          `The frame would not be the pose it is named after.`
+      );
+    }
+
+    await capture(page, path.join(outDir, `${preset.name}.png`), preset.name);
     console.log(`shot ${preset.name}`);
   }
 

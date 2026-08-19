@@ -330,6 +330,34 @@ function main(): void {
 
   const mount = async (id: string): Promise<void> => {
     unmount();
+
+    // Not ready any more, and saying so is the whole contract.
+    //
+    // `ready` is what every harness waits on before it poses a camera or takes
+    // a picture, and it used to be write-once-true: set at the end of the first
+    // mount and never lowered again. Changing room is a hash change, and a hash
+    // change is not a page load, so `groundTrackRooms` survives it - which meant
+    // a harness asking "is the room ready?" while a new room was still building
+    // was answered with the LAST room's yes.
+    //
+    // Mostly it got away with it, because most rooms build faster than the
+    // round trip that asks. The station does not: it is nine compartments, and
+    // it lost the race every single time. `setPose` landed on a null controller
+    // and was silently dropped by an optional chain, the mount then finished and
+    // put the eye at the spawn, and the shot went to disk showing a pose nobody
+    // had asked for - the limb deck, looking out of the cupola. The airtight
+    // gate read 55,993 pixels of legitimate sky, called it a hole in a wall, and
+    // was believed. Two agents inherited that number and reported it as
+    // pre-existing damage rather than as their own harness lying to them.
+    //
+    // The bug was never in the geometry. It was in a boolean that could only
+    // ever go one way.
+    if (window.groundTrackRooms !== undefined) {
+      window.groundTrackRooms.ready = false;
+      window.groundTrackRooms.environment = null;
+      window.groundTrackRooms.error = null;
+    }
+
     printList();
     const entry = environmentById(id);
     if (entry === undefined) {
