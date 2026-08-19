@@ -43,7 +43,7 @@
 import * as THREE from 'three';
 import { PALETTE } from '../../render/palette';
 import type { CompartmentDefinition, CompartmentHandle } from '../station/compartment';
-import { GALLERY_SEAM, SEAM, port } from '../station/ports';
+import { GALLERY_SEAM, SEAM, SEAM_INSET_M, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
@@ -65,6 +65,22 @@ const CEIL_HIGH = 4.4;
 /** Nine, so no facet is a half or a third of the run and the count is odd. */
 const CEIL_FACETS = 9;
 
+/**
+ * How far inboard of a port plane the wall that carries the port is built.
+ *
+ * A flat wall only has to clear the seam by SEAM_INSET_M. A wall cut into the
+ * station's three bands does not: the work band is a groove, and a groove is
+ * cut OUTBOARD of the nominal plane, so on a wall with a port in it the whole
+ * groove - face, both returns and all - stands in the next compartment, where
+ * that room's own groove already is. Standing the wall off by its own deepest
+ * relief as well puts the deepest face where the nominal plane used to be, one
+ * seam inset short of the seam, and nothing this room draws crosses it. The
+ * band a body actually looks at does not move; the two shallower ones come in.
+ */
+const PORT_WALL_SETBACK = deepestRelief(FLOOR_Y, CEIL_HIGH) + SEAM_INSET_M;
+/** The ported long walls, at their own plane rather than the seam's. */
+const WALL_Z = HALF_Z - PORT_WALL_SETBACK;
+
 /** The trunk's chamfer across the far port corner, measured along each wall. */
 const CHAMFER = 0.9;
 /**
@@ -77,6 +93,15 @@ const CHAMFER = 0.9;
  * one diagonal is three chances to leave a hole in a wall.
  */
 const CHAMFER_D = -HALF_X - HALF_Z + CHAMFER;
+/**
+ * Where the trunk meets the port wall, along the wall's own run.
+ *
+ * The trunk is a diagonal, so the point it crosses that wall moves with the
+ * wall: read it off the chamfer rather than off HALF_Z, or standing the wall
+ * off the seam leaves an 86 mm slot from deck to crown in the corner, which is
+ * a slot to space.
+ */
+const TRUNK_AT_WALL = CHAMFER_D + WALL_Z;
 
 /** The platform in the far starboard quarter, and the tread onto it. */
 const PLATFORM_Y = 0.45;
@@ -345,8 +370,8 @@ function buildShell(): THREE.BufferGeometry {
     inward.set((x0 + x1) / 2, Math.min(top0, top1) / 2, 0);
 
     for (const band of bands(FLOOR_Y, Math.min(top0, top1))) {
-      const z = side * (HALF_Z - band.relief);
-      const lip = side * HALF_Z;
+      const z = side * (WALL_Z - band.relief);
+      const lip = side * WALL_Z;
       const isCrown = band.name === 'crown';
       const topAt = (x: number): number => (isCrown ? ceilingAt(x) : band.y1);
       const colour = new THREE.Color(band.colour);
@@ -418,7 +443,7 @@ function buildShell(): THREE.BufferGeometry {
     const x0 = -HALF_X + (2 * HALF_X * i) / CEIL_FACETS;
     const x1 = -HALF_X + (2 * HALF_X * (i + 1)) / CEIL_FACETS;
     // The port wall stops where the trunk takes over; starboard runs the length.
-    if (x1 > -HALF_X + CHAMFER) wallBands(Math.max(x0, -HALF_X + CHAMFER), x1, -1);
+    if (x1 > TRUNK_AT_WALL) wallBands(Math.max(x0, TRUNK_AT_WALL), x1, -1);
     wallBands(x0, x1, 1);
   }
 
@@ -449,8 +474,8 @@ function buildShell(): THREE.BufferGeometry {
     wall(openZ + halfW, outerZ, FLOOR_Y, top);
     wall(openZ - halfW, openZ + halfW, SEAM.height, top);
   };
-  endWall(HALF_X, 1, 0);
-  endWall(-HALF_X, -1, -0.45);
+  endWall(HALF_X - SEAM_INSET_M, 1, 0);
+  endWall(-(HALF_X - SEAM_INSET_M), -1, -0.45);
 
   // --- The two side doorways, as three-plane recesses rather than holes, so an
   // opening reads as a thickness instead of a rectangle painted on a wall (S5).
@@ -461,11 +486,19 @@ function buildShell(): THREE.BufferGeometry {
     seamW: number,
     seamH: number
   ): void => {
-    const z = side * HALF_Z;
-    // Shallower than the 0.12 the station's blank plate is thick, so a solo
-    // review of this room cannot see past the plate and out along the reveal.
-    // In the station the collar fills this; on its own, nothing does.
-    const depth = 0.09;
+    // The reveal covers the wall's whole THICKNESS, not just the strip outboard
+    // of the nominal plane. The doorway is cut in the BAND FACES and the crown
+    // band stands 0.14 m proud of the plane, so a reveal that starts at the
+    // plane leaves an open slot over the head: a ray in through the doorway
+    // climbs through it and out of the station, 1 168 pixels of it from a pose
+    // 1.3 m off the centre line. It ends one seam inset short of the seam,
+    // because a jamb carried into the next compartment meets the jamb that room
+    // built for the same doorway - and it is still shallower than the 0.12 the
+    // station's blank plate is thick, so a solo review cannot see past the
+    // plate and out along the reveal.
+    const proudest = Math.max(0, ...bands(FLOOR_Y, ceilingAt(atX)).map((b) => b.relief));
+    const z = side * (WALL_Z - proudest);
+    const depth = proudest + PORT_WALL_SETBACK - SEAM_INSET_M;
     const halfW = seamW / 2;
     inward.set(atX, sillY + seamH / 2, 0);
     for (const a of [atX - halfW, atX + halfW]) {
@@ -496,18 +529,18 @@ function buildShell(): THREE.BufferGeometry {
   // trunk. The end walls close both ends of the starboard run and the fore end
   // of this one; this is the fourth and last open end of a recessed band.
   {
-    const x = -HALF_X + CHAMFER;
+    const x = TRUNK_AT_WALL;
     const top = ceilingAt(x);
     inward.set(x + 0.5, top / 2, 0);
     for (const band of bands(FLOOR_Y, top)) {
       if (band.relief >= 0) continue;
-      const z = -(HALF_Z - band.relief);
+      const z = -(WALL_Z - band.relief);
       pushQuad(
         target,
-        v(x, band.y0, -HALF_Z),
+        v(x, band.y0, -WALL_Z),
         v(x, band.y0, z),
         v(x, band.y1, z),
-        v(x, band.y1, -HALF_Z),
+        v(x, band.y1, -WALL_Z),
         inward,
         facetColour(hull, v(x, (band.y0 + band.y1) / 2, z), SEED + 23, JITTER)
       );

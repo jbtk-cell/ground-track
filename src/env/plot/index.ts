@@ -59,7 +59,7 @@
 import * as THREE from 'three';
 import { PALETTE } from '../../render/palette';
 import type { CompartmentDefinition, CompartmentHandle } from '../station/compartment';
-import { SEAM, port } from '../station/ports';
+import { SEAM, SEAM_INSET_M, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
@@ -85,6 +85,24 @@ const PROUDEST = Math.max(0, ...bands(FLOOR_Y, CEILING_Y).map((band) => band.rel
 
 /** How far a doorway reveal is let into the wall before the collar takes over. */
 const DOOR_DEPTH = 0.2;
+
+/**
+ * How far inboard of the seam the port wall - the one the spur leads off - is
+ * built.
+ *
+ * The end walls are flat, so they only have to clear the seam by SEAM_INSET_M.
+ * The long wall the spur cuts through is banded, and the work band is a groove
+ * cut OUTBOARD of the nominal plane: built to the seam, its whole groove stands
+ * in the crawlway, where that room's own liner already is. Standing the wall
+ * off by this room's deepest relief as well puts the deepest face where the
+ * nominal plane was, one seam inset short of the seam.
+ */
+const PORT_WALL_SETBACK = deepestRelief(FLOOR_Y, CEILING_Y) + SEAM_INSET_M;
+
+/** A long wall's nominal plane. Only the port side carries a doorway. */
+function wallHalfZ(side: -1 | 1): number {
+  return side < 0 ? HALF_Z - PORT_WALL_SETBACK : HALF_Z;
+}
 
 const SEED = 0x91a;
 const JITTER = 0.05;
@@ -316,16 +334,20 @@ function buildShell(): THREE.BufferGeometry {
 
   // --- The crown. Flat, and held to the proudest band's face for the same
   // reason the deck is held to the nominal plane: the crown band's top return
-  // already occupies the strip between the two, facing the same way.
-  const roofHalfZ = HALF_Z - PROUDEST;
+  // already occupies the strip between the two, facing the same way. Measured
+  // off each wall's OWN plane, since the port wall stands 86 mm inboard of the
+  // other one and a crown run to the wrong side's face reopens exactly the
+  // clash the setback closed.
+  const roofZ0 = -wallHalfZ(-1) + PROUDEST;
+  const roofZ1 = wallHalfZ(1) - PROUDEST;
   const roofPlates = 5;
   const roofRows = 3;
   for (let i = 0; i < roofPlates; i += 1) {
     for (let j = 0; j < roofRows; j += 1) {
       const x0 = -HALF_X + (2 * HALF_X * i) / roofPlates;
       const x1 = -HALF_X + (2 * HALF_X * (i + 1)) / roofPlates;
-      const z0 = -roofHalfZ + (2 * roofHalfZ * j) / roofRows;
-      const z1 = -roofHalfZ + (2 * roofHalfZ * (j + 1)) / roofRows;
+      const z0 = roofZ0 + ((roofZ1 - roofZ0) * j) / roofRows;
+      const z1 = roofZ0 + ((roofZ1 - roofZ0) * (j + 1)) / roofRows;
       const mid = v((x0 + x1) / 2, CEILING_Y, (z0 + z1) / 2);
       inward.set(mid.x, FLOOR_Y, mid.z);
       pushQuad(
@@ -358,8 +380,8 @@ function buildShell(): THREE.BufferGeometry {
       const y0 = Math.max(band.y0, yFrom);
       const y1 = band.y1;
       if (y1 - y0 < 1e-6) continue;
-      const z = side * (HALF_Z - band.relief);
-      const lip = side * HALF_Z;
+      const z = side * (wallHalfZ(side) - band.relief);
+      const lip = side * wallHalfZ(side);
       pushQuad(
         target,
         v(x0, y0, z),
@@ -418,7 +440,7 @@ function buildShell(): THREE.BufferGeometry {
       const y0 = band.y0;
       const y1 = Math.min(band.y1, SEAM.height);
       if (y1 - y0 < 1e-6) continue;
-      const faceZ = side * (HALF_Z - band.relief);
+      const faceZ = side * (wallHalfZ(side) - band.relief);
       for (const jx of [atX - SPUR_HALF, atX + SPUR_HALF]) {
         for (const towards of [atX, 2 * jx - atX]) {
           inward.set(towards, (y0 + y1) / 2, (faceZ + outZ) / 2);
@@ -437,7 +459,7 @@ function buildShell(): THREE.BufferGeometry {
     // The head runs from the nominal plane outward only. Inboard of that, the
     // crown band's own bottom return is already the soffit, and the two tile
     // edge to edge instead of overlapping.
-    const lip = side * HALF_Z;
+    const lip = side * wallHalfZ(side);
     inward.set(atX, SEAM.height - 0.6, lip);
     pushQuad(
       target,
@@ -478,8 +500,8 @@ function buildShell(): THREE.BufferGeometry {
     panel(openZ + halfW, OUTER_Z, FLOOR_Y, CEILING_Y);
     panel(openZ - halfW, openZ + halfW, SEAM.height, CEILING_Y);
   };
-  endWall(HALF_X, 1, 0);
-  endWall(-HALF_X, -1, 0.55);
+  endWall(HALF_X - SEAM_INSET_M, 1, 0);
+  endWall(-(HALF_X - SEAM_INSET_M), -1, 0.55);
 
   return toGeometry(target);
 }

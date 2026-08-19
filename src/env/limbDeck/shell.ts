@@ -670,11 +670,18 @@ function buildBulkhead(sink: Sink, x: number, inward: number, doorway?: Doorway)
   // and heading down passes outside the bulkhead. This strip is what it meets
   // instead. It lives entirely under the floor, which is why it is exempt from
   // the doorway: a hole nobody can look through does not need cutting.
+  //
+  // It lies 6 mm OUTBOARD of the disc rather than in the disc's own plane. The
+  // fan closes the full circle now, so the wedges under the chord cover the
+  // same ground as this strip and face the same way - 0.35 m2 of two surfaces
+  // at one depth. Behind the disc it still catches the ray, and the disc hides
+  // it completely.
+  const skirtX = x - inward * 0.006;
   const skirtZ = HALF_CHORD + DECK_OVERHANG + 0.018;
-  const port = new THREE.Vector3(x, -BULKHEAD_SKIRT, -skirtZ);
-  const starboard = new THREE.Vector3(x, -BULKHEAD_SKIRT, skirtZ);
-  const chordPort = at(rim, -rimTheta);
-  const chordStarboard = at(rim, rimTheta);
+  const port = new THREE.Vector3(skirtX, -BULKHEAD_SKIRT, -skirtZ);
+  const starboard = new THREE.Vector3(skirtX, -BULKHEAD_SKIRT, skirtZ);
+  const chordPort = at(rim, -rimTheta).setX(skirtX);
+  const chordStarboard = at(rim, rimTheta).setX(skirtX);
   const skirt = facetColour(base, new THREE.Vector3(x, -BULKHEAD_SKIRT / 2, 0), FITTING_SEED, 0.06);
   pushQuad(sink, chordPort, chordStarboard, starboard, port, towards, skirt);
 }
@@ -1034,14 +1041,37 @@ function buildCupola(sink: Sink, grid: Grid): { apertures: Aperture[]; throat: A
   // The view pane is first: the contract promises the exterior pass can take
   // apertures[0] and be looking at the limb.
   apertures.push(buildPane(sink, top, viewNormal, roomward));
+  /**
+   * True where the collar has already come out past the view plane.
+   *
+   * The view plane is canted 48 degrees off the collar, so the dome is a wedge
+   * rather than a drum, and at the low fore corner the wedge has closed: the
+   * glass passes UNDER the collar ring. A facet drawn corner to corner across
+   * that point turns itself inside out, and a folded facet paints its own
+   * mullion twice - two frames at one depth, which is the whole complaint this
+   * file's offsets exist to answer.
+   */
+  const shut = (p: THREE.Vector3 | undefined): boolean => p !== undefined && view.n.dot(p) > view.d;
+
   for (let k = 0; k < sides.length; k += 1) {
     const j = (k + 1) % sides.length;
-    const face = [base[k], base[j], top[j], top[k]].filter(
-      (p): p is THREE.Vector3 => p !== undefined
-    );
-    if (face.length < 4) continue;
-    const normal = sides[k]?.n ?? radial;
-    apertures.push(buildPane(sink, face, normal, roomward));
+    const here = sides[k];
+    if (here === undefined) continue;
+    // The wedge edge on this facet: where its collar edge and its glass edge
+    // are the same line. A facet that reaches the shut end ends in that point
+    // rather than carrying on past it.
+    const shutAt = threePlanes(here, collar, view);
+    const face = [
+      shut(base[k]) ? shutAt : base[k],
+      shut(base[j]) ? shutAt : base[j],
+      shut(base[j]) ? shutAt : top[j],
+      shut(base[k]) ? shutAt : top[k],
+    ].filter((p): p is THREE.Vector3 => p !== undefined);
+    // Consecutive duplicates are the collapsed end, and a polygon carrying one
+    // has a zero-length edge, which has no direction to inset a mullion along.
+    const corners = face.filter((p, i) => !p.equals(face[(i + 1) % face.length] ?? p));
+    if (corners.length < 3) continue;
+    apertures.push(buildPane(sink, corners, here.n, roomward));
   }
 
   // --- the collar ----------------------------------------------------------

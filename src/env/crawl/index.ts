@@ -87,7 +87,7 @@
 import * as THREE from 'three';
 import { PALETTE } from '../../render/palette';
 import type { CompartmentDefinition, CompartmentHandle } from '../station/compartment';
-import { SEAM, port } from '../station/ports';
+import { SEAM, SEAM_INSET_M, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
@@ -571,20 +571,25 @@ function buildShell(): THREE.BufferGeometry {
   // doorway is 886 pixels of outer space at eye height, and it survived an
   // airtight gate once because every pinned pose stood on the centre line.
   {
+    // Held one seam inset inboard of the port plane. The room on the other side
+    // ends in that plane too, and two shells at one depth facing one way is
+    // decided per pixel by float noise - see SEAM_INSET_M. The section is read
+    // at the true plane so the mouth is still exactly the seam's width.
+    const mouthX = HALF_LENGTH - SEAM_INSET_M;
     const hz = halfWidthAt(HALF_LENGTH);
     const halfW = SEAM.width / 2;
     const outerZ = hz + deepestRelief(FLOOR_Y, CEILING_Y);
-    inward.set(HALF_LENGTH - 1, 1.2, 0);
+    inward.set(mouthX - 1, 1.2, 0);
     const panel = (z0: number, z1: number, y0: number, y1: number): void => {
       if (z1 - z0 < 1e-6 || y1 - y0 < 1e-6) return;
       pushQuad(
         target,
-        v(HALF_LENGTH, y0, z0),
-        v(HALF_LENGTH, y0, z1),
-        v(HALF_LENGTH, y1, z1),
-        v(HALF_LENGTH, y1, z0),
+        v(mouthX, y0, z0),
+        v(mouthX, y0, z1),
+        v(mouthX, y1, z1),
+        v(mouthX, y1, z0),
         inward,
-        facetColour(hull, v(HALF_LENGTH, (y0 + y1) / 2, (z0 + z1) / 2), SEED + 13, JITTER)
+        facetColour(hull, v(mouthX, (y0 + y1) / 2, (z0 + z1) / 2), SEED + 13, JITTER)
       );
     };
     panel(halfW, outerZ, FLOOR_Y, SEAM.height);
@@ -595,7 +600,7 @@ function buildShell(): THREE.BufferGeometry {
     // the room is 0.12 m narrower than its own doorway at the kick, so the
     // jamb has to return that step out to the collar's section. Seen from the
     // collar, never from the room.
-    const outward = new THREE.Vector3(HALF_LENGTH + 1, 1.2, 0);
+    const outward = new THREE.Vector3(mouthX + 1, 1.2, 0);
     for (const band of bands(FLOOR_Y, CEILING_Y)) {
       if (band.relief <= 0) continue;
       const y1 = Math.min(band.y1, SEAM.height);
@@ -604,12 +609,12 @@ function buildShell(): THREE.BufferGeometry {
       for (const side of [-1, 1] as const) {
         pushQuad(
           target,
-          v(HALF_LENGTH, band.y0, side * face),
-          v(HALF_LENGTH, band.y0, side * halfW),
-          v(HALF_LENGTH, y1, side * halfW),
-          v(HALF_LENGTH, y1, side * face),
+          v(mouthX, band.y0, side * face),
+          v(mouthX, band.y0, side * halfW),
+          v(mouthX, y1, side * halfW),
+          v(mouthX, y1, side * face),
           outward,
-          facetColour(hull, v(HALF_LENGTH, (band.y0 + y1) / 2, side * face), SEED + 17, JITTER)
+          facetColour(hull, v(mouthX, (band.y0 + y1) / 2, side * face), SEED + 17, JITTER)
         );
       }
     }

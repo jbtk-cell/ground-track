@@ -41,6 +41,29 @@ export interface SeamSize {
   readonly collar: number;
 }
 
+/**
+ * How far INBOARD of its own port plane a room holds the wall it builds there.
+ *
+ * A seam is one plane with a room on each side, and each of them ends in it.
+ * Two end walls built to the same plane, facing opposite ways, would be a
+ * sealed joint - but a room also ends in that plane where it has no doorway,
+ * against the station's blanking plate, and a room's own door-frame trim,
+ * sleeve and band returns reach it too. Every one of those is a surface at the
+ * same depth as the neighbour's, and which of them the depth buffer picks is
+ * decided per pixel by float noise, so it shimmers as the camera moves. Nearly
+ * two and a half square metres of it across a station of eight compartments,
+ * concentrated exactly where a player walks.
+ *
+ * Six millimetres, and INBOARD rather than outboard: the neighbour's own
+ * material still runs through to the true seam and covers the strip the wall
+ * vacates, so nothing opens. Outboard would push material into the next
+ * compartment, which is the one direction that cannot be allowed.
+ *
+ * It lives here rather than in each room because a room re-deriving it is a
+ * room that will one day derive it differently.
+ */
+export const SEAM_INSET_M = 0.006;
+
 /** The standard pressure seam. Nearly every port in the station is this size. */
 export const SEAM: SeamSize = {
   width: 1.18,

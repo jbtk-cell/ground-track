@@ -36,7 +36,7 @@ import {
   isPainter,
 } from './compartment';
 import { type Connection, type Placement, layOut } from './layout';
-import { type Port, facingVector } from './ports';
+import { SEAM_INSET_M, type Port, facingVector } from './ports';
 
 export interface StationPlan {
   readonly id: string;
@@ -235,14 +235,14 @@ export function buildStation(plan: StationPlan): StationHandle {
       port.facing === '+x' || port.facing === '-x' ? 2 * half : depth
     );
     const [ax, , az] = facingVector(port.facing);
-    // Lapped 6 mm back INTO the room rather than sat on the port plane.
-    //
-    // A blank whose inner face lands exactly in the shell it covers is two
-    // surfaces at one depth facing one way, which shimmers - 1.45 m2 of it on
-    // each of the node's two spare ports. Overlapping in solid material is how
-    // the rest of the station handles this (see SLEEVE_INSET in door.ts) and it
-    // seals as well as it separates: there is no slot for a grazing ray.
-    const lap = 0.006;
+    // Lapped back INTO the room rather than sat on the port plane, and by TWICE
+    // the seam inset, because the wall it covers has already stepped back by one
+    // of them. Landing on that wall would put the plate and the shell at a
+    // single depth facing one way, which shimmers - 1.45 m2 of it over the
+    // racks' spare end. Overlapping in solid material is how the rest of the
+    // station handles this (see SLEEVE_INSET in door.ts) and it seals as well as
+    // it separates: there is no slot for a grazing ray.
+    const lap = 2 * SEAM_INSET_M;
     geometry.translate(
       port.at[0] + ax * (depth / 2 - lap),
       port.floorY - drop + top / 2,

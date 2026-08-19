@@ -413,8 +413,12 @@ function buildPerch(palette: Palette): THREE.Group {
 
   const parts: THREE.BufferGeometry[] = [
     boxAt(PERCH_WIDTH, 0.026, PERCH_DEPTH, PERCH_X, PERCH_Y, PERCH_FRONT_Z - PERCH_DEPTH / 2),
-    // A lip at the inboard edge: what a knee actually braces against.
-    boxAt(PERCH_WIDTH, 0.055, 0.022, PERCH_X, PERCH_Y + 0.026, PERCH_FRONT_Z - 0.011),
+    // A lip at the inboard edge: what a knee actually braces against. It stands
+    // 6 mm PROUD of the plate rather than flush with it, because a lip whose
+    // face ends in the plate's own front plane is two surfaces facing the same
+    // way at one depth, and the plate's front edge is at knee height where it
+    // would be seen shimmering.
+    boxAt(PERCH_WIDTH, 0.055, 0.022, PERCH_X, PERCH_Y + 0.026, PERCH_FRONT_Z - 0.005),
   ];
 
   for (const side of [-1, 1]) {
@@ -1309,7 +1313,11 @@ function buildArrayWing(palette: Palette): Moving {
     substrate.push(boxAt(PANEL_WIDTH, 0.022, PANEL_SPAN, cx, 0, cz));
     // A spine down the back and a batten at each end: the panel is carried by
     // something, and from the shaded side that structure is all there is to see.
-    substrate.push(boxAt(0.07, 0.05, PANEL_SPAN, cx, -0.03, cz));
+    //
+    // The spine is buried 6 mm deeper into the substrate than the battens it
+    // crosses, because carrier and batten cut to the same depth put two upward
+    // faces in one plane at all four crossings.
+    substrate.push(boxAt(0.07, 0.056, PANEL_SPAN, cx, -0.027, cz));
     for (const end of [-1, 1]) {
       substrate.push(boxAt(PANEL_WIDTH, 0.045, 0.07, cx, -0.028, cz + (end * PANEL_SPAN) / 2));
     }

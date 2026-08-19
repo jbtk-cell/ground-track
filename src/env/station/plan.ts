@@ -33,7 +33,17 @@ import type { CompartmentDefinition } from './compartment';
 import { type Connection, connect } from './ports';
 import { type StationHandle, type StationPlan, buildStation } from './index';
 
-const ROOMS: readonly CompartmentDefinition[] = [LIMB_DECK_COMPARTMENT, SPINE, CROSSING, CROWN, MAGAZINE, PLOT, CRAWL, RACKS, BEND];
+const ROOMS: readonly CompartmentDefinition[] = [
+  LIMB_DECK_COMPARTMENT,
+  SPINE,
+  CROSSING,
+  CROWN,
+  MAGAZINE,
+  PLOT,
+  CRAWL,
+  RACKS,
+  BEND,
+];
 
 const CONNECTIONS: readonly Connection[] = [
   connect('limb-deck', 'aft', 'spine', 'fore'),

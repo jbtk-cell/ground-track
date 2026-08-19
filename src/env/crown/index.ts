@@ -47,11 +47,11 @@
 import * as THREE from 'three';
 import { PALETTE } from '../../render/palette';
 import type { CompartmentDefinition, CompartmentHandle } from '../station/compartment';
-import { GALLERY_SEAM, SEAM, port } from '../station/ports';
+import { GALLERY_SEAM, SEAM, SEAM_INSET_M, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
-import { CROWN_COLOUR, REVEAL_COLOUR, WORK_TOP_M, bands } from '../kit/bands';
+import { CROWN_COLOUR, REVEAL_COLOUR, WORK_TOP_M, bands, deepestRelief } from '../kit/bands';
 import type { FloorRect, PointOfInterest } from '../types';
 
 const HALF_X = 3.3;
@@ -60,6 +60,21 @@ const HALF_Z = 2.5;
 const FLOOR_Y = 0.45;
 const HEIGHT = 9.6;
 const CEILING_Y = FLOOR_Y + HEIGHT;
+
+/**
+ * How far inboard of a port plane the wall that carries the port is built.
+ *
+ * A flat wall only has to clear the seam by SEAM_INSET_M. A banded one does
+ * not: the work band is a groove cut OUTBOARD of the nominal plane, so on a
+ * wall with a port in it the groove - face, both returns and all - stands in
+ * the next compartment, on top of that room's own groove. Standing the wall off
+ * by this room's deepest relief as well puts the deepest face where the nominal
+ * plane used to be, one seam inset short of the seam. Nothing this room draws
+ * crosses into the magazine, and the band at eye level does not move.
+ */
+const PORT_WALL_SETBACK = deepestRelief(FLOOR_Y, FLOOR_Y + WORK_TOP_M) + SEAM_INSET_M;
+/** The two ported walls, at their own plane rather than at the seam. */
+const WALL_X = HALF_X - PORT_WALL_SETBACK;
 
 /** Galleries, measured above this room's own deck. */
 const GALLERY_YS = [3.2, 5.6, 8.0] as const;
@@ -231,8 +246,11 @@ function buildShell(): THREE.BufferGeometry {
    * adjacent wall reaching across it, which is the same fix, stated locally.
    */
   const wall = (axis: 'x' | 'z', side: -1 | 1): void => {
-    const halfAt = axis === 'x' ? HALF_X : HALF_Z;
-    const halfRun = axis === 'x' ? HALF_Z : HALF_X;
+    // Both ports are in the x walls, so those are the two that stand off the
+    // seam - and the blind z walls run only as far as they do, or they would
+    // carry their own grooves out past the plane the x walls have vacated.
+    const halfAt = axis === 'x' ? WALL_X : HALF_Z;
+    const halfRun = axis === 'x' ? HALF_Z : WALL_X;
     const at = side * halfAt;
     inward.set(
       axis === 'x' ? at - side * 1 : 0,
@@ -324,12 +342,17 @@ function buildShell(): THREE.BufferGeometry {
         // geometry gap because it was never a gap.
         const above = (y === band.y1) === band.relief > 0;
         seen.set(0, above ? y + 1 : y - 1, 0);
+        // Four walls, four returns at the same height, and where a proud band
+        // turns a corner both of them cover that square facing the same way.
+        // The x walls stop short by the relief and the z walls own the corner
+        // outright, which is the same abutting rule the galleries are built to.
+        const shy = axis === 'x' ? Math.max(band.relief, 0) : 0;
         pushQuad(
           target,
-          P(-halfRun, y, at),
-          P(halfRun, y, at),
-          P(halfRun, y, n),
-          P(-halfRun, y, n),
+          P(-halfRun + shy, y, at),
+          P(halfRun - shy, y, at),
+          P(halfRun - shy, y, n),
+          P(-halfRun + shy, y, n),
           seen,
           facetColour(reveal, P(0, y, (at + n) / 2), SEED + 5, JITTER)
         );

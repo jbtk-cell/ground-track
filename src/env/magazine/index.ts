@@ -68,7 +68,7 @@
 import * as THREE from 'three';
 import { EARTHSHINE_GROUND, PALETTE } from '../../render/palette';
 import type { CompartmentDefinition, CompartmentHandle } from '../station/compartment';
-import { SEAM, port } from '../station/ports';
+import { SEAM, SEAM_INSET_M, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, solid } from '../kit/solids';
 import { type Sink, facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
@@ -90,14 +90,30 @@ const WALL_BANDS = bands(FLOOR_Y, CEILING_Y);
 /** How far outboard of the nominal plane the deepest band face sits. */
 const DEEPEST = deepestRelief(FLOOR_Y, CEILING_Y);
 
+/**
+ * How far inboard of the seam the one wall with a doorway in it is built.
+ *
+ * A flat wall only has to clear the seam by SEAM_INSET_M. This one is cut into
+ * the station's three bands, and the work band is a groove cut OUTBOARD of the
+ * nominal plane - so a door wall built to the seam stands its whole groove,
+ * face and both returns, inside THE CROWN, on top of the groove that room cut
+ * for itself. Standing the wall off by this room's own deepest relief as well
+ * puts the deepest face where the nominal plane used to be, one seam inset
+ * short of the seam. The band at eye level does not move; the other two come
+ * in by 86 mm on that one wall.
+ */
+const PORT_WALL_SETBACK = DEEPEST + SEAM_INSET_M;
+/** The door wall's nominal plane. Every other wall is at HALF. */
+const DOOR_WALL_X = HALF - PORT_WALL_SETBACK;
+
 /** Outboard offset of a band's face from the nominal wall plane, metres. */
 function bandOut(band: Band): number {
   return -band.relief;
 }
 
-/** Distance from the room's axis to a band's face. */
-function bandFaceCoord(band: Band): number {
-  return HALF + bandOut(band);
+/** Distance from the room's axis to a band's face, on a given wall. */
+function bandFaceCoord(band: Band, half: number = HALF): number {
+  return half + bandOut(band);
 }
 
 /**
@@ -282,6 +298,23 @@ const WALL_RUNS: readonly WallRun[] = [
 /** The far wall is the only one the beam can reach, and the only one cut for it. */
 function isLitWall(run: WallRun): boolean {
   return run.axis === 'x' && run.sign === -1;
+}
+
+/** The nominal plane of the wall this run is on. */
+function runHalf(run: WallRun): number {
+  return run.axis === 'x' && run.sign > 0 ? DOOR_WALL_X : HALF;
+}
+
+/**
+ * Where a run mitres to at one end, when the surround has not cut it short.
+ *
+ * A z wall running to +x has to meet the door wall, which stands 86 mm inboard
+ * of where the other three do - mitre it to the old corner and the ring carries
+ * on into the next compartment.
+ */
+function mitreEnd(run: WallRun, end: -1 | 1, band: Band): number {
+  const half = run.axis === 'z' && end > 0 ? DOOR_WALL_X : HALF;
+  return end * bandFaceCoord(band, half);
 }
 
 function wallPoint(run: WallRun, face: number, along: number, y: number): THREE.Vector3 {
@@ -492,9 +525,9 @@ function buildBandFaces(target: Sink, run: WallRun): void {
   const lit = isLitWall(run);
   const inward = new THREE.Vector3(0, (FLOOR_Y + CEILING_Y) / 2, 0);
   for (const band of WALL_BANDS) {
-    const face = bandFaceCoord(band);
-    const a0 = run.from ?? -face;
-    const a1 = run.to ?? face;
+    const face = bandFaceCoord(band, runHalf(run));
+    const a0 = run.from ?? mitreEnd(run, -1, band);
+    const a1 = run.to ?? mitreEnd(run, 1, band);
     const yCuts = lit
       ? earthshineCuts(band)
       : tidy(evenCuts(band.y0, band.y1, 0.62), band.y0, band.y1);
@@ -558,18 +591,22 @@ function buildReturns(target: Sink, run: WallRun): void {
     const below = WALL_BANDS[i];
     const above = WALL_BANDS[i + 1];
     if (below === undefined || above === undefined) continue;
-    const fb = bandFaceCoord(below);
-    const fa = bandFaceCoord(above);
+    const fb = bandFaceCoord(below, runHalf(run));
+    const fa = bandFaceCoord(above, runHalf(run));
     if (Math.abs(fa - fb) < 1e-6) continue;
     const y = below.y1;
     const towards = new THREE.Vector3(0, fa > fb ? CEILING_Y + 10 : FLOOR_Y - 10, 0);
-    const midAlong = ((run.from ?? -fb) + (run.to ?? fb)) / 2;
+    const b0 = run.from ?? mitreEnd(run, -1, below);
+    const b1 = run.to ?? mitreEnd(run, 1, below);
+    const a0 = run.from ?? mitreEnd(run, -1, above);
+    const a1 = run.to ?? mitreEnd(run, 1, above);
+    const midAlong = (b0 + b1) / 2;
     pushQuad(
       target,
-      wallPoint(run, fb, run.from ?? -fb, y),
-      wallPoint(run, fb, run.to ?? fb, y),
-      wallPoint(run, fa, run.to ?? fa, y),
-      wallPoint(run, fa, run.from ?? -fa, y),
+      wallPoint(run, fb, b0, y),
+      wallPoint(run, fb, b1, y),
+      wallPoint(run, fa, a1, y),
+      wallPoint(run, fa, a0, y),
       towards,
       facetColour(reveal, wallPoint(run, (fa + fb) / 2, midAlong, y), SEED + 5, JITTER)
     );
@@ -594,12 +631,17 @@ function buildDoorWall(target: Sink): void {
     if (z1 - z0 < 1e-6 || y1 - y0 < 1e-6) return;
     pushQuad(
       target,
-      new THREE.Vector3(HALF, y0, z0),
-      new THREE.Vector3(HALF, y0, z1),
-      new THREE.Vector3(HALF, y1, z1),
-      new THREE.Vector3(HALF, y1, z0),
+      new THREE.Vector3(DOOR_WALL_X, y0, z0),
+      new THREE.Vector3(DOOR_WALL_X, y0, z1),
+      new THREE.Vector3(DOOR_WALL_X, y1, z1),
+      new THREE.Vector3(DOOR_WALL_X, y1, z0),
       inward,
-      facetColour(hull, new THREE.Vector3(HALF, (y0 + y1) / 2, (z0 + z1) / 2), SEED + 11, JITTER)
+      facetColour(
+        hull,
+        new THREE.Vector3(DOOR_WALL_X, (y0 + y1) / 2, (z0 + z1) / 2),
+        SEED + 11,
+        JITTER
+      )
     );
   };
   panel(-SURROUND_HALF, -DOOR_HALF, FLOOR_Y, CEILING_Y);
@@ -609,7 +651,7 @@ function buildDoorWall(target: Sink): void {
   for (const side of [-1, 1] as const) {
     const z = side * SURROUND_HALF;
     for (const band of WALL_BANDS) {
-      const face = bandFaceCoord(band);
+      const face = bandFaceCoord(band, DOOR_WALL_X);
       // Which way a cap faces is not the same for all three bands, and getting it
       // wrong is invisible from the middle of the room. A PROUD band's end is seen
       // from the surround, where the wall steps back past it; a RECESSED band's end
@@ -618,20 +660,20 @@ function buildDoorWall(target: Sink): void {
       // culled facet in a pressure hull is a hole - a ray leaving the eye 2 mm to
       // the outboard side of the surround left the station through it.
       const towards = new THREE.Vector3(
-        HALF,
+        DOOR_WALL_X,
         (band.y0 + band.y1) / 2,
         bandOut(band) > 0 ? side * 10 : 0
       );
       pushQuad(
         target,
-        new THREE.Vector3(HALF, band.y0, z),
+        new THREE.Vector3(DOOR_WALL_X, band.y0, z),
         new THREE.Vector3(face, band.y0, z),
         new THREE.Vector3(face, band.y1, z),
-        new THREE.Vector3(HALF, band.y1, z),
+        new THREE.Vector3(DOOR_WALL_X, band.y1, z),
         towards,
         facetColour(
           hull,
-          new THREE.Vector3((HALF + face) / 2, (band.y0 + band.y1) / 2, z),
+          new THREE.Vector3((DOOR_WALL_X + face) / 2, (band.y0 + band.y1) / 2, z),
           SEED + 13,
           JITTER
         )
