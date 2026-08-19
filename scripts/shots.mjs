@@ -226,7 +226,17 @@ const INTERIOR_PRESETS = [
     name: 'magazine-bay',
     room: 'magazine',
     t: 19.3,
-    pose: { x: 1.8, z: 1.2, yaw: Math.PI / 2, pitch: 0.06 },
+    // Backed into the corner, off the centre line, looking diagonally across
+    // the room at the probe on the far wall.
+    //
+    // The first version stood at x=1.8, z=1.2, a metre from the restraint
+    // frame, and 65% of the frame was one dark mass a metre from the lens -
+    // the worst-measuring picture in the station, and not because the room is
+    // dark. Two attempts to fix it by moving the lighting in opposite
+    // directions each moved the number by less than a percent, which is what
+    // finally identified the pose. A room photographed from inside its own
+    // furniture is not a photograph of the room.
+    pose: { x: 2.15, z: 2.05, yaw: 0.79, pitch: -0.04 },
   },
   {
     // The same corridor, OFF the centre line, looking back at the door.

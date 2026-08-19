@@ -618,7 +618,11 @@ function buildCrossing(): CompartmentHandle {
   const ambient = new THREE.HemisphereLight(
     new THREE.Color(PALETTE.HULL).getHex(),
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
-    1.05
+    // 0.80, down from 1.05. The hub's whole claim is a ceiling that climbs
+    // from 2.6 to 4.4 m, and a climbing ceiling is only legible as a value
+    // gradient - which an ambient term this strong was washing flat. The keys
+    // below do the work instead, and they have a direction to do it with.
+    0.8
   );
   root.add(ambient);
   // Two keys at the two lamp heights, so the low end and the high end are lit by

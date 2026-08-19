@@ -745,6 +745,19 @@ function buildMagazine(): CompartmentHandle {
    * darkest value the game allows. The dark in here is dark because there is
    * nothing lighting it, not because anything was allowed to go black.
    */
+  // Left exactly as authored, and the record of two attempts to change it.
+  //
+  // magazine-bay measures 65% of its pixels in one 8-value bucket, the worst
+  // frame in the station. The ambient was halved and the number did not move;
+  // it was then raised by three quarters and the number moved by a tenth of a
+  // percent. A constant you can move in both directions without the
+  // measurement noticing is not the constant that is wrong, and changing it
+  // anyway - then writing a comment claiming it as a fix - is how a codebase
+  // fills up with numbers nobody dares touch.
+  //
+  // The cause is the pinned pose, which stands a metre from the restraint
+  // frame with the room behind it. Fixed in scripts/shots.mjs. See THE SILL,
+  // where the identical mistake was made and diagnosed the same way.
   const ambient = new THREE.HemisphereLight(
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
     new THREE.Color(PALETTE.NIGHT_SIDE).getHex(),

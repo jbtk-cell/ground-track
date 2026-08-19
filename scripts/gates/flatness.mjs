@@ -42,14 +42,32 @@ const EXEMPT = new Map([
 ]);
 
 /**
- * Only interior frames are judged.
+ * Only interior frames are judged, and the test is now "not an exterior one"
+ * rather than "one of these four prefixes".
+ *
+ * It used to read /^(deck|spine|node|station)-/, which was correct on the day
+ * it was written - there were three rooms and a hub called the node. The
+ * station has twelve compartments now, and the gate was judging four of them.
+ * THE CROWN, THE PLOT, THE RACKS, THE CRAWL, THE MAGAZINE, THE BEND, THE SILL,
+ * THE GANTRY and THE BERTH were all invisible to the one check whose entire
+ * stated purpose is to make it impossible "to ship a room nobody looked at" -
+ * and one of them, THE SILL, shipped a pinned frame spanning fifteen luma
+ * values out of 230, which is exactly what this gate is for. It was caught by
+ * hand, which is the thing the gate exists to stop relying on.
+ *
+ * An allow-list of prefixes fails silently every time a room is added, and a
+ * gate that quietly stops covering things is worse than no gate, because it
+ * reports a pass. So the list is inverted: everything is judged unless it is
+ * named here as an exterior. Adding a room now costs nothing; adding an
+ * orbital shot costs one line, and that line is a claim somebody has to write
+ * down.
  *
  * An orbital frame is mostly space, and space is legitimately one value - that
  * is the whole point of a hairline orbit against a void. Holding an exterior
- * shot to an interior's value structure would fail it for being correct. These
- * are the presets that show a room a person is standing in.
+ * shot to an interior's value structure would fail it for being correct.
  */
-const INTERIOR = /^(deck|spine|node|station)-/;
+const EXTERIOR = /^(mission-|limb-dawn|terminator|high-pass|night-side)/;
+const isInterior = (name) => !EXTERIOR.test(name);
 
 function readPng(file) {
   const buf = fs.readFileSync(file);
@@ -144,7 +162,7 @@ if (files.length === 0) {
 let failures = 0;
 for (const file of files) {
   const name = file.replace(/\.png$/, '');
-  if (!INTERIOR.test(name)) continue;
+  if (!isInterior(name)) continue;
   const m = measure(path.join(DIR, file));
   const exempt = EXEMPT.get(name);
   const flatBad = m.flatness > FLATNESS_LIMIT;
