@@ -765,13 +765,49 @@ function buildMagazine(): CompartmentHandle {
   );
   root.add(ambient);
 
-  // One key, aimed down the same slope the painted beam was projected along, so
-  // the surfaces the beam lands on are also the surfaces the light term favours.
+  /**
+   * Three keys, all of them the same planet, aimed down the same slope the
+   * painted beam was projected along - so the surfaces the beam lands on are also
+   * the surfaces the light term favours.
+   *
+   * It was one key, and one key is the wrong model for this light. A single
+   * DirectionalLight is a collimated beam from infinity, and this one travelled
+   * in x and y with a z-component of exactly zero. Every surface in the room
+   * whose normal points along z therefore took N dot L = 0 from it - not
+   * "little", zero - and fell to the 0.3 hemisphere alone. In a square room that
+   * is two of the four walls dead, and the pinned pose looks diagonally into one
+   * of them, which is why nearly half of magazine-bay was an unreadable slab a
+   * few values off VOID_SLATE.
+   *
+   * The earlier note in this file was half right and is worth keeping honest
+   * about: it proved the AMBIENT was not the cause, correctly, by pushing it both
+   * ways and watching the number refuse to move. Then it concluded the cause was
+   * the pinned pose. The pose was genuinely bad and moving it did help - 65% to
+   * 58% - but it was never the whole cause, and the remaining 58% was this.
+   *
+   * The fix is not a lamp. There is still no lamp in here. It is that the planet
+   * from this altitude subtends something like 140 degrees of sky, and an
+   * extended source that wide cannot be one direction: the near limb, the point
+   * below, and the far limb all light the room from measurably different angles.
+   * Three samples across that arc is the cheapest honest approximation of an area
+   * light, and it costs nothing at render time because they are still directional.
+   */
   const apertureMid = (AP_X0 + AP_X1) / 2;
-  const key = new THREE.DirectionalLight(new THREE.Color(EARTHSHINE_GROUND).getHex(), 0.8);
-  key.position.set(apertureMid + 4, CEILING_Y + 4 * EARTHSHINE_SLOPE, 0);
-  key.target.position.set(apertureMid - 2, CEILING_Y - 2 * EARTHSHINE_SLOPE, 0);
-  root.add(key, key.target);
+  /** Where across the planet's disc each sample sits, and what it carries. */
+  const LIMBS = [
+    { across: 0, strength: 0.46 },
+    { across: 6.0, strength: 0.27 },
+    { across: -6.0, strength: 0.27 },
+  ] as const;
+  for (const limb of LIMBS) {
+    const key = new THREE.DirectionalLight(
+      new THREE.Color(EARTHSHINE_GROUND).getHex(),
+      limb.strength
+    );
+    key.position.set(apertureMid + 4, CEILING_Y + 4 * EARTHSHINE_SLOPE, limb.across);
+    key.target.position.set(apertureMid - 2, CEILING_Y - 2 * EARTHSHINE_SLOPE, 0);
+    root.add(key, key.target);
+  }
 
   /**
    * Two rectangles, touching exactly along x = 2.40 and nowhere overlapping.

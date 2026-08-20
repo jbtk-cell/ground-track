@@ -400,15 +400,31 @@ function buildSpine(): CompartmentHandle {
   // from nothing else - no window, no sun, no earthshine reaches this far in -
   // which is exactly the contrast with the limb deck, whose every value moves
   // with the orbit. Standing here, nothing changes. That is the point.
+  /**
+   * The hemisphere is a floor under the values, not the light in the room.
+   *
+   * It was 0.9, against a keyed 0.5, and that ratio is why the corridor measured
+   * as one slab. A hemisphere term depends on nothing but a surface's normal, so
+   * every face pointing the same way takes exactly the same value from it no
+   * matter where it is or how far from a fitting - and both walls of a tube point
+   * the same way as far as the y-component is concerned. At 0.9 to 0.5 the flat
+   * term dominated the directional one and the whole run collapsed into a single
+   * eight-value bucket covering half the frame.
+   *
+   * Lowering it alone does nothing, which is worth writing down because it was
+   * tried: it slides every value down together and the bucket stays exactly as
+   * wide. Only the RATIO of flat to directional separates anything.
+   */
   const ambient = new THREE.HemisphereLight(
     new THREE.Color(PALETTE.HULL).getHex(),
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
-    0.9
+    0.38
   );
   root.add(ambient);
 
   /**
-   * Two washes off the strip, angled at the walls, equal on both sides.
+   * Two washes off the strip, RAKING the walls rather than facing them, equal on
+   * both sides.
    *
    * A vertical wall takes nothing from a straight-down light - its normal is
    * horizontal and the dot product is zero - so a corridor keyed from directly
@@ -418,15 +434,58 @@ function buildSpine(): CompartmentHandle {
    * doors away, through a sealed bulkhead, which is what a single shared scene
    * had been quietly doing.
    *
-   * They are a matched pair on purpose. A corridor lit unevenly across its width
-   * reads as a corridor with one side missing, and there is nothing in a tube
-   * this narrow to justify the asymmetry.
+   * The fix for that overcorrected: the washes were aimed nearly square at the
+   * walls, N dot L about 0.88, and a wall lit head-on is the case DIRECTION.md
+   * warns about by name - "at low sun angle a 400-triangle Earth shatters into
+   * separable facet values, where a high sun turns it to mush". Head-on, an
+   * upright tilted fifteen degrees off the wall differs from the wall by three
+   * percent and is invisible. Grazing, at N dot L near 0.2, that same fifteen
+   * degrees is most of the value range and the frames separate from the panels
+   * they are bolted to. The trick the planet gets is the trick the corridor gets.
+   *
+   * They are still a matched pair on purpose. A corridor lit unevenly across its
+   * width reads as a corridor with one side missing, and there is nothing in a
+   * tube this narrow to justify the asymmetry - grazing buys the separation
+   * without spending the symmetry to get it.
+   */
+  /** Sine of the angle between a wash and the wall it rakes. */
+  const GRAZE = 0.22;
+  /** How much of the wash goes downward, which is what lights the floor. */
+  const DROP = 0.4;
+  /** The rest of it runs the length of the tube, and is what picks out the frames. */
+  const ALONG = -Math.sqrt(1 - GRAZE * GRAZE - DROP * DROP);
+
+  for (const side of [-1, 1] as const) {
+    const wash = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.72);
+    wash.position.set(-ALONG * HALF_LENGTH, CEILING_Y - 0.1, -side * HALF_Z * 0.5);
+    wash.target.position.set(
+      wash.position.x + ALONG,
+      wash.position.y - DROP,
+      wash.position.z + side * GRAZE
+    );
+    root.add(wash, wash.target);
+  }
+
+  /**
+   * A weak square-on pair under the rake, which is what stops the walls sinking.
+   *
+   * The rake alone was tried and it is half a rig. Looking DOWN the tube it is
+   * exactly right - the frames step out of the panels and the run gains its
+   * depth. Looking ALONG a wall, from off the centre line, that same wall is a
+   * third of the frame at N dot L = 0.22 and it goes to a dead slab six values
+   * off VOID_SLATE - which is worse than the head-on version it replaced, not
+   * better, and the pinned off-line pose showed it immediately.
+   *
+   * So the two jobs get two terms instead of being fought over by one. This pair
+   * sets where a bare wall SITS, square-on and deliberately weak; the rake above
+   * decides what separates FROM it. Neither number is doing the other's work,
+   * which is the only reason both poses can be right at once.
    */
   for (const side of [-1, 1] as const) {
-    const wash = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.5);
-    wash.position.set(0, CEILING_Y, 0);
-    wash.target.position.set(0, CEILING_Y * 0.35, side * HALF_Z * 3);
-    root.add(wash, wash.target);
+    const fill = new THREE.DirectionalLight(new THREE.Color(PALETTE.HULL).getHex(), 0.34);
+    fill.position.set(0.3, CEILING_Y * 0.62, -side * HALF_Z * 4);
+    fill.target.position.set(0.3, CEILING_Y * 0.45, side * HALF_Z);
+    root.add(fill, fill.target);
   }
 
   // Down the run, weakly, so the eight frames step in value toward the far end
@@ -435,6 +494,21 @@ function buildSpine(): CompartmentHandle {
   along.position.set(HALF_LENGTH, CEILING_Y * 0.8, 0);
   along.target.position.set(-HALF_LENGTH, FLOOR_Y, 0);
   root.add(along, along.target);
+
+  /**
+   * Floor bounce, and the only thing that puts any value on the ceiling.
+   *
+   * The washes rake downward, so the ceiling takes nothing from them, and with
+   * the hemisphere down to 0.38 its underside term alone left the ceiling inside
+   * eight values of VOID_SLATE - a ceiling reading as a hole to space, which is
+   * the one thing this station is not allowed to do. The floor is the brightest
+   * surface in the tube and it is directly below, so bouncing it back up is what
+   * a real corridor does anyway.
+   */
+  const bounce = new THREE.DirectionalLight(new THREE.Color(PALETTE.HULL).getHex(), 0.34);
+  bounce.position.set(0.4, FLOOR_Y, 0);
+  bounce.target.position.set(0.4, CEILING_Y, 0.1);
+  root.add(bounce, bounce.target);
 
   const floor: readonly FloorRect[] = [
     {

@@ -195,6 +195,64 @@ try {
     Math.hypot(railEnd.x - railStart.x, railEnd.z - railStart.z) > 0.3,
     `focus on ${focused}, moved ${Math.hypot(railEnd.x - railStart.x, railEnd.z - railStart.z).toFixed(2)} m`
   );
+
+  // --- Every compartment, entered and walked, on the keys a person actually has.
+  //
+  // The five checks above are all the limb deck and the corridor, because those
+  // were the only two rooms when they were written. Ten more have been built
+  // since and NONE of them had ever been walked by anything but a setPose call,
+  // which is precisely the hole this file exists to close: setPose teleports, so
+  // it proves the renderer can draw a pose and proves nothing at all about
+  // whether a person can stand there and move. A room that spawns you inside its
+  // own furniture, or on no floor, or facing a wall 30 cm away, passes every
+  // other gate in this repo and is unplayable the moment it is opened.
+  //
+  // The room list comes from the live registry rather than a literal, so a
+  // thirteenth compartment is covered the day it is registered and nobody has to
+  // remember to add it here. That is the same allow-list failure the flatness
+  // gate shipped with, and it is not worth making twice.
+  const ids = await page.evaluate(() => window.groundTrackRooms.environments);
+  const stuck = [];
+  for (const id of ids) {
+    await page.goto(`http://localhost:${PORT}/rooms.html#${id}`);
+    await page.waitForFunction(
+      (room) =>
+        window.groundTrackRooms?.ready === true &&
+        (window.groundTrackRooms.environment === room || window.groundTrackRooms.error !== null),
+      id,
+      { timeout: 20000 }
+    );
+    const failure = await page.evaluate(() => window.groundTrackRooms.error);
+    if (failure !== null) {
+      stuck.push(`${id}: ${failure}`);
+      continue;
+    }
+    await page.evaluate(() => window.groundTrackRooms.setPaused(false));
+    // Turn first, then walk. Spawning nose-on to a bulkhead is a legitimate way
+    // to author a room, and a walk test that only ever presses W would call it
+    // broken; a quarter turn either side finds real floor if any is reachable.
+    let best = 0;
+    for (const turn of ['', 'ArrowLeft', 'ArrowRight']) {
+      const from = await page.evaluate(() => window.groundTrackRooms.pose());
+      if (turn !== '') {
+        await page.keyboard.down(turn);
+        await new Promise((r) => setTimeout(r, 500));
+        await page.keyboard.up(turn);
+      }
+      await page.keyboard.down('w');
+      await new Promise((r) => setTimeout(r, 700));
+      await page.keyboard.up('w');
+      const to = await page.evaluate(() => window.groundTrackRooms.pose());
+      best = Math.max(best, Math.hypot(to.x - from.x, to.z - from.z));
+      if (best >= 0.1) break;
+    }
+    if (best < 0.1) stuck.push(`${id}: moved ${best.toFixed(3)} m`);
+  }
+  check(
+    'every compartment can be entered and walked with the keys',
+    stuck.length === 0,
+    stuck.length === 0 ? `${ids.length} walked` : stuck.join('; ')
+  );
 } finally {
   await browser?.close();
   child.kill();

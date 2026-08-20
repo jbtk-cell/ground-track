@@ -348,6 +348,21 @@ const writeBaseline = args.includes('--baseline');
 const urlFlag = args.indexOf('--url');
 const externalUrl = urlFlag >= 0 ? args[urlFlag + 1] : null;
 
+/**
+ * `--only <regex>` renders just the presets whose name matches.
+ *
+ * Tuning a room's light is a measure-change-measure loop, and re-rendering all
+ * thirty-one frames to see what one of them did makes the loop slow enough that
+ * you start guessing instead of measuring. It filters by PRESET name, not room,
+ * so `--only 'spine|station-'` is the corridor and everything that looks down it.
+ *
+ * It deliberately does nothing when writing baselines: a partial baseline is a
+ * set of approved references where some are approved and some are last week's,
+ * with no record of which. Baselines are all or nothing.
+ */
+const onlyFlag = args.indexOf('--only');
+const only = onlyFlag >= 0 && !writeBaseline ? new RegExp(args[onlyFlag + 1]) : null;
+
 const outDir = path.resolve(writeBaseline ? 'shots/baseline' : 'shots/current');
 
 async function startPreview() {
@@ -369,7 +384,11 @@ async function startPreview() {
 }
 
 async function main() {
-  await rm(outDir, { recursive: true, force: true });
+  // A full run clears first, so a preset that has been deleted cannot leave a
+  // stale PNG behind for a gate to keep grading. A filtered run must NOT: it is
+  // rendering four frames out of thirty-one, and wiping the other twenty-seven
+  // would leave every gate measuring whatever survived. Found by doing it.
+  if (only === null) await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
 
   let server = null;
@@ -397,6 +416,7 @@ async function main() {
   await page.evaluate(() => window.groundTrack.setPaused(true));
 
   for (const preset of presets) {
+    if (only !== null && !only.test(preset)) continue;
     await page.evaluate((name) => window.groundTrack.setPreset(name), preset);
     // Pins the planet clock for the landing presets; the mission-* presets are
     // deterministic by construction (setPreset rebuilds their state fresh).
@@ -413,6 +433,7 @@ async function main() {
   // into window.groundTrack.
   let mounted = null;
   for (const preset of INTERIOR_PRESETS) {
+    if (only !== null && !only.test(preset.name)) continue;
     if (mounted !== preset.room) {
       await page.goto(new URL(`rooms.html#${preset.room}`, url).href, {
         waitUntil: 'networkidle',
