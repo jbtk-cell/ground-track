@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildAtmosphere, setAtmosphereSun } from './atmosphere';
+import { buildMoon, buildPlanets, setMoonSun } from './companions';
 import { buildEarth, DEFAULT_EARTH } from './earth';
 import { EARTHSHINE_GROUND, PALETTE, SUN_COLOUR } from './palette';
 import { buildSettlements, setSettlementSun } from './settlements';
@@ -79,11 +80,24 @@ export function createScene(): SceneHandle {
 
   scene.add(buildStarfield(3200, 180));
 
+  // The Moon and the four naked-eye planets. See companions.ts: the Moon is at
+  // true scale and true distance, so it is half a degree across and takes its
+  // phase from the scene's own sun rather than from anything that has to be
+  // kept in step.
+  //
+  // This bearing puts it high and well off the sun's, which is what gives it a
+  // phase to show. Directly along the sun it would be full and featureless;
+  // directly opposite, invisible.
+  const moon = buildMoon(new THREE.Vector3(0.28, 0.5, -0.82));
+  scene.add(moon);
+  scene.add(buildPlanets(176));
+
   const { sun, fill } = buildLights(scene);
 
   const sunDirection = new THREE.Vector3().copy(sun.position).normalize();
   setAtmosphereSun(atmosphere, sunDirection);
   setSettlementSun(settlements, sunDirection);
+  setMoonSun(moon, sunDirection);
 
   return {
     scene,
@@ -98,6 +112,7 @@ export function createScene(): SceneHandle {
       fill.position.copy(sun.position).multiplyScalar(-1);
       setAtmosphereSun(atmosphere, sunDirection);
       setSettlementSun(settlements, sunDirection);
+      setMoonSun(moon, sunDirection);
     },
 
     resize(width: number, height: number) {

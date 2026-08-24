@@ -52,15 +52,31 @@ const WANDER_M = 0.07;
 const WANDER_HZ = 0.045;
 
 /**
- * Mote diameter, metres. Rendered with size attenuation, so this is a real
- * physical size and a mote three metres away is smaller than one at arm's
- * length - which is most of what sells them as being IN the room.
+ * Mote size, in PIXELS, and it used to be in metres.
  *
- * Small on purpose, and the first cut at 24 mm was not: points render as
- * squares, and a square you can see the corners of is not dust, it is a pixel.
- * At 9 mm a mote is two or three pixels across the deck and reads as a speck.
+ * The note that was here said 9 mm with size attenuation gives two or three
+ * pixels across the deck and reads as a speck, and that a first cut at 24 mm
+ * was wrong because "a square you can see the corners of is not dust, it is a
+ * pixel". Both halves were right. What neither caught is that with attenuation
+ * on, the size is a function of range, and 9 mm has no corners across the deck
+ * only because the deck is three metres away. The player can walk into the
+ * beam. At 0.2 m the same mote subtends two and a half degrees and renders as a
+ * 35-pixel hard-edged grey tile hanging in the window - the 24 mm failure back
+ * again, at four times the scale, reachable from anywhere in the room.
+ *
+ * There is no way to cap a point's screen size in PointsMaterial, and culling
+ * by range would need the eye position, which `Frame` deliberately does not
+ * carry - it is pure, and every animator in the room is a function of it alone.
+ * So the fix is to stop asking: attenuation off, size fixed at the two or three
+ * pixels the original note was aiming for. A mote is now a speck at every
+ * distance and cannot become a square at any of them.
+ *
+ * What that gives up is the depth cue - a near mote no longer reads as nearer.
+ * The cloud is DEPTH_M deep and that cue was worth very little across so
+ * shallow a volume, which is a cheap price for removing the one artifact in
+ * this room a player was guaranteed to walk into.
  */
-const MOTE_M = 0.009;
+const MOTE_PX = 2.4;
 
 /**
  * Peak opacity.
@@ -133,8 +149,8 @@ export function createMotes(throat: Aperture): MotesHandle {
 
   const material = new THREE.PointsMaterial({
     color: new THREE.Color(PALETTE.CLOUD),
-    size: MOTE_M,
-    sizeAttenuation: true,
+    size: MOTE_PX,
+    sizeAttenuation: false,
     transparent: true,
     opacity: 0,
     // Motes are specks of sunlight, not a light source: normal blending, never
