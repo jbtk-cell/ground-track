@@ -65,6 +65,7 @@ import { type Solid, boxOf, merged, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
 import { CROWN_COLOUR, REVEAL_COLOUR, bands, deepestRelief } from '../kit/bands';
 import type { FloorRect, PointOfInterest } from '../types';
+import { consoleFitOut } from './console';
 
 const HALF_X = 2.3;
 const HALF_Z = 1.7;
@@ -529,13 +530,20 @@ function buildPlot(): CompartmentHandle {
       emissive: new THREE.Color(PALETTE.NIGHT_SIDE),
       emissiveIntensity: 1,
     }),
-    // MINT, and only on the two things a hand closes round plus the one pull on
-    // the drawer that is out. DIRECTION gives mint to instruments, and the
-    // temptation in an operations room is to put it on the panel bank - which
-    // would be an emissive interface by another name and is exactly what is
-    // banned. Held to hardware you touch, it stays a material rather than a
-    // signal, and it is small enough not to become the brightest thing in a
-    // deliberately quiet room.
+    // MINT on the two things a hand closes round, plus the one pull on the
+    // drawer that is out. Mint as a MATERIAL - hardware you touch - which is a
+    // separate use from mint as a readout value, and the two are kept in
+    // separate meshes so neither drifts into the other.
+    //
+    // This comment used to go on to say the bank must never carry mint, on the
+    // grounds that it would be an emissive interface by another name. Half of
+    // that was right and the half that was right is now enforced somewhere
+    // better: see console.ts, which draws the bank as fixed geometry that
+    // resolves to bars and blocks and cannot be read. What was wrong was the
+    // conclusion. A blank two-metre slab at the focus of the only room the game
+    // is played in did not read as restraint, it read as unfinished - the room
+    // was a dark box with a desk in it - and DIRECTION gives mint to
+    // instruments precisely so that a machine can look like one.
     grip: new THREE.MeshLambertMaterial({
       color: new THREE.Color(PALETTE.MINT),
       flatShading: true,
@@ -557,6 +565,30 @@ function buildPlot(): CompartmentHandle {
     mesh.name = `plot-${key}`;
     root.add(mesh);
   }
+
+  // --- The fit-out on the bank. See console.ts for why this is not a HUD.
+  const fitOut = consoleFitOut({
+    x0: DESK_X0,
+    x1: DESK_X1,
+    faceZ: SLOT_Z,
+    slotY0: SLOT_Y0,
+    slotY1: SLOT_Y1,
+    topY: BANK_TOP_Y,
+    deskY: DESK_TOP_Y,
+  });
+
+  const bankMetal = new THREE.Mesh(fitOut.lit, liner);
+  bankMetal.name = 'plot-bank-metal';
+  root.add(bankMetal);
+
+  // Unlit, and that is the whole reason it is a second mesh. A powered readout
+  // does not dim because the player stepped into shadow, so the vertex colour IS
+  // the pixel - which is also what makes the brightness in console.ts a number
+  // somebody chose rather than an accident of the light rig. No postprocessing
+  // is involved and none is permitted; this is a material, not a glow.
+  const bankGlow = new THREE.Mesh(fitOut.glow, new THREE.MeshBasicMaterial({ vertexColors: true }));
+  bankGlow.name = 'plot-bank-glow';
+  root.add(bankGlow);
 
   const ambient = new THREE.HemisphereLight(
     new THREE.Color(PALETTE.HULL).getHex(),
