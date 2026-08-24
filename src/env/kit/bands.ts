@@ -56,6 +56,30 @@ export const DATUM_T_M = 0.012;
 
 export type BandName = 'kick' | 'work' | 'crown';
 
+/**
+ * The work band's tone: two thirds of the way from HULL to ARID.
+ *
+ * Not ARID straight - a full-saturation sand wall the length of an 11 m
+ * corridor stops being a liner and starts being a statement - and not a token
+ * tint either, because a warmth nobody can see is the swap this replaced. The
+ * mix is computed from the two palette entries rather than typed as a third
+ * hex, so it moves if they ever do.
+ */
+export const WORK_COLOUR = mixHex(PALETTE.HULL, PALETTE.ARID, 0.66);
+
+/** A linear mix of two hex colours in [0,1], returned as hex. */
+function mixHex(from: string, to: string, t: number): string {
+  const a = parseInt(from.slice(1), 16);
+  const b = parseInt(to.slice(1), 16);
+  const channel = (shift: number): number => {
+    const low = (a >> shift) & 0xff;
+    const high = (b >> shift) & 0xff;
+    return Math.round(low + (high - low) * t);
+  };
+  const mixed = (channel(16) << 16) | (channel(8) << 8) | channel(0);
+  return `#${mixed.toString(16).padStart(6, '0')}`;
+}
+
 export interface Band {
   readonly name: BandName;
   /** Bottom and top of the band, metres above the local deck. */
@@ -94,7 +118,21 @@ export function bands(floorY: number, ceilingY: number): readonly Band[] {
   if (workTop > kickTop) {
     // The room's identity lives here, at eye level, which is where a standing
     // player actually looks. It is also the lightest surface in the room.
-    out.push({ name: 'work', y0: kickTop, y1: workTop, colour: PALETTE.HULL, relief: -0.08 });
+    //
+    // WARM, against everything above and below it, and this is the one colour
+    // decision that changes what the whole station feels like. The palette has
+    // carried warm values from the start - FOIL is the MLI wrapped around
+    // every satellite, ARID is a third of the continents - and the interiors
+    // never used one: every band, fitting and door was slate on slate, which
+    // is why frames of the place read as a diagram of a station rather than
+    // the inside of a spacecraft. Real crewed interiors are lined at exactly
+    // this height with fabric, kapton and anodised panels in this family; the
+    // cold structure shows above the liner and below it. So the work band is
+    // the lined part, in a tone mixed two thirds toward ARID from HULL - sand,
+    // held down so a lit wall stays below the values the card and the readouts
+    // live at - and the kick and crown stay cold, which keeps the warmth a
+    // band through the room rather than a filter over it.
+    out.push({ name: 'work', y0: kickTop, y1: workTop, colour: WORK_COLOUR, relief: -0.08 });
   }
   if (ceilingY > workTop) {
     // Services overhead, and the darkest value in the room. A player reads
@@ -102,6 +140,53 @@ export function bands(floorY: number, ceilingY: number): readonly Band[] {
     out.push({ name: 'crown', y0: workTop, y1: ceilingY, colour: CROWN_COLOUR, relief: 0.14 });
   }
   return out;
+}
+
+/**
+ * A wall run cut into bays, for panelling a band at the station's rhythm.
+ *
+ * One quad the length of a wall is one facetColour sample, which is one value
+ * for eleven metres - the exact "one long ribbon" defect the per-facet jitter
+ * exists to prevent, defeated by making the facet as long as the room. Cutting
+ * the run at BAY_M gives each panel its own centroid, therefore its own
+ * sample, therefore its own value; the steps between neighbouring panels read
+ * as liner seams without a millimetre of extra geometry, and the pitch is the
+ * ISPR module every other repeating element in the station is already on.
+ *
+ * The run rarely divides evenly. The remainder is split between the two END
+ * panels rather than dumped into the last one, because walls are seen from
+ * their middles: a fractional panel against each corner reads as the liner
+ * being trimmed to fit the room, where one odd panel mid-run reads as a
+ * mistake in the drawing.
+ */
+export function baySpans(from: number, to: number, pitch = BAY_M): readonly [number, number][] {
+  const length = to - from;
+  if (length <= pitch * 1.5) return [[from, to]];
+  const whole = Math.floor(length / pitch) - 1;
+  const end = (length - whole * pitch) / 2;
+  const spans: [number, number][] = [[from, from + end]];
+  for (let i = 0; i < whole; i += 1) {
+    const start = from + end + i * pitch;
+    spans.push([start, start + pitch]);
+  }
+  spans.push([from + end + whole * pitch, to]);
+  return spans;
+}
+
+/**
+ * A per-panel value factor, full range, for liner panels cut by `baySpans`.
+ *
+ * The kit's facetColour jitter runs on fbm, and three octaves of fbm cluster
+ * hard around the middle: an "amount" of 0.1 delivers real steps of one or two
+ * values in 255, which is invisible - measured on the corridor, doubling the
+ * amount moved neighbouring panels by 3. Panels need the whole stated range,
+ * so this is a plain hash, not noise: multiply the panel's colour by it and
+ * adjacent bays land anywhere in +/-amount of each other, which at 0.08 is the
+ * difference between one liner panel and the next having aged apart.
+ */
+export function panelWear(u: number, v = 0, amount = 0.08): number {
+  const n = Math.sin(u * 127.1 + v * 311.7) * 43758.5453;
+  return 1 + (n - Math.floor(n) - 0.5) * 2 * amount;
 }
 
 /**

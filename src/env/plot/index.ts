@@ -63,7 +63,14 @@ import { SEAM, SEAM_INSET_M, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
-import { CROWN_COLOUR, REVEAL_COLOUR, bands, deepestRelief } from '../kit/bands';
+import {
+  CROWN_COLOUR,
+  REVEAL_COLOUR,
+  bands,
+  baySpans,
+  deepestRelief,
+  panelWear,
+} from '../kit/bands';
 import type { FloorRect, PointOfInterest } from '../types';
 import { consoleFitOut } from './console';
 
@@ -383,20 +390,26 @@ function buildShell(): THREE.BufferGeometry {
       if (y1 - y0 < 1e-6) continue;
       const z = side * (wallHalfZ(side) - band.relief);
       const lip = side * wallHalfZ(side);
-      pushQuad(
-        target,
-        v(x0, y0, z),
-        v(x1, y0, z),
-        v(x1, y1, z),
-        v(x0, y1, z),
-        inward,
-        facetColour(
-          new THREE.Color(band.colour),
-          v((x0 + x1) / 2, (y0 + y1) / 2, z),
-          SEED + 3,
-          JITTER
-        )
-      );
+      // Panelled at the bay rhythm with full-range per-panel wear, the same
+      // treatment the corridor's liner gets and for the same measured reason:
+      // one quad is one jitter sample, and fbm jitter delivers steps of a
+      // value or two however hard it is turned up.
+      for (const [p0, p1] of baySpans(x0, x1)) {
+        pushQuad(
+          target,
+          v(p0, y0, z),
+          v(p1, y0, z),
+          v(p1, y1, z),
+          v(p0, y1, z),
+          inward,
+          facetColour(
+            new THREE.Color(band.colour),
+            v((p0 + p1) / 2, (y0 + y1) / 2, z),
+            SEED + 3,
+            JITTER
+          ).multiplyScalar(panelWear(p0, side))
+        );
+      }
       if (Math.abs(band.relief) < 1e-6) continue;
       for (const y of [y0, y1]) {
         if (Math.abs(y - FLOOR_Y) < 1e-6) continue;
@@ -553,7 +566,7 @@ function buildPlot(): CompartmentHandle {
     lamp: new THREE.MeshLambertMaterial({
       color: new THREE.Color(0x000000),
       flatShading: true,
-      emissive: new THREE.Color(PALETTE.CLOUD),
+      emissive: new THREE.Color(PALETTE.DAWN_CREAM),
       emissiveIntensity: 0.38,
     }),
   };
@@ -591,7 +604,7 @@ function buildPlot(): CompartmentHandle {
   root.add(bankGlow);
 
   const ambient = new THREE.HemisphereLight(
-    new THREE.Color(PALETTE.HULL).getHex(),
+    new THREE.Color(PALETTE.CLOUD).getHex(),
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
     1.05
   );
@@ -601,14 +614,14 @@ function buildPlot(): CompartmentHandle {
   // from it. That is not decoration either: with a level ceiling and no window
   // there is nothing else to tell a player where the room wants them, and light
   // is the only instruction this game is willing to give.
-  const key = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.55);
+  const key = new THREE.DirectionalLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), 0.55);
   key.position.set(-0.7, CEILING_Y - 0.2, 1.05);
   key.target.position.set(-0.7, DESK_TOP_Y, DESK_BACK_Z);
   root.add(key, key.target);
 
   // A weaker one over the walk in, aimed down the room, so arriving through
   // `fore` you are walking from a dimmer place into a brighter one.
-  const along = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.4);
+  const along = new THREE.DirectionalLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), 0.4);
   along.position.set(1.5, CEILING_Y - 0.2, -0.2);
   along.target.position.set(-1.0, FLOOR_Y, 0.4);
   root.add(along, along.target);
@@ -617,7 +630,7 @@ function buildPlot(): CompartmentHandle {
   // light directly above it - its normal is horizontal and the dot product is
   // zero - so a room keyed only from its own ceiling has two walls that fall to
   // the emissive floor and vanish, taking the spur's doorway with them.
-  const wash = new THREE.DirectionalLight(new THREE.Color(PALETTE.HULL).getHex(), 0.26);
+  const wash = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.26);
   wash.position.set(0, CEILING_Y * 0.7, 0.6);
   wash.target.position.set(-0.4, 1.0, -HALF_Z * 2);
   root.add(wash, wash.target);

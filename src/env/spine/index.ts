@@ -37,7 +37,14 @@ import { SEAM, SEAM_INSET_M, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, planeClashes, solid } from '../kit/solids';
 import { facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
-import { CROWN_COLOUR, REVEAL_COLOUR, bands, deepestRelief } from '../kit/bands';
+import {
+  CROWN_COLOUR,
+  REVEAL_COLOUR,
+  bands,
+  baySpans,
+  deepestRelief,
+  panelWear,
+} from '../kit/bands';
 import type { FloorRect, PointOfInterest } from '../types';
 
 const LENGTH = 11.2;
@@ -192,6 +199,32 @@ function spineSolids(): readonly Solid[] {
     )
   );
 
+  // And a handrail down the starboard work band, which is the wall the cable
+  // run left bare. Every crewed module that has ever flown is lined with
+  // these at exactly this height, and the corridor's starboard wall was the
+  // largest unbroken surface on the station: stand half a metre off it - the
+  // station-off-line pose - and one liner panel was 46.7% of the frame. The
+  // rail is the one fitting the room's own doctrine of emptiness permits,
+  // because it is not decoration, it is how a body moves down a tube.
+  //
+  // MINT, the way the plot's grab rail is mint: the station's rule is that
+  // mint marks what a hand closes round. Proud of the frame uprights by the
+  // same 12 mm the cable run uses, and for the same reason - flush with them
+  // is eight coplanar face pairs crawling as you walk.
+  const railY = 0.98;
+  parts.push(
+    solid(
+      'handrail',
+      'grip',
+      -HALF_LENGTH + 0.4,
+      HALF_LENGTH - 0.4,
+      railY,
+      railY + 0.043,
+      HALF_Z - FRAME_STAND - 0.012,
+      HALF_Z - 0.005
+    )
+  );
+
   return parts;
 }
 
@@ -267,15 +300,27 @@ function buildLiner(): THREE.BufferGeometry {
       for (const side of [-1, 1] as const) {
         const z = side * (HALF_Z + inset);
         const lip = side * HALF_Z;
-        pushQuad(
-          target,
-          v(x0, band.y0, z),
-          v(x1, band.y0, z),
-          v(x1, band.y1, z),
-          v(x0, band.y1, z),
-          inward,
-          facetColour(base, v(mid, (band.y0 + band.y1) / 2, z), SEED, JITTER)
-        );
+        // Panelled at the bay rhythm, not one quad the length of the room. One
+        // quad is one jitter sample, and one sample for eleven metres is the
+        // ribbon defect back again with the jitter still technically present.
+        // The per-panel wear is a hash rather than more jitter because fbm
+        // clusters around its middle - see panelWear.
+        for (const [p0, p1] of baySpans(x0, x1)) {
+          pushQuad(
+            target,
+            v(p0, band.y0, z),
+            v(p1, band.y0, z),
+            v(p1, band.y1, z),
+            v(p0, band.y1, z),
+            inward,
+            facetColour(
+              base,
+              v((p0 + p1) / 2, (band.y0 + band.y1) / 2, z),
+              SEED,
+              JITTER
+            ).multiplyScalar(panelWear(p0, side))
+          );
+        }
         // The return that closes the band's depth back to the wall plane. A
         // band floating at a depth with no return is a hole in the hull.
         if (Math.abs(inset) > 1e-6) {
@@ -369,6 +414,13 @@ function buildSpine(): CompartmentHandle {
       emissive: new THREE.Color(PALETTE.NIGHT_SIDE),
       emissiveIntensity: 1,
     }),
+    // Mint marks what a hand closes round - the same rule as the plot's rail.
+    grip: new THREE.MeshLambertMaterial({
+      color: new THREE.Color(PALETTE.MINT),
+      flatShading: true,
+      emissive: new THREE.Color(PALETTE.NIGHT_SIDE),
+      emissiveIntensity: 1,
+    }),
     // Black plus emissive MINT: the lamp-diffuser rule. A lit MINT surface plus
     // a MINT emissive term clipped to 255,255,247 over eight thousand pixels the
     // first time it was tried, in a game with no white in it.
@@ -381,7 +433,7 @@ function buildSpine(): CompartmentHandle {
       // 1.62 m wide, and at 0.55 it was the brightest thing on the station by a
       // wide margin - a corridor lit like an operating theatre. Level is a
       // property of the fitting AND the room, never of the fitting alone.
-      emissive: new THREE.Color(PALETTE.CLOUD),
+      emissive: new THREE.Color(PALETTE.DAWN_CREAM),
       emissiveIntensity: 0.34,
     }),
   };
@@ -416,7 +468,7 @@ function buildSpine(): CompartmentHandle {
    * wide. Only the RATIO of flat to directional separates anything.
    */
   const ambient = new THREE.HemisphereLight(
-    new THREE.Color(PALETTE.HULL).getHex(),
+    new THREE.Color(PALETTE.CLOUD).getHex(),
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
     0.38
   );
@@ -456,7 +508,7 @@ function buildSpine(): CompartmentHandle {
   const ALONG = -Math.sqrt(1 - GRAZE * GRAZE - DROP * DROP);
 
   for (const side of [-1, 1] as const) {
-    const wash = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.72);
+    const wash = new THREE.DirectionalLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), 0.72);
     wash.position.set(-ALONG * HALF_LENGTH, CEILING_Y - 0.1, -side * HALF_Z * 0.5);
     wash.target.position.set(
       wash.position.x + ALONG,
@@ -482,7 +534,7 @@ function buildSpine(): CompartmentHandle {
    * which is the only reason both poses can be right at once.
    */
   for (const side of [-1, 1] as const) {
-    const fill = new THREE.DirectionalLight(new THREE.Color(PALETTE.HULL).getHex(), 0.34);
+    const fill = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.34);
     fill.position.set(0.3, CEILING_Y * 0.62, -side * HALF_Z * 4);
     fill.target.position.set(0.3, CEILING_Y * 0.45, side * HALF_Z);
     root.add(fill, fill.target);
@@ -490,7 +542,7 @@ function buildSpine(): CompartmentHandle {
 
   // Down the run, weakly, so the eight frames step in value toward the far end
   // instead of stamping out eight identical silhouettes.
-  const along = new THREE.DirectionalLight(new THREE.Color(PALETTE.HULL).getHex(), 0.22);
+  const along = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.22);
   along.position.set(HALF_LENGTH, CEILING_Y * 0.8, 0);
   along.target.position.set(-HALF_LENGTH, FLOOR_Y, 0);
   root.add(along, along.target);
@@ -505,7 +557,7 @@ function buildSpine(): CompartmentHandle {
    * surface in the tube and it is directly below, so bouncing it back up is what
    * a real corridor does anyway.
    */
-  const bounce = new THREE.DirectionalLight(new THREE.Color(PALETTE.HULL).getHex(), 0.34);
+  const bounce = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.34);
   bounce.position.set(0.4, FLOOR_Y, 0);
   bounce.target.position.set(0.4, CEILING_Y, 0.1);
   root.add(bounce, bounce.target);

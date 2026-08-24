@@ -135,6 +135,30 @@ function main(): void {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(PALETTE.VOID_SLATE);
 
+  /**
+   * Air, as depth. The rooms are pressurised - the dust motes already say so -
+   * and a long sightline through air loses contrast toward the far end. Linear
+   * fog toward VOID_SLATE gives every corridor and doorway an honest depth
+   * falloff, which is most of what makes the long station run read as a place
+   * rather than as a diagram of one.
+   *
+   * The numbers are constrained on both sides. Near at 3 m keeps arm's reach
+   * crisp: nothing a hand can touch is hazed. Far at 40 m is beyond any
+   * sightline in the build - the longest aligned run of doorways is about
+   * 30 m, where the falloff reaches three quarters and no further - and it
+   * must STAY beyond, because the airtight gate counts pixels EXACTLY equal to
+   * VOID_SLATE as open space and linear fog only lands exactly on its colour
+   * AT the far distance. Bring far inside the longest run and the far wall
+   * becomes indistinguishable from a hull breach to the one gate whose job is
+   * telling those apart.
+   *
+   * Rooms that render themselves (the painter path) draw their own root Scene,
+   * not this one, so the same fog object is handed to any root that is a Scene
+   * at mount - see below in mount(). One object, so a retune is one edit.
+   */
+  const haze = new THREE.Fog(new THREE.Color(PALETTE.VOID_SLATE).getHex(), 3, 40);
+  scene.fog = haze;
+
   const camera = new THREE.PerspectiveCamera(INTERIOR_FOV, 16 / 9, NEAR_PLANE_M, FAR_PLANE_M);
 
   let handle: EnvironmentHandle | null = null;
@@ -377,6 +401,9 @@ function main(): void {
       handle = built;
       painter = selfRendering(built);
       scene.add(built.root);
+      // A self-rendering room draws its own root as the scene, so the viewer's
+      // fog never touches it unless the root carries the same one.
+      if (built.root instanceof THREE.Scene) built.root.fog = haze;
       controller = createController({
         camera,
         surface: canvas,

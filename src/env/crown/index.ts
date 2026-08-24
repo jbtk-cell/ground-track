@@ -558,20 +558,20 @@ function buildCrown(): CompartmentHandle {
   }
 
   const ambient = new THREE.HemisphereLight(
-    new THREE.Color(PALETTE.HULL).getHex(),
+    new THREE.Color(PALETTE.CLOUD).getHex(),
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
     0.92
   );
   root.add(ambient);
   // One hard key straight down through the aperture. This is the light that puts
   // the value on the upper wall, and it is the only reason the inversion reads.
-  const sky = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.86);
+  const sky = new THREE.DirectionalLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), 0.86);
   sky.position.set(0.4, CEILING_Y, 0.2);
   sky.target.position.set(-0.6, FLOOR_Y, -0.4);
   root.add(sky, sky.target);
   // And a weak fill at deck level, so the bottom two metres do not go to one
   // value while the top eight carry the whole frame.
-  const fill = new THREE.DirectionalLight(new THREE.Color(PALETTE.HULL).getHex(), 0.3);
+  const fill = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.3);
   fill.position.set(HALF_X, FLOOR_Y + 1.6, 0);
   fill.target.position.set(-HALF_X, FLOOR_Y + 0.4, 0);
   root.add(fill, fill.target);

@@ -710,7 +710,7 @@ function buildCrawl(): CompartmentHandle {
   // between. A directional could not do this job at any level: it hands every
   // facet in the run the same term, so the middle would be lit exactly as well
   // as the ends and the room would lose the only distance cue it has.
-  const mouth = new THREE.PointLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.62, 4.2, 1);
+  const mouth = new THREE.PointLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), 0.62, 4.2, 1);
   mouth.position.set(3.42, 1.3, 0);
   mouth.name = 'crawl-mouth';
   const far = new THREE.PointLight(new THREE.Color(PALETTE.SETTLEMENT).getHex(), 0.3, 2.8, 1);

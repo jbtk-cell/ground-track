@@ -72,7 +72,14 @@ import { SEAM, SEAM_INSET_M, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, boxOf, merged, solid } from '../kit/solids';
 import { type Sink, facetColour, interiorMaterial, pushQuad, sink, toGeometry } from '../kit/mesh';
-import { type Band, CROWN_COLOUR, REVEAL_COLOUR, bands, deepestRelief } from '../kit/bands';
+import {
+  type Band,
+  CROWN_COLOUR,
+  REVEAL_COLOUR,
+  bands,
+  deepestRelief,
+  panelWear,
+} from '../kit/bands';
 import type { FloorRect, PointOfInterest } from '../types';
 
 /** Half the footprint, both ways. The only room where those two are the same. */
@@ -557,12 +564,16 @@ function buildBandFaces(target: Sink, run: WallRun): void {
           wallPoint(run, face, b1, y1),
           wallPoint(run, face, b0, y1),
           inward,
+          // The wear hash rides on top of the fbm jitter because fbm clusters
+          // around its middle: measured on the corridor, doubling its amount
+          // moved neighbouring panels by three values. The hash delivers the
+          // whole range, so adjacent facets genuinely step.
           facetColour(
             on ? glow : base,
             wallPoint(run, face, ma, my),
             SEED + (on ? 31 : 3),
             on ? JITTER * 0.5 : JITTER
-          )
+          ).multiplyScalar(panelWear(ma * 1.7, my * 1.7, on ? 0.03 : 0.05))
         );
       }
     }

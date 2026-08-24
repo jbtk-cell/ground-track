@@ -794,7 +794,7 @@ function buildSill(): CompartmentHandle {
 
   // One weak cross-key so the kerb, the rail and the perch have a light side and
   // the room is not lit purely from directly above and directly below.
-  const cross = new THREE.DirectionalLight(new THREE.Color(PALETTE.HULL).getHex(), 0.24);
+  const cross = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.24);
   cross.position.set(-4, 3, 3);
   cross.target.position.set(1, FLOOR_Y, -1);
   root.add(cross, cross.target);

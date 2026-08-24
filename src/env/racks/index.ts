@@ -657,7 +657,7 @@ function buildRacks(): CompartmentHandle {
     lamp: new THREE.MeshLambertMaterial({
       color: new THREE.Color(0x000000),
       flatShading: true,
-      emissive: new THREE.Color(PALETTE.CLOUD),
+      emissive: new THREE.Color(PALETTE.DAWN_CREAM),
       emissiveIntensity: 0.42,
     }),
   };
@@ -679,7 +679,7 @@ function buildRacks(): CompartmentHandle {
   // undo without noticing, so it is written down twice - once in the module
   // note above and once here.
   const ambient = new THREE.HemisphereLight(
-    new THREE.Color(PALETTE.HULL).getHex(),
+    new THREE.Color(PALETTE.CLOUD).getHex(),
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
     0.78
   );
@@ -689,7 +689,7 @@ function buildRacks(): CompartmentHandle {
     // 0.95 m aisle give eight bright patches and seven dark ones between them,
     // which is a rhythm - and rhythm is the wall's job in this room, not the
     // ceiling's. A softer falloff overlaps them into one even field.
-    const lamp = new THREE.PointLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.3, 3.2, 1);
+    const lamp = new THREE.PointLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), 0.3, 3.2, 1);
     lamp.position.set(cx, 2.3, 0);
     root.add(lamp);
   }

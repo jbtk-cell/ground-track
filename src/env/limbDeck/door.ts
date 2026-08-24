@@ -262,7 +262,7 @@ export const DOOR_PROUD_X = FACE_X + BUTTON_PLATE_T + BUTTON_CAP_T;
 /** One solid box. Everything the door builds is one of these. */
 export interface DoorPart {
   readonly name: string;
-  readonly material: 'frame' | 'sleeve' | 'trim' | 'leaf';
+  readonly material: 'frame' | 'sleeve' | 'trim' | 'leaf' | 'panelLight' | 'panelDark';
   /** Index of the leaf this rides, or -1 for anything that does not move. */
   readonly leaf: number;
   readonly x0: number;
@@ -442,6 +442,38 @@ export function doorParts(): readonly DoorPart[] {
       part(`leaf-${i}-border-port`, 'leaf', x1, face, b0 + rib, b1 - rib, -bz, -bz + rib, i),
       part(`leaf-${i}-border-starboard`, 'leaf', x1, face, b0 + rib, b1 - rib, bz - rib, bz, i)
     );
+
+    // Three raised panels inside each leaf's border, alternating between two
+    // values a few per cent either side of the leaf's own.
+    //
+    // The leaf slab is a box, and a box takes one colour from its material -
+    // there is no per-facet jitter to break it up, which is why a player
+    // standing against the shut door (the deck-press pose) had 74.6% of the
+    // frame inside one 8-value bucket. The panels ride the leaf (same index,
+    // same lift) and stand half the border's relief so border stays the
+    // strongest line. Alternation is offset by the leaf index, so the nine
+    // panels of the shut door step light-dark-light in a checker rather than
+    // striping in columns.
+    const panelGap = 0.03;
+    const panelProud = LEAF_BORDER_PROUD * 0.5;
+    const panelSpan = (bz - rib) * 2;
+    const panelW = (panelSpan - panelGap * 2 - rib * 2) / 3;
+    for (let p = 0; p < 3; p += 1) {
+      const pz0 = -bz + rib + panelGap + p * (panelW + panelGap);
+      parts.push(
+        part(
+          `leaf-${i}-panel-${p}`,
+          (i + p) % 2 === 0 ? 'panelLight' : 'panelDark',
+          x1,
+          x1 + panelProud,
+          b0 + rib + panelGap,
+          b1 - rib - panelGap,
+          pz0,
+          pz0 + panelW,
+          i
+        )
+      );
+    }
   }
 
   // --- The button plate, on the starboard jamb outboard of the rail.
@@ -569,11 +601,18 @@ export function createDoor(): DoorHandle {
   const root = new THREE.Object3D();
   root.name = 'aft-door';
 
+  // The panel tones are derived from the leaf's HULL rather than typed, five
+  // per cent either side: enough for the checker to read as panelling, not
+  // enough for it to read as two different materials.
+  const panelLight = new THREE.Color(PALETTE.HULL).multiplyScalar(1.05);
+  const panelDark = new THREE.Color(PALETTE.HULL).multiplyScalar(0.92);
   const materials = {
     frame: lit(PALETTE.HULL_SHADOW),
     sleeve: lit(PALETTE.HULL),
     leaf: lit(PALETTE.HULL),
     trim: lit(PALETTE.ARRAY),
+    panelLight: lit(`#${panelLight.getHexString()}`),
+    panelDark: lit(`#${panelDark.getHexString()}`),
   } as const;
 
   const parts = doorParts();
@@ -600,12 +639,17 @@ export function createDoor(): DoorHandle {
   }
 
   // One group per leaf, so each can be given its own share of the travel.
+  // Split by material inside the group, or the face panels would take the
+  // leaf's colour and the checker they exist for would merge back to a slab.
   const leaves: THREE.Object3D[] = [];
   for (let i = 0; i < LEAF_COUNT; i += 1) {
-    const solids = parts.filter((p) => p.leaf === i).map(boxOf);
     const group = new THREE.Object3D();
     group.name = `door-leaf-${i}`;
-    group.add(new THREE.Mesh(merged(solids), materials.leaf));
+    for (const key of ['leaf', 'panelLight', 'panelDark'] as const) {
+      const solids = parts.filter((p) => p.leaf === i && p.material === key).map(boxOf);
+      if (solids.length === 0) continue;
+      group.add(new THREE.Mesh(merged(solids), materials[key]));
+    }
     root.add(group);
     leaves.push(group);
   }

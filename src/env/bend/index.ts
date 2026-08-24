@@ -335,7 +335,7 @@ function buildBend(): CompartmentHandle {
     lamp: new THREE.MeshLambertMaterial({
       color: new THREE.Color(0x000000),
       flatShading: true,
-      emissive: new THREE.Color(PALETTE.CLOUD),
+      emissive: new THREE.Color(PALETTE.DAWN_CREAM),
       emissiveIntensity: 0.34,
     }),
   };
@@ -349,7 +349,7 @@ function buildBend(): CompartmentHandle {
   }
 
   const ambient = new THREE.HemisphereLight(
-    new THREE.Color(PALETTE.HULL).getHex(),
+    new THREE.Color(PALETTE.CLOUD).getHex(),
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
     1.0
   );
@@ -359,7 +359,7 @@ function buildBend(): CompartmentHandle {
   for (const t of [0.12, 0.5, 0.88]) {
     const p = at(t * SWEEP, R);
     const outward = at(t * SWEEP, R_OUT);
-    const key = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.5);
+    const key = new THREE.DirectionalLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), 0.5);
     key.position.set(p.x, CEILING_Y - 0.2, p.z);
     key.target.position.set(outward.x, 0.9, outward.z);
     root.add(key, key.target);

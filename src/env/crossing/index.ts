@@ -602,7 +602,7 @@ function buildCrossing(): CompartmentHandle {
     lamp: new THREE.MeshLambertMaterial({
       color: new THREE.Color(0x000000),
       flatShading: true,
-      emissive: new THREE.Color(PALETTE.CLOUD),
+      emissive: new THREE.Color(PALETTE.DAWN_CREAM),
       emissiveIntensity: 0.42,
     }),
   };
@@ -616,7 +616,7 @@ function buildCrossing(): CompartmentHandle {
   }
 
   const ambient = new THREE.HemisphereLight(
-    new THREE.Color(PALETTE.HULL).getHex(),
+    new THREE.Color(PALETTE.CLOUD).getHex(),
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
     // 0.80, down from 1.05. The hub's whole claim is a ceiling that climbs
     // from 2.6 to 4.4 m, and a climbing ceiling is only legible as a value
@@ -631,14 +631,14 @@ function buildCrossing(): CompartmentHandle {
     [1.4, CEIL_LOW - 0.2, 0.58],
     [-1.5, ceilingAt(-1.5) - 0.2, 0.5],
   ] as const) {
-    const key = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), strength);
+    const key = new THREE.DirectionalLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), strength);
     key.position.set(x, y, 0);
     key.target.position.set(x - 0.6, FLOOR_Y, 0.8);
     root.add(key, key.target);
   }
   // One wash up the sloping crown, because a ceiling nobody lights is a ceiling
   // nobody sees, and the slope is the whole room.
-  const up = new THREE.DirectionalLight(new THREE.Color(PALETTE.HULL).getHex(), 0.34);
+  const up = new THREE.DirectionalLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.34);
   up.position.set(-0.5, 1.0, 0);
   up.target.position.set(-2.2, CEIL_HIGH, 0);
   root.add(up, up.target);

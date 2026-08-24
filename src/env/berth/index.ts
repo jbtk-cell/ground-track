@@ -647,7 +647,7 @@ function buildBerth(): CompartmentHandle {
     lamp: new THREE.MeshLambertMaterial({
       color: new THREE.Color(0x000000),
       flatShading: true,
-      emissive: new THREE.Color(PALETTE.CLOUD),
+      emissive: new THREE.Color(PALETTE.DAWN_CREAM),
       emissiveIntensity: 0.4,
     }),
   };
@@ -669,14 +669,14 @@ function buildBerth(): CompartmentHandle {
   // its own angle, so one rig with no key still yields eight distinct values -
   // which is why the drum can afford a rig this plain.
   const ambient = new THREE.HemisphereLight(
-    new THREE.Color(PALETTE.HULL).getHex(),
+    new THREE.Color(PALETTE.CLOUD).getHex(),
     new THREE.Color(PALETTE.HULL_SHADOW).getHex(),
     0.92
   );
   root.add(ambient);
   for (const k of [0, 2, 4, 6]) {
     const p = onFacet(k, 0, 0, A - 0.35);
-    const lamp = new THREE.PointLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.42, 6.0, 1);
+    const lamp = new THREE.PointLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), 0.42, 6.0, 1);
     lamp.position.set(p.x, CEILING_Y - 0.3, p.z);
     root.add(lamp);
   }

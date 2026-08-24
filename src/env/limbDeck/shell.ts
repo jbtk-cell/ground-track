@@ -13,6 +13,7 @@
  */
 import * as THREE from 'three';
 import { fbm } from '../../render/noise';
+import { panelWear } from '../kit/bands';
 import { PALETTE } from '../../render/palette';
 import {
   facetColour,
@@ -639,7 +640,15 @@ function buildBulkhead(sink: Sink, x: number, inward: number, doorway?: Doorway)
     const centroid = new THREE.Vector3();
     for (const corner of corners) centroid.add(corner);
     centroid.multiplyScalar(1 / corners.length);
-    const colour = facetColour(base, centroid, FITTING_SEED, 0.06);
+    // facetColour's fbm clusters hard around its middle - measured on the
+    // corridor liner, its 0.06 delivers real steps of one or two values - so
+    // the fan takes a full-range hash on top, the way liner panels do. Without
+    // it a player standing at the aft door (deck-press) had three quarters of
+    // the frame inside one 8-value bucket, because every cell of this fan
+    // rendered within a value of its neighbours.
+    const colour = facetColour(base, centroid, FITTING_SEED, 0.06).multiplyScalar(
+      panelWear(centroid.y * 2.7, centroid.z * 2.7, 0.05)
+    );
     if (r0 === 0) pushFacet(sink, d, a, b, towards, colour);
     else pushQuad(sink, d, a, b, c, towards, colour);
   };

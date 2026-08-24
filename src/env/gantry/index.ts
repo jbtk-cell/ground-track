@@ -70,7 +70,7 @@ import {
   sink,
   toGeometry,
 } from '../kit/mesh';
-import { BAY_M, CROWN_COLOUR, REVEAL_COLOUR, bands, deepestRelief } from '../kit/bands';
+import { BAY_M, CROWN_COLOUR, REVEAL_COLOUR, bands, deepestRelief, panelWear } from '../kit/bands';
 import type { FloorRect, PointOfInterest } from '../types';
 
 const HALF_X = 5.5;
@@ -500,7 +500,9 @@ function buildShell(): THREE.BufferGeometry {
         v(xb, y1, z),
         v(xa, y1, z),
         inward,
-        facetColour(colour, mid, SEED + 7, JITTER)
+        // Full-range per-span wear on top of the fbm jitter, which clusters
+        // around its middle - the corridor liner's lesson, applied here.
+        facetColour(colour, mid, SEED + 7, JITTER).multiplyScalar(panelWear(xa, side))
       );
     }
   };
@@ -748,7 +750,7 @@ function buildGantry(): CompartmentHandle {
     lamp: new THREE.MeshLambertMaterial({
       color: new THREE.Color(0x000000),
       flatShading: true,
-      emissive: new THREE.Color(PALETTE.CLOUD),
+      emissive: new THREE.Color(PALETTE.DAWN_CREAM),
       emissiveIntensity: 0.44,
     }),
   };
@@ -803,7 +805,7 @@ function buildGantry(): CompartmentHandle {
       // was catching the very end of the falloff. The inversion is untouched:
       // the deck is still much the brighter surface, and nothing in this room
       // is above 0.40 m.
-      const lamp = new THREE.PointLight(new THREE.Color(PALETTE.CLOUD).getHex(), 0.56, 4.2, 1);
+      const lamp = new THREE.PointLight(new THREE.Color(PALETTE.DAWN_CREAM).getHex(), 0.56, 4.2, 1);
       lamp.position.set(x, LAMP_Y, side * LAMP_Z);
       root.add(lamp);
     }
