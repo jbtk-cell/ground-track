@@ -171,7 +171,7 @@ const RUST = new THREE.Color(PALETTE.CAUTION_RUST);
 const DIFFUSER = new THREE.Color(PALETTE.DAWN_CREAM).multiplyScalar(0.9);
 
 // --- Texel densities, per surface class. ------------------------------------
-const TEXELS_WALL = 44;
+const TEXELS_WALL = 56;
 const TEXELS_DECK = 40;
 const TEXELS_CROWN = 30;
 const TEXELS_CONSOLE = 84;
@@ -412,6 +412,29 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
     1.05
   );
 
+  // --- End closures on the bank. The work band recesses outboard of the
+  // nominal plane the console was measured to, which opened a dark slot at
+  // each end of the bank where the carcass stops and the groove runs on -
+  // caught by the visual review as a "misfit notch". One quad per end, 2 mm
+  // off the carcass face so nothing shares a plane.
+  const bankWallZ =
+    wallHalfZ(1) - (bands(FLOOR_Y, CEILING_Y).find((b) => b.y0 <= 1.5 && b.y1 >= 1.5)?.relief ?? 0);
+  for (const [endX, sign] of [
+    [DESK_X0 - 0.002, -1],
+    [DESK_X1 + 0.002, 1],
+  ] as const) {
+    inward.set(endX + sign * 2, (DESK_TOP_Y + BANK_TOP_Y) / 2, 1.73);
+    pushLitQuad(
+      target,
+      v(endX, DESK_TOP_Y, DESK_BACK_Z),
+      v(endX, DESK_TOP_Y, bankWallZ),
+      v(endX, BANK_TOP_Y, bankWallZ),
+      v(endX, BANK_TOP_Y, DESK_BACK_Z),
+      inward,
+      CONSOLE_FOIL.clone().multiplyScalar(0.85)
+    );
+  }
+
   const face = portWallFace();
   const portHoles: Hole[] = PORTHOLE_X.map((x) => ({
     x0: x - PORT_HSQ,
@@ -509,7 +532,11 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
   endWall(-(HALF_X - SEAM_INSET_M), -1, 0.55);
 
   // --- The portholes: annulus plate, collar tube, rim, and - in station
-  // mount - a shutter. All of it inboard of the wall face.
+  // mount - a shutter. All of it inboard of the wall face. Every quad pins
+  // its map sample to one mid-panel point: the tiling liner drew seam lines
+  // and latch tabs across the bore interior, which read as plumbing floating
+  // in the hole.
+  const FLAT_UV: readonly [number, number] = [0.31, 0.37];
   const apertures: Aperture[] = [];
   for (const px of PORTHOLE_X) {
     const centre = v(px, PORT_Y, face);
@@ -533,7 +560,9 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
         v(px + Math.cos(a1) * PORT_R, PORT_Y + Math.sin(a1) * PORT_R, face),
         v(px + Math.cos(a0) * PORT_R, PORT_Y + Math.sin(a0) * PORT_R, face),
         inward,
-        KICK
+        LINER,
+        0.5,
+        FLAT_UV
       );
       // The collar tube: from the wall face inboard, dark throat inside...
       const inboard = face + COLLAR_DEPTH;
@@ -547,7 +576,9 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
         ring(PORT_R, a1, inboard),
         ring(PORT_R, a0, inboard),
         inward,
-        THROAT_DARK
+        THROAT_DARK,
+        0.5,
+        FLAT_UV
       );
       // ...FOIL skin outside...
       const away = v(
@@ -562,7 +593,9 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
         ring(PORT_R + COLLAR_RIM, a1, inboard),
         ring(PORT_R + COLLAR_RIM, a0, inboard),
         away,
-        CONSOLE_FOIL
+        CONSOLE_FOIL,
+        0.5,
+        FLAT_UV
       );
       // ...and the rim face closing the two, toward the room.
       inward.set(px, PORT_Y, inboard + 2);
@@ -573,7 +606,9 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
         ring(PORT_R + COLLAR_RIM, a1, inboard),
         ring(PORT_R + COLLAR_RIM, a0, inboard),
         inward,
-        CONSOLE_FOIL
+        CONSOLE_FOIL,
+        0.5,
+        FLAT_UV
       );
     }
 
@@ -601,7 +636,9 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
         v(px + PORT_HSQ - 0.01, PORT_Y + PORT_HSQ - 0.01, face + 0.004),
         v(px - PORT_HSQ + 0.01, PORT_Y + PORT_HSQ - 0.01, face + 0.004),
         inward,
-        TRIM
+        TRIM,
+        0.5,
+        FLAT_UV
       );
     }
   }
@@ -623,7 +660,7 @@ function plotLamps(open: boolean): readonly AreaLamp[] {
       edgeV: [0, 0, 0.34],
       colour: cream,
       intensity: 17,
-      samplesU: 6,
+      samplesU: 8,
       samplesV: 2,
     },
     {
@@ -814,7 +851,7 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
   {
     const capColour = mix(PALETTE.DAWN_SAND, PALETTE.FOIL, 0.7).multiplyScalar(0.82);
     const capWear = (i: number, j: number): number =>
-      0.9 + ((Math.imul(i * 31 + j * 61 + SEED, 2654435761) >>> 16) % 1000) * 0.0002;
+      0.96 + ((Math.imul(i * 31 + j * 61 + SEED, 2654435761) >>> 16) % 1000) * 0.00008;
     const buildCap = (
       id: string,
       centre: THREE.Vector3,
@@ -823,8 +860,11 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
     ): void => {
       const capSink = sink();
       const up = new THREE.Vector3(0, 1, 0);
-      const w = SEAM.width + 0.2;
-      const h = SEAM.height + 0.1;
+      // Sized to eclipse the station blank behind it: capFor runs a quarter
+      // metre past the seam on every side and laps 6 mm proud of the wall,
+      // so a plate merely doorway-sized leaves navy strips flanking it.
+      const w = SEAM.width + 0.56;
+      const h = SEAM.height + 0.27;
       const cols = 3;
       const rows = 4;
       for (let i = 0; i < cols; i += 1) {
@@ -857,7 +897,7 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
       root.add(mesh);
       capMeshes.set(id, mesh);
     };
-    const inset = SEAM_INSET_M + 0.008;
+    const inset = SEAM_INSET_M + 0.01;
     buildCap(
       'fore',
       new THREE.Vector3(HALF_X - inset, FLOOR_Y, 0),
@@ -872,7 +912,7 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
     );
     buildCap(
       'port',
-      new THREE.Vector3(SPUR_X, FLOOR_Y, -(HALF_Z - SEAM_INSET_M - 0.008)),
+      new THREE.Vector3(SPUR_X, FLOOR_Y, -(HALF_Z - SEAM_INSET_M - 0.01)),
       new THREE.Vector3(1, 0, 0),
       new THREE.Vector3(0, 0, 1)
     );
@@ -917,7 +957,7 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
         width: sFaceW * 1.5,
         height: sFaceH * 1.6,
         colour: PALETTE.MINT,
-        opacity: 0.16,
+        opacity: 0.26,
         // Staggered off each other's plane: the three overlap on purpose
         // (glow adds) and the coplanar check rightly refuses to know that.
         proud: 0.03 + i * 0.004,

@@ -88,7 +88,7 @@ export interface ConsoleFitOut {
  * in the one room where the card is supposed to win. Six tenths lands near 130:
  * plainly powered, comfortably under the card, and still four times the wall.
  */
-const READOUT = new THREE.Color(PALETTE.MINT).multiplyScalar(0.62);
+const READOUT = new THREE.Color(PALETTE.MINT).multiplyScalar(0.72);
 
 /** The same, knocked back again for the channel row, which is many small marks
  *  and would otherwise out-shout the three faces it sits above. */

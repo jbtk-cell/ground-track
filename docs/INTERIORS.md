@@ -95,7 +95,9 @@ is.
   the old direction. Verified in the tuning loop; turning it into a probe
   gate is welcome work.
 - Histogram: no single 8-value bucket over 25% of the frame; spread >= 150.
-  Enforced by the flatness gate's rebuilt tier.
+  Enforced by the flatness gate's rebuilt tier. A deliberate close-up of one
+  surface (the porthole study) may carry an argued flatness exemption in the
+  gate, with its reason printed on every run; wide poses are never exempt.
 - Through a window, Earth's lit limb holds 30-40% of the aperture WHERE THE
   GEOMETRY ALLOWS IT: at 400 km the limb dips ~20 degrees below horizontal,
   so a wall porthole honestly shows stars from across the room and Earth as

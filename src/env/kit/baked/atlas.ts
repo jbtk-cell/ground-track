@@ -174,6 +174,12 @@ export function pushPatchQuad(
  * A quad with no patch: reveals, jamb strips, collar segments - anything too
  * thin to show a gradient. Same derived winding as pushPatchQuad; uv1 parks on
  * the reserved white texel and the baker lights its vertices directly.
+ *
+ * `flatUv` pins every vertex's map coordinate to one point, for geometry the
+ * tiling liner must NOT paint: the world-planar projection drew panel seams
+ * and latch tabs across the inside of a porthole bore, which read as plumbing
+ * floating in the hole. A pinned mid-panel sample keeps the map's tone and
+ * drops its features.
  */
 export function pushLitQuad(
   sink: BakedSink,
@@ -183,7 +189,8 @@ export function pushLitQuad(
   d: THREE.Vector3,
   towards: THREE.Vector3,
   colour: THREE.Color,
-  uvScale = 0.5
+  uvScale = 0.5,
+  flatUv?: readonly [number, number]
 ): void {
   EDGE_A.subVectors(b, a);
   EDGE_B.subVectors(d, a);
@@ -195,7 +202,7 @@ export function pushLitQuad(
   for (const p of order) {
     sink.position.push(p.x, p.y, p.z);
     sink.colour.push(colour.r, colour.g, colour.b);
-    const [tu, tv] = planarUv(p, NORMAL, uvScale);
+    const [tu, tv] = flatUv ?? planarUv(p, NORMAL, uvScale);
     sink.uv0.push(tu, tv);
     sink.uv1.push(0.5 / sink.size, 0.5 / sink.size);
   }
