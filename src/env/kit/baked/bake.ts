@@ -12,9 +12,10 @@
  * because it never touches a GPU, a clock, or an unseeded random.
  *
  * UNITS AND SPACES. Everything is linear radiometric-ish irradiance, scaled so
- * 1.0 renders an albedo at its authored value. The lightmap is HalfFloat, so
- * nothing quantises and nothing clips in storage; the shoulder caps what the
- * shader can see. `lightMapIntensity` must be PI, because MeshBasicMaterial
+ * 1.0 renders an albedo at its authored value. The lightmap stores irradiance
+ * over LIGHT_RANGE in plain RGBA8 (see the pack step for why not float), and
+ * the shoulder keeps everything under LIGHT_RANGE so nothing clips in
+ * storage. `lightMapIntensity` is PI * LIGHT_RANGE, because MeshBasicMaterial
  * multiplies lightMapTexel * intensity / PI into its indirectDiffuse.
  */
 import * as THREE from 'three';
@@ -87,6 +88,9 @@ interface FlatLamp {
 
 const MIN_R2 = 0.04;
 
+/** The lightmap byte range: a stored byte b decodes to irradiance b/255*LIGHT_RANGE. */
+export const LIGHT_RANGE = 2.2;
+
 function flatten(lamp: AreaLamp): FlatLamp {
   const nu = Math.max(1, lamp.samplesU);
   const nv = Math.max(1, lamp.samplesV);
@@ -137,19 +141,18 @@ function shoulder(value: number, knee: number, ceiling: number): number {
   return knee + (span * over) / (span + over);
 }
 
-export function bake(
-  sink: BakedSink,
+/**
+ * The evaluator both bakes share: direct light and ambient occlusion at one
+ * point with one normal. Factored out so bakeGeometry() can light arbitrary
+ * fit-out meshes (the console instruments) with exactly the arithmetic the
+ * room's own atlas gets - one solver, one look, one determinism argument.
+ */
+function makeEvaluator(
   set: TraceSet,
-  lamps: readonly AreaLamp[],
+  flat: readonly FlatLamp[],
+  hemi: Float32Array,
   opts: BakeOptions
-): BakeResult {
-  const size = sink.size;
-  const texels = new Float32Array(size * size * 3);
-  const flat = lamps.map(flatten);
-  const hemi = cosineHemisphere(opts.aoSamples);
-
-  // --- The shared evaluator: direct + AO at one point with one normal. ------
-
+) {
   const direct = (px: number, py: number, pz: number, nx: number, ny: number, nz: number) => {
     let r = 0;
     let g = 0;
@@ -232,6 +235,21 @@ export function bake(
     }
     return 1 - (opts.aoStrength * occ) / n;
   };
+
+  return { direct, ambientOcclusion };
+}
+
+export function bake(
+  sink: BakedSink,
+  set: TraceSet,
+  lamps: readonly AreaLamp[],
+  opts: BakeOptions
+): BakeResult {
+  const size = sink.size;
+  const texels = new Float32Array(size * size * 3);
+  const flat = lamps.map(flatten);
+  const hemi = cosineHemisphere(opts.aoSamples);
+  const { direct, ambientOcclusion } = makeEvaluator(set, flat, hemi, opts);
 
   // --- Pass 1: direct + AO into every patch texel. --------------------------
 
@@ -474,22 +492,46 @@ export function bake(
     }
   }
 
-  // --- Pack to HalfFloat RGBA and hash. -------------------------------------
+  // --- Pack to RGBA8 and hash. ----------------------------------------------
+  //
+  // Plain bytes, not floats, and RANGE is why it works: irradiance is stored
+  // divided by RANGE and the material multiplies it back through
+  // lightMapIntensity, so values up to RANGE survive and the quantisation
+  // step is RANGE/255 - under half a value out of 255 on screen, invisible.
+  // An RGBA16F atlas was tried first and sampled as zero on SwiftShader's
+  // WebGL for exactly the texels that mattered; an 8-bit texture is the most
+  // boring object in the entire API, and boring is what CI needs.
 
-  const half = new Uint16Array(new ArrayBuffer(size * size * 8));
+  const RANGE = LIGHT_RANGE;
+  const bytes = new Uint8Array(new ArrayBuffer(size * size * 4));
   for (let i = 0; i < size * size; i += 1) {
-    half[i * 4] = THREE.DataUtils.toHalfFloat(texels[i * 3] ?? 0);
-    half[i * 4 + 1] = THREE.DataUtils.toHalfFloat(texels[i * 3 + 1] ?? 0);
-    half[i * 4 + 2] = THREE.DataUtils.toHalfFloat(texels[i * 3 + 2] ?? 0);
-    half[i * 4 + 3] = THREE.DataUtils.toHalfFloat(1);
+    bytes[i * 4] = Math.round(Math.min(1, (texels[i * 3] ?? 0) / RANGE) * 255);
+    bytes[i * 4 + 1] = Math.round(Math.min(1, (texels[i * 3 + 1] ?? 0) / RANGE) * 255);
+    bytes[i * 4 + 2] = Math.round(Math.min(1, (texels[i * 3 + 2] ?? 0) / RANGE) * 255);
+    bytes[i * 4 + 3] = 255;
   }
+  // The reserved white texel must decode to EXACTLY 1.0 after the RANGE
+  // multiply, or every vertex-lit surface picks up a uniform cast. Byte 116
+  // at RANGE 2.2 decodes to 1.0007; close, but exactness is cheap: the
+  // shader term is texel * RANGE, so store 1/RANGE with full precision by
+  // special-casing the one texel whose value is load-bearing.
+  bytes[0] = Math.round((1 / RANGE) * 255);
+  bytes[1] = bytes[0];
+  bytes[2] = bytes[0];
+
   let hashValue = 0x811c9dc5;
-  for (let i = 0; i < half.length; i += 1) {
-    hashValue = Math.imul(hashValue ^ (half[i] ?? 0), 0x01000193) >>> 0;
+  for (let i = 0; i < bytes.length; i += 1) {
+    hashValue = Math.imul(hashValue ^ (bytes[i] ?? 0), 0x01000193) >>> 0;
   }
   void total;
 
-  const texture = new THREE.DataTexture(half, size, size, THREE.RGBAFormat, THREE.HalfFloatType);
+  const texture = new THREE.DataTexture(
+    bytes,
+    size,
+    size,
+    THREE.RGBAFormat,
+    THREE.UnsignedByteType
+  );
   texture.colorSpace = THREE.NoColorSpace;
   texture.magFilter = THREE.LinearFilter;
   texture.minFilter = THREE.LinearFilter;
@@ -583,5 +625,78 @@ export function bake(
     }
   };
 
-  return { texture, intensity: Math.PI, probe, hash: hashValue };
+  return { texture, intensity: Math.PI * LIGHT_RANGE, probe, hash: hashValue };
+}
+
+/**
+ * Light an arbitrary non-indexed geometry the way the atlas bake lights its
+ * vertex-lit tier: per-triangle normal, per-vertex evaluation, the result
+ * multiplied into the colour attribute in place. For fit-out meshes built by
+ * older kit code (the console instruments) that a rebuilt room adopts without
+ * rebuilding - they then draw with a plain vertexColors MeshBasicMaterial and
+ * sit in the same light as everything else.
+ */
+export function bakeGeometry(
+  geometry: THREE.BufferGeometry,
+  set: TraceSet,
+  lamps: readonly AreaLamp[],
+  opts: BakeOptions
+): void {
+  const flat = lamps.map(flatten);
+  const hemi = cosineHemisphere(opts.aoSamples);
+  const { direct, ambientOcclusion } = makeEvaluator(set, flat, hemi, opts);
+  const position = geometry.getAttribute('position');
+  const colour = geometry.getAttribute('color');
+  if (!(position instanceof THREE.BufferAttribute) || !(colour instanceof THREE.BufferAttribute)) {
+    throw new Error('bakeGeometry: needs position and color attributes');
+  }
+  if (geometry.index !== null) throw new Error('bakeGeometry: needs non-indexed geometry');
+
+  for (let tri = 0; tri < position.count / 3; tri += 1) {
+    const v0 = tri * 3;
+    const ax = position.getX(v0);
+    const ay = position.getY(v0);
+    const az = position.getZ(v0);
+    let nx =
+      (position.getY(v0 + 1) - ay) * (position.getZ(v0 + 2) - az) -
+      (position.getZ(v0 + 1) - az) * (position.getY(v0 + 2) - ay);
+    let ny =
+      (position.getZ(v0 + 1) - az) * (position.getX(v0 + 2) - ax) -
+      (position.getX(v0 + 1) - ax) * (position.getZ(v0 + 2) - az);
+    let nz =
+      (position.getX(v0 + 1) - ax) * (position.getY(v0 + 2) - ay) -
+      (position.getY(v0 + 1) - ay) * (position.getX(v0 + 2) - ax);
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    nx /= nl;
+    ny /= nl;
+    nz /= nl;
+
+    for (let corner = 0; corner < 3; corner += 1) {
+      const vi = v0 + corner;
+      const px = position.getX(vi) + nx * 0.012;
+      const py = position.getY(vi) + ny * 0.012;
+      const pz = position.getZ(vi) + nz * 0.012;
+      const [dr, dg, db] = direct(px, py, pz, nx, ny, nz);
+      const ao = ambientOcclusion(
+        px,
+        py,
+        pz,
+        nx,
+        ny,
+        nz,
+        Math.round(px * 53 + pz * 17),
+        Math.round(py * 53 + px * 17)
+      );
+      const dm = opts.directAoMix + (1 - opts.directAoMix) * ao;
+      const scale = (base: number, dir: number): number =>
+        shoulder((base * ao + dir * dm) * opts.exposure, opts.knee, opts.ceiling);
+      colour.setXYZ(
+        vi,
+        colour.getX(vi) * scale(opts.ambient[0] ?? 0, dr),
+        colour.getY(vi) * scale(opts.ambient[1] ?? 0, dg),
+        colour.getZ(vi) * scale(opts.ambient[2] ?? 0, db)
+      );
+    }
+  }
+  colour.needsUpdate = true;
 }

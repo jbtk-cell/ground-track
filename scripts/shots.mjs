@@ -196,13 +196,89 @@ const INTERIOR_PRESETS = [
     t: 19.3,
     pose: { x: 0.42, z: 3.3, yaw: -Math.PI / 2, pitch: 0 },
   },
+  // --- THE PLOT, rebuilt to the interior direction (docs/INTERIORS.md).
+  // Seven poses rather than one, because this room now carries the rebuilt
+  // tier's obligations: bare frames for the metric gates, the two owner-named
+  // checks as named poses, and hole-hunting from off the centre line. Every
+  // pose here was checked against the porthole geometry: the SEALED ones
+  // (airtight.mjs) keep both discs outside a 62-degree frame, because in solo
+  // mount the discs are real holes full of legitimate space.
   {
-    // THE PLOT, off the centre line, from the door toward the console. The room
-    // is where the card prints, so the pose is the one a player stands in.
+    // The hero frame: console bank left, the spur's dark mouth centre, one
+    // porthole holding the limb right. The frame the rebuild is judged by.
+    name: 'plot-hero',
+    room: 'plot',
+    t: 19.3,
+    bare: true,
+    pose: { x: 1.85, z: -0.95, yaw: 1.75, pitch: -0.03 },
+  },
+  {
+    // The porthole wall square on: both discs, the shut spur between them,
+    // the rust datum running unbroken. Earth's limb framing is measured here.
+    name: 'plot-ports',
+    room: 'plot',
+    t: 19.3,
+    bare: true,
+    pose: { x: 0.4, z: 0.9, yaw: 0.0, pitch: 0.0 },
+  },
+  {
+    // The limb, from where a body actually sees it: half a metre off the
+    // port-side porthole, looking down through the disc. At 400 km the limb
+    // dips twenty degrees below horizontal, so from across the room a wall
+    // porthole honestly shows stars - Earth is something you walk up to.
+    name: 'plot-limb',
+    room: 'plot',
+    t: 19.3,
+    bare: true,
+    pose: { x: -1.62, z: -1.05, yaw: 0.0, pitch: -0.28 },
+  },
+  {
+    // The working view: from mid-room toward the console face, turned far
+    // enough that neither porthole enters the frame - this pose is on the
+    // SEALED list and must stay windowless.
     name: 'plot-console',
     room: 'plot',
     t: 19.3,
-    pose: { x: 1.6, z: 0.9, yaw: Math.PI / 2, pitch: -0.04 },
+    bare: true,
+    pose: { x: 1.35, z: -0.1, yaw: 2.2, pitch: -0.06 },
+  },
+  {
+    // Off the centre line, hugging the starboard wall - the pose class that
+    // found the corridor's band recess open to space. One of the two checks
+    // the owner made permanent.
+    name: 'plot-offline-a',
+    room: 'plot',
+    t: 19.3,
+    bare: true,
+    pose: { x: 2.0, z: 1.35, yaw: 2.1, pitch: -0.02 },
+  },
+  {
+    // The same hunt from the opposite corner, looking back.
+    name: 'plot-offline-b',
+    room: 'plot',
+    t: 19.3,
+    bare: true,
+    pose: { x: -2.05, z: 1.3, yaw: -2.0, pitch: -0.02 },
+  },
+  {
+    // Up into the crown: where the near-black lives and where a lamp has to
+    // prove it illuminates its own surroundings.
+    name: 'plot-dark',
+    room: 'plot',
+    t: 19.3,
+    bare: true,
+    pose: { x: -1.3, z: 0.2, yaw: -1.87, pitch: 0.55 },
+  },
+  {
+    // On the aft doorway: jambs, head, cap, and the band grooves dying into
+    // the end wall - the coplanar stress pose, the other permanent check.
+    // The spur doorway cannot host this pose: its flanking portholes enter
+    // any frame that faces it, and this pose must stay windowless.
+    name: 'plot-seam',
+    room: 'plot',
+    t: 19.3,
+    bare: true,
+    pose: { x: -1.1, z: 0.55, yaw: Math.PI / 2, pitch: 0.1 },
   },
   {
     // THE RACKS, down the aisle. The aisle is 0.95 m wide, so "off the centre

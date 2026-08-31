@@ -171,6 +171,37 @@ export function pushPatchQuad(
 }
 
 /**
+ * A quad with no patch: reveals, jamb strips, collar segments - anything too
+ * thin to show a gradient. Same derived winding as pushPatchQuad; uv1 parks on
+ * the reserved white texel and the baker lights its vertices directly.
+ */
+export function pushLitQuad(
+  sink: BakedSink,
+  a: THREE.Vector3,
+  b: THREE.Vector3,
+  c: THREE.Vector3,
+  d: THREE.Vector3,
+  towards: THREE.Vector3,
+  colour: THREE.Color,
+  uvScale = 0.5
+): void {
+  EDGE_A.subVectors(b, a);
+  EDGE_B.subVectors(d, a);
+  NORMAL.crossVectors(EDGE_A, EDGE_B).normalize();
+  CENTROID.copy(a).add(b).add(c).add(d).multiplyScalar(0.25);
+  const flip = NORMAL.dot(CENTROID.subVectors(towards, CENTROID)) < 0;
+  if (flip) NORMAL.multiplyScalar(-1);
+  const order: readonly THREE.Vector3[] = flip ? [a, d, c, a, c, b] : [a, b, c, a, c, d];
+  for (const p of order) {
+    sink.position.push(p.x, p.y, p.z);
+    sink.colour.push(colour.r, colour.g, colour.b);
+    const [tu, tv] = planarUv(p, NORMAL, uvScale);
+    sink.uv0.push(tu, tv);
+    sink.uv1.push(0.5 / sink.size, 0.5 / sink.size);
+  }
+}
+
+/**
  * A box with no patch: six quads whose light the baker evaluates per vertex.
  * uv1 parks every vertex on a reserved white texel so the shared material's
  * lightmap term is 1 and the baked light rides the colour attribute instead.

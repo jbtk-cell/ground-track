@@ -56,7 +56,15 @@ const SEALED = [
   'spine-run',
   'crossing-run',
   'bend-turn',
+  // THE PLOT's windowless poses. The rebuilt room has two real portholes in
+  // solo mount, so its SEALED poses were composed with the disc geometry in
+  // hand: each keeps both apertures outside a 62-degree frame. plot-hero and
+  // plot-ports look AT the portholes and are legitimately full of space.
   'plot-console',
+  'plot-offline-a',
+  'plot-offline-b',
+  'plot-dark',
+  'plot-seam',
   'racks-aisle',
   'crawl-run',
   'magazine-bay',

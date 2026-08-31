@@ -16,7 +16,7 @@ import {
   pushLitBox,
   pushPatchQuad,
 } from '../src/env/kit/baked/atlas';
-import { bake, type AreaLamp, type BakeOptions } from '../src/env/kit/baked/bake';
+import { LIGHT_RANGE, bake, type AreaLamp, type BakeOptions } from '../src/env/kit/baked/bake';
 import { cosineHemisphere, lcg } from '../src/env/kit/baked/random';
 import { occluded, traceSet } from '../src/env/kit/baked/trace';
 import { solid } from '../src/env/kit/solids';
@@ -178,7 +178,7 @@ describe('bake', () => {
   it('behaves like light: nearer brighter, corners darker, shadows real', () => {
     const scene = testScene();
     const result = bake(scene.sink, scene.set, [scene.lamp], scene.opts);
-    const data = result.texture.image.data as unknown as Uint16Array;
+    const data = result.texture.image.data as unknown as Uint8Array;
     const size = scene.sink.size;
     const floor = scene.sink.patches[0];
     const wall = scene.sink.patches[1];
@@ -186,14 +186,15 @@ describe('bake', () => {
     expect(wall).toBeDefined();
     if (floor === undefined || wall === undefined) return;
 
+    const decode = (byte: number): number => (byte / 255) * LIGHT_RANGE;
     const luma = (patch: typeof floor, fu: number, fv: number): number => {
       const i = patch.x + Math.round(fu * (patch.w - 1));
       const j = patch.y + Math.round(fv * (patch.h - 1));
       const at = (j * size + i) * 4;
       return (
-        THREE.DataUtils.fromHalfFloat(data[at] ?? 0) * 0.2126 +
-        THREE.DataUtils.fromHalfFloat(data[at + 1] ?? 0) * 0.7152 +
-        THREE.DataUtils.fromHalfFloat(data[at + 2] ?? 0) * 0.0722
+        decode(data[at] ?? 0) * 0.2126 +
+        decode(data[at + 1] ?? 0) * 0.7152 +
+        decode(data[at + 2] ?? 0) * 0.0722
       );
     };
 
@@ -214,8 +215,9 @@ describe('bake', () => {
     const wallFoot = luma(wall, 0.5, 0.02);
     expect(wallMid).toBeGreaterThan(wallFoot);
 
-    // The white texel the vertex-lit tier parks on is exactly 1.
-    expect(THREE.DataUtils.fromHalfFloat(data[0] ?? 0)).toBe(1);
+    // The white texel the vertex-lit tier parks on decodes to 1 within a byte.
+    expect(decode(data[0] ?? 0)).toBeGreaterThan(0.99);
+    expect(decode(data[0] ?? 0)).toBeLessThan(1.01);
   });
 
   it('feeds the probe grid something lamp-shaped', () => {

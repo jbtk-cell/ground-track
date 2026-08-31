@@ -20,6 +20,12 @@ export function bakedMaterial(
   lightMapIntensity: number,
   map: THREE.DataTexture
 ): THREE.MeshBasicMaterial {
+  // The one line the whole architecture hangs on: a texture's uv channel
+  // DEFAULTS TO 0 in three r171, and the lightmap shader chunk reads
+  // `material.lightMap.channel` - leave it and the atlas is sampled with the
+  // tiling map's world-planar uv, which clamps into the empty gutter and
+  // renders two thirds of a room pure black. It cost an evening to find.
+  lightMap.channel = 1;
   const material = new THREE.MeshBasicMaterial({
     vertexColors: true,
     map,
