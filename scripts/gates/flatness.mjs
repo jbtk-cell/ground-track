@@ -171,6 +171,16 @@ let failures = 0;
 let warnings = 0;
 for (const file of files) {
   const name = file.replace(/\.png$/, '');
+  // A frame no regime claims is refused, not guessed at: an unlisted
+  // exterior preset used to fall into the interior bucket silently and be
+  // judged by the wrong rules.
+  if (!isClassified(name)) {
+    console.log(
+      `FAIL  ${name.padEnd(16)} unclassified - add it to a regime in scripts/lib/regimes.mjs`
+    );
+    failures += 1;
+    continue;
+  }
   if (!isInterior(name)) continue;
   const rebuilt = isRebuilt(name);
   const m = measure(path.join(DIR, file));
