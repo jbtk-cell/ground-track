@@ -120,6 +120,14 @@ function main(): void {
   const legend = element('rooms-legend', HTMLDListElement);
   const status = element('rooms-status', HTMLParagraphElement);
 
+  // Bare frames. ?bare=1 hides the rail, legend and status line so a captured
+  // frame is all render - the metric gates (flatness, palette) judge the room,
+  // not the overlay text, which used to dominate every spread measurement.
+  // The elements stay in the DOM and keep updating; they are only unpainted.
+  if (new URLSearchParams(window.location.search).has('bare')) {
+    document.body.classList.add('rooms-bare');
+  }
+
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // stencil: three defaults it off since r163. An environment that projects

@@ -253,3 +253,11 @@ html {
   letter-spacing: 0.14em;
   opacity: 0.55;
 }
+
+/* Bare frames: measurement mode hides every piece of viewer chrome so a
+   captured frame is all render. Toggled by ?bare=1 - see main.ts. */
+.rooms-bare .rooms-rail,
+.rooms-bare .rooms-status,
+.rooms-bare .rooms-controls {
+  display: none;
+}

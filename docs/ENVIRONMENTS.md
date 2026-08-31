@@ -38,6 +38,13 @@ where an approved room ends up, and therefore what a room is FOR.
 
 ## Non-negotiables
 
+Since 2026-08-31 the visual rules below are split by regime: rooms REBUILT to
+the interior direction follow `docs/INTERIORS.md` (baked light, seeded
+textures, authored glow, near-black floor at luma 5), and everything in this
+document about materials and value floors applies to LEGACY rooms until their
+rebuild. Determinism, physical cause, code-authored geometry, airtightness,
+the contracts, and the no-shadow-maps rule bind both regimes.
+
 1. **Determinism.** `update(tSeconds)` takes an absolute time and every animator
    is a pure function of it. No `Date.now()`, no `performance.now()`, no
    accumulated state, no un-seeded `Math.random()` at any point after build.
@@ -50,19 +57,24 @@ where an approved room ends up, and therefore what a room is FOR.
    geometry** instead: the shaft through an aperture is the aperture rectangle
    projected along the sun vector onto the receiving plane, which is exact,
    cheap, hard-edged, and truer to flat-shaded art than a soft PCF edge.
-3. **Interior materials floor at `NIGHT_SIDE` with `emissiveIntensity` 1.0**,
-   not the 0.62 used by `earth.ts` and `satellite.ts`. Outdoors the ambient,
-   hemisphere and fill terms add on top everywhere; indoors an unlit facet has
-   only its emissive, and 0.62 lands at luma 21.3 - under the palette gate's
-   floor of 25.45. Do not share a material helper with the exterior modules,
-   and say why in the comment, or someone will "normalise" it back.
+3. **Legacy interior materials floor at `NIGHT_SIDE` with `emissiveIntensity`
+   1.0**, not the 0.62 used by `earth.ts` and `satellite.ts`. Outdoors the
+   ambient, hemisphere and fill terms add on top everywhere; indoors an unlit
+   facet has only its emissive, and 0.62 lands at luma 21.3 - under the legacy
+   palette floor of 25.45. Do not share a material helper with the exterior
+   modules, and say why in the comment, or someone will "normalise" it back.
+   (Rebuilt rooms use unlit baked materials and the luma-5 floor - see
+   `docs/INTERIORS.md`; their guarantee is the bake, not an emissive term.)
 4. **Every animation has a named physical cause.** Orbital motion, thermal
    contraction, cabin airflow, machinery. Nothing moves because movement is
    nice.
-5. All geometry is authored in code. There is no asset pipeline.
-6. `docs/DIRECTION.md` holds. No bloom, no black, no red, hairline weights, and
-   `#D98A3C` only on a primary action or a live burn - which means **zero
-   accent pixels in a room with neither**.
+5. All geometry is authored in code. There is no asset pipeline. Rebuilt
+   rooms' textures are generated from seeded math in code (never Canvas 2D,
+   never committed image files) - still no asset pipeline.
+6. `docs/DIRECTION.md` holds for exteriors and legacy rooms;
+   `docs/INTERIORS.md` holds for rebuilt rooms. Everywhere and always: no red,
+   hairline weights, and `#D98A3C` only on a primary action or a live burn -
+   which means **zero accent pixels in a room with neither**.
 
 ## Coordinates and units
 

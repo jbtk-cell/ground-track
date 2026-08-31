@@ -68,8 +68,10 @@ prints its findings, and exits non-zero to fail.
 
 Gates in place today:
 
-- `palette` - there is no black anywhere; `VOID_SLATE` (`#101B26`) is the
-  darkest value.
+- `palette` - pure black (0,0,0) appears nowhere, ever. Two floors since the
+  2026-08-31 interior split (`scripts/lib/regimes.mjs`): exterior frames keep
+  `VOID_SLATE` (`#101B26`) as the darkest value; interior frames floor at
+  luma 5 (docs/INTERIORS.md).
 - `shots-diff` - every preset in `shots/current` must stay within pixel-drift
   tolerance of the committed `shots/baseline`; a missing or an unexpected
   extra preset always fails, in any environment. The byte-level pixel
@@ -108,11 +110,14 @@ otherwise.
 
 Also mechanically checked, though not a `scripts/gates/` file:
 
-- **No bloom at any intensity.** `eslint.config.js`'s `no-restricted-imports`
+- **No postprocessing, ever.** `eslint.config.js`'s `no-restricted-imports`
   rejects any import of `three/examples/jsm/postprocessing/*`,
   `three/addons/postprocessing/*`, a `*Bloom*` shader module, or the pmndrs
   `postprocessing` package anywhere under `src/`. Checked by `npm run verify`
   (lint), not by `npm run gates` - there is no rendered-frame gate for this.
+  In orbit this enforces "no bloom at any intensity"; indoors, rebuilt rooms
+  are allowed GLOW but it is authored - baked spill and painted halo geometry
+  per docs/INTERIORS.md - so the import ban holds unchanged.
 
 These rules are in DIRECTION.md and are not yet automated - hold them by hand,
 and turning one into a gate is always welcome work:

@@ -5,18 +5,27 @@
  * docs/ENVIRONMENTS.md: the interior must be airtight from every reachable eye
  * position, because the exterior pass clears depth before the room is drawn -
  * so any seam a ray slips through does not render as a crack, it renders as
- * space. And space renders as exactly one value: VOID_SLATE, #101B26, which no
- * interior surface is allowed to reach (the palette gate holds the floor at it,
- * and interior materials sit above it on the emissive floor).
+ * space. And space renders as exactly one value: VOID_SLATE, #101B26. In the
+ * old direction no interior surface could reach that value at all, so a single
+ * matching pixel was proof of a hole.
  *
- * That makes the check trivial and exact. In a frame with no window in it, one
- * pixel of #101B26 is one pixel of outer space seen through a wall.
+ * Since the interior direction (docs/INTERIORS.md) let rooms go near-black,
+ * one pixel is no longer proof: an 8-bit near-black can land on the sentinel
+ * triple by arithmetic accident, one pixel at a time. A hole cannot. Every
+ * hole this project has shipped was a contiguous region - 64,060 pixels once,
+ * 18,360 once, 886 at its subtlest - because a hole is a shape, not a speck.
+ * So the check is now connectivity: a breach is a 4-connected component of
+ * exact-#101B26 pixels of area >= BLOB. Isolated accidents below that are
+ * reported but tolerated. The sentinel mechanism itself is unchanged, and so
+ * is the rule that made it work: no interior material may be AUTHORED at
+ * VOID_SLATE - the gap between it and any legitimate near-black is what keeps
+ * accidental matches rare enough for the blob rule to be meaningful.
  *
  * This gate exists because holes shipped twice. The aft bulkhead spent a
- * revision missing a 140-degree cone either side of its doorway - 64,060 pixels
- * of open space in `deck-aft`, roughly one frame pixel in twenty-five - while
- * every other gate passed, because no gate was looking at whether the room was
- * a room.
+ * revision missing a 140-degree cone either side of its doorway - 64,060
+ * pixels of open space in `deck-aft`, roughly one frame pixel in twenty-five -
+ * while every other gate passed, because no gate was looking at whether the
+ * room was a room.
  *
  *   node scripts/gates/airtight.mjs
  *
@@ -27,13 +36,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { decodePNG } from '../lib/png.mjs';
 
 /**
- * Interior presets whose framing contains no part of the cupola.
+ * Interior presets whose framing contains no window.
  *
- * It has to be a list rather than "every interior shot", because the shots that
- * DO look at the window are supposed to be full of space and there is no way to
- * tell the sky from a hole by value alone - they are the same colour, which is
- * the whole point of the check. Anything aimed away from the bay belongs here,
- * and adding a pose to this list is one line.
+ * It has to be a list rather than "every interior shot", because the shots
+ * that DO look at a window are supposed to be full of space and there is no
+ * way to tell the sky from a hole by value alone - they are the same colour,
+ * which is the whole point of the check. Anything aimed away from a window
+ * belongs here, and adding a pose to this list is one line.
  */
 const SEALED = [
   'deck-aft',
@@ -74,8 +83,15 @@ const SEALED = [
   'station-off-line',
 ];
 
-/** Space, and the darkest value in the game. Nothing interior may reach it. */
+/** Space, and the exterior's darkest value. Nothing interior is authored at it. */
 const VOID = [0x10, 0x1b, 0x26];
+
+/**
+ * A breach is a connected region at least this big. The smallest real hole
+ * ever shipped was 886 pixels; the largest plausible 8-bit accident is a few
+ * isolated pixels along one antialiased edge. 30 sits far from both.
+ */
+const BLOB = 30;
 
 let failures = 0;
 for (const name of SEALED) check(name);
@@ -96,24 +112,64 @@ function check(name) {
   }
 
   const { width, height, channels, pixels } = decodePNG(readFileSync(path));
+  // Mark every sentinel pixel, then flood-fill 4-connected components.
+  const mask = new Uint8Array(width * height);
   let voids = 0;
-  let first = null;
   for (let i = 0; i < width * height; i += 1) {
     const p = i * channels;
     if (pixels[p] === VOID[0] && pixels[p + 1] === VOID[1] && pixels[p + 2] === VOID[2]) {
+      mask[i] = 1;
       voids += 1;
-      if (first === null) first = [i % width, Math.floor(i / width)];
+    }
+  }
+
+  let largest = 0;
+  let largestAt = null;
+  if (voids > 0) {
+    const stack = [];
+    for (let i = 0; i < mask.length; i += 1) {
+      if (mask[i] !== 1) continue;
+      // Flood one component, counting it.
+      let size = 0;
+      stack.length = 0;
+      stack.push(i);
+      mask[i] = 2;
+      const sx = i % width;
+      const sy = Math.floor(i / width);
+      while (stack.length > 0) {
+        const j = stack.pop();
+        size += 1;
+        const x = j % width;
+        const neighbours = [
+          x > 0 ? j - 1 : -1,
+          x < width - 1 ? j + 1 : -1,
+          j >= width ? j - width : -1,
+          j + width < mask.length ? j + width : -1,
+        ];
+        for (const n of neighbours) {
+          if (n >= 0 && mask[n] === 1) {
+            mask[n] = 2;
+            stack.push(n);
+          }
+        }
+      }
+      if (size > largest) {
+        largest = size;
+        largestAt = [sx, sy];
+      }
     }
   }
 
   const share = ((voids / (width * height)) * 100).toFixed(2);
   console.log(`\nshots/current/${name}.png`);
   console.log(`  void pixels        : ${voids} (${share}%)`);
-  if (voids === 0) {
-    console.log('  PASS');
+  console.log(
+    `  largest blob       : ${largest}${largestAt ? ` at ${largestAt[0]}, ${largestAt[1]}` : ''}`
+  );
+  if (largest < BLOB) {
+    console.log(voids === 0 ? '  PASS' : `  PASS - isolated accidents only (blob < ${BLOB})`);
     return;
   }
-  console.log(`  first at           : ${first?.[0]}, ${first?.[1]}`);
   console.log('  FAIL - this pose has no window in it, so that is space through a wall');
   failures += 1;
 }

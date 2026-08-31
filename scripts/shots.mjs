@@ -434,8 +434,13 @@ async function main() {
   let mounted = null;
   for (const preset of INTERIOR_PRESETS) {
     if (only !== null && !only.test(preset.name)) continue;
-    if (mounted !== preset.room) {
-      await page.goto(new URL(`rooms.html#${preset.room}`, url).href, {
+    // A preset may ask for a bare frame - no DOM rail or legend over the
+    // render - so the metric gates measure the room rather than the overlay
+    // text. Bareness is part of the mount, hence part of the mount key.
+    const search = preset.bare === true ? '?bare=1' : '';
+    const mountKey = `${preset.room}${search}`;
+    if (mounted !== mountKey) {
+      await page.goto(new URL(`rooms.html${search}#${preset.room}`, url).href, {
         waitUntil: 'networkidle',
       });
       // Wait for THIS room, by name. `ready` alone is not enough on its own
@@ -451,7 +456,7 @@ async function main() {
       const failure = await page.evaluate(() => window.groundTrackRooms.error);
       if (failure !== null) throw new Error(`${preset.room} failed to build: ${failure}`);
       await page.evaluate(() => window.groundTrackRooms.setPaused(true));
-      mounted = preset.room;
+      mounted = mountKey;
     }
 
     // Time first, then pose: setPose draws, and a pose drawn against the
