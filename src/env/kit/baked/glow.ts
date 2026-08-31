@@ -8,8 +8,9 @@
  * geometry occludes it; that occlusion is precisely what makes it read as
  * light in the air rather than a sticker on the lens. The surface response -
  * the pool a lamp lays on the desk under it - is the bake's job, not this
- * file's; a halo whose lamp illuminates nothing reads as a mistake, and the
- * lamp-delta check in the value gates exists to catch exactly that.
+ * file's; a halo whose lamp illuminates nothing reads as a mistake. No gate
+ * measures that per lamp today - the tuning loop measures it by hand with
+ * scripts/measure.mjs, and turning it into a probe gate is welcome work.
  */
 import * as THREE from 'three';
 import { haloSprite } from './dtex';

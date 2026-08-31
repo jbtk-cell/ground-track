@@ -269,20 +269,31 @@ try {
     { timeout: 20000 }
   );
   await page.evaluate(() => window.groundTrackRooms.setPaused(false));
+  // Walk to the desk, then TURN to it - the spawn's walking line passes the
+  // console, and an arm only deploys for what the eye is on. The first cut
+  // of this check walked 1.7 s and read the limb still facing down-room:
+  // tracking, reach zero, exactly the deploy-never-grip class it hunts.
   await page.keyboard.down('w');
-  await new Promise((r) => setTimeout(r, 1700));
+  await new Promise((r) => setTimeout(r, 1500));
   await page.keyboard.up('w');
+  await page.keyboard.down('ArrowLeft');
+  await new Promise((r) => setTimeout(r, 1200));
+  await page.keyboard.up('ArrowLeft');
   await new Promise((r) => setTimeout(r, 900));
   const reach = await page.evaluate(() => ({
     limb: window.groundTrackRooms.limb(),
     pose: window.groundTrackRooms.pose(),
   }));
+  // Non-null alone is not deployment: limb() answers the moment a target is
+  // merely eyed. reach > 0.5 requires the walk to have actually closed most
+  // of the deploy envelope - which also proves the body left spawn.
+  const deployed = reach.limb !== null && reach.limb.reach > 0.5;
   check(
     'walking to the flight deck console deploys the limb for the card slot',
-    reach.limb !== null,
+    deployed,
     reach.limb === null
       ? `no reach at x=${reach.pose.x.toFixed(2)}, z=${reach.pose.z.toFixed(2)}`
-      : `limb open ${reach.limb.open.toFixed(2)} at x=${reach.pose.x.toFixed(2)}`
+      : `limb reach ${reach.limb.reach.toFixed(2)}, open ${reach.limb.open.toFixed(2)} at x=${reach.pose.x.toFixed(2)}`
   );
 } finally {
   await browser?.close();

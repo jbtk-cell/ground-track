@@ -39,7 +39,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { isInterior, isRebuilt } from '../lib/regimes.mjs';
+import { isClassified, isInterior, isRebuilt } from '../lib/regimes.mjs';
 
 const DIR = path.join(process.cwd(), 'shots', 'current');
 

@@ -32,3 +32,16 @@ export const isInterior = (name) => !EXTERIOR.test(name);
  */
 export const REBUILT = [/^plot-/];
 export const isRebuilt = (name) => REBUILT.some((re) => re.test(name));
+
+/**
+ * The legacy interiors, enumerated. By policy this list only SHRINKS: a room
+ * graduates to REBUILT, and a new room is built to the interior direction
+ * from day one. The enumeration exists so a frame matching NO regime can be
+ * refused outright - an exterior preset missing from EXTERIOR used to fall
+ * into the interior bucket silently and be judged by the wrong rules, which
+ * is the allow-list rot this file was created to end.
+ */
+export const LEGACY =
+  /^(deck-|spine-|station-|crossing-|crown-|bend-|racks-|crawl-|magazine-|sill-|gantry-|berth-)/;
+export const isClassified = (name) =>
+  EXTERIOR.test(name) || REBUILT.some((re) => re.test(name)) || LEGACY.test(name);

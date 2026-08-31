@@ -80,6 +80,19 @@ export interface BakeResult {
   probe(x: number, y: number, z: number, out: Probe): void;
   /** FNV-1a over the raw texels; the determinism test compares two bakes. */
   readonly hash: number;
+  /**
+   * The pass-2 bounce gather over this bake's emitters, pre-exposure, with
+   * opts.bounce already applied. Hand it to bakeGeometry so fit-out meshes
+   * see the same bounce as the walls they stand against.
+   */
+  gather(
+    px: number,
+    py: number,
+    pz: number,
+    nx: number,
+    ny: number,
+    nz: number
+  ): readonly [number, number, number];
 }
 
 interface FlatLamp {
@@ -275,7 +288,20 @@ export function bake(
         const py = oy + uy * fu + vy * fv + ny * 0.004;
         const pz = oz + uz * fu + vz * fv + nz * 0.004;
         const [dr, dg, db] = direct(px, py, pz, nx, ny, nz);
-        const ao = ambientOcclusion(px, py, pz, nx, ny, nz, patch.x + i, patch.y + j);
+        // Spin the AO sample set by a hash of WORLD position, not atlas
+        // position: two coplanar patches that meet at a shared edge then draw
+        // the same rays at their coincident rim texels and agree bit-for-bit,
+        // instead of seaming where the atlas happened to cut.
+        const ao = ambientOcclusion(
+          px,
+          py,
+          pz,
+          nx,
+          ny,
+          nz,
+          Math.round(px * 53 + pz * 17),
+          Math.round(py * 53 + px * 17)
+        );
         const dm = opts.directAoMix + (1 - opts.directAoMix) * ao;
         const idx = ((patch.y + j) * size + (patch.x + i)) * 3;
         texels[idx] = (opts.ambient[0] ?? 0) * ao + dr * dm;
@@ -292,21 +318,27 @@ export function bake(
   // frequency and the receiver's own AO already damps it in corners. The
   // cheat is stated here so nobody mistakes it for the real thing; a
   // `bounceVisibility` upgrade would slot in below if a room ever needs it.
+  //
+  // The emitter list and the gather outlive this pass on purpose: the
+  // vertex-lit tier (pass 4), and any fit-out mesh lit through the returned
+  // gather, must see the SAME bounce as the walls behind them - a review
+  // measured every fitting sitting one step darker than its wall because
+  // only the patch tier was gathered.
 
+  interface Emitter {
+    x: number;
+    y: number;
+    z: number;
+    nx: number;
+    ny: number;
+    nz: number;
+    r: number;
+    g: number;
+    b: number;
+  }
+  const emitters: Emitter[] = [];
+  const EMIT_EVERY_M = 0.45;
   if (opts.bounce > 0) {
-    interface Emitter {
-      x: number;
-      y: number;
-      z: number;
-      nx: number;
-      ny: number;
-      nz: number;
-      r: number;
-      g: number;
-      b: number;
-    }
-    const emitters: Emitter[] = [];
-    const EMIT_EVERY_M = 0.45;
     for (const patch of sink.patches) {
       const [ux, uy, uz] = patch.edgeU;
       const [vx, vy, vz] = patch.edgeV;
@@ -338,30 +370,32 @@ export function bake(
         }
       }
     }
+  }
 
-    const gather = (px: number, py: number, pz: number, nx: number, ny: number, nz: number) => {
-      let r = 0;
-      let g = 0;
-      let b = 0;
-      for (const e of emitters) {
-        const dx = e.x - px;
-        const dy = e.y - py;
-        const dz = e.z - pz;
-        const r2 = dx * dx + dy * dy + dz * dz;
-        if (r2 < 0.02) continue;
-        const inv = 1 / Math.sqrt(r2);
-        const cosS = (dx * nx + dy * ny + dz * nz) * inv;
-        if (cosS <= 0) continue;
-        const cosE = -(dx * e.nx + dy * e.ny + dz * e.nz) * inv;
-        if (cosE <= 0) continue;
-        const fall = (cosS * cosE) / (Math.PI * Math.max(r2, MIN_R2));
-        r += e.r * fall;
-        g += e.g * fall;
-        b += e.b * fall;
-      }
-      return [r * opts.bounce, g * opts.bounce, b * opts.bounce] as const;
-    };
+  const gather = (px: number, py: number, pz: number, nx: number, ny: number, nz: number) => {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    for (const e of emitters) {
+      const dx = e.x - px;
+      const dy = e.y - py;
+      const dz = e.z - pz;
+      const r2 = dx * dx + dy * dy + dz * dz;
+      if (r2 < 0.02) continue;
+      const inv = 1 / Math.sqrt(r2);
+      const cosS = (dx * nx + dy * ny + dz * nz) * inv;
+      if (cosS <= 0) continue;
+      const cosE = -(dx * e.nx + dy * e.ny + dz * e.nz) * inv;
+      if (cosE <= 0) continue;
+      const fall = (cosS * cosE) / (Math.PI * Math.max(r2, MIN_R2));
+      r += e.r * fall;
+      g += e.g * fall;
+      b += e.b * fall;
+    }
+    return [r * opts.bounce, g * opts.bounce, b * opts.bounce] as const;
+  };
 
+  if (opts.bounce > 0) {
     const COARSE = 4;
     for (const patch of sink.patches) {
       const cw = Math.max(2, Math.ceil(patch.w / COARSE));
@@ -467,6 +501,9 @@ export function bake(
       const py = (positions[vi * 3 + 1] ?? 0) + ny * 0.012;
       const pz = (positions[vi * 3 + 2] ?? 0) + nz * 0.012;
       const [dr, dg, db] = direct(px, py, pz, nx, ny, nz);
+      // The same bounce the walls got in pass 2 - a fitting without it sits
+      // one visible step darker than the wall behind it.
+      const [br, bg, bb] = gather(px, py, pz, nx, ny, nz);
       const ao = ambientOcclusion(
         px,
         py,
@@ -480,15 +517,27 @@ export function bake(
       const dm = opts.directAoMix + (1 - opts.directAoMix) * ao;
       const lr = Math.max(
         opts.floor,
-        shoulder(((opts.ambient[0] ?? 0) * ao + dr * dm) * opts.exposure, opts.knee, opts.ceiling)
+        shoulder(
+          ((opts.ambient[0] ?? 0) * ao + dr * dm + br) * opts.exposure,
+          opts.knee,
+          opts.ceiling
+        )
       );
       const lg = Math.max(
         opts.floor,
-        shoulder(((opts.ambient[1] ?? 0) * ao + dg * dm) * opts.exposure, opts.knee, opts.ceiling)
+        shoulder(
+          ((opts.ambient[1] ?? 0) * ao + dg * dm + bg) * opts.exposure,
+          opts.knee,
+          opts.ceiling
+        )
       );
       const lb = Math.max(
         opts.floor,
-        shoulder(((opts.ambient[2] ?? 0) * ao + db * dm) * opts.exposure, opts.knee, opts.ceiling)
+        shoulder(
+          ((opts.ambient[2] ?? 0) * ao + db * dm + bb) * opts.exposure,
+          opts.knee,
+          opts.ceiling
+        )
       );
       colours[vi * 3] = (colours[vi * 3] ?? 0) * lr;
       colours[vi * 3 + 1] = (colours[vi * 3 + 1] ?? 0) * lg;
@@ -514,14 +563,14 @@ export function bake(
     bytes[i * 4 + 2] = Math.round(Math.min(1, (texels[i * 3 + 2] ?? 0) / RANGE) * 255);
     bytes[i * 4 + 3] = 255;
   }
-  // The reserved white texel must decode to EXACTLY 1.0 after the RANGE
-  // multiply, or every vertex-lit surface picks up a uniform cast. Byte 116
-  // at RANGE 2.2 decodes to 1.0007; close, but exactness is cheap: the
-  // shader term is texel * RANGE, so store 1/RANGE with full precision by
-  // special-casing the one texel whose value is load-bearing.
-  bytes[0] = Math.round((1 / RANGE) * 255);
-  bytes[1] = bytes[0];
-  bytes[2] = bytes[0];
+  // The reserved white texel (texels[0..2] = 1.0 from pass 3.5) lands on
+  // byte 116, which decodes to 1.0007 - the vertex-lit tier renders 0.07%
+  // bright of its authored albedo, which no eye and no gate can see. A
+  // review noted an earlier special-case here computed the identical byte
+  // and claimed extra precision; it is gone. The quantisation step is
+  // RANGE/255 in LIGHT, which after the albedo multiply is 1-3 values out
+  // of 255 in deep shadow - visible as gentle banding only below luma ~20,
+  // where the authored near-blacks live in joints too small to band across.
 
   let hashValue = 0x811c9dc5;
   for (let i = 0; i < bytes.length; i += 1) {
@@ -629,7 +678,7 @@ export function bake(
     }
   };
 
-  return { texture, intensity: Math.PI * LIGHT_RANGE, probe, hash: hashValue };
+  return { texture, intensity: Math.PI * LIGHT_RANGE, probe, hash: hashValue, gather };
 }
 
 /**
@@ -644,7 +693,8 @@ export function bakeGeometry(
   geometry: THREE.BufferGeometry,
   set: TraceSet,
   lamps: readonly AreaLamp[],
-  opts: BakeOptions
+  opts: BakeOptions,
+  gather?: BakeResult['gather']
 ): void {
   const flat = lamps.map(flatten);
   const hemi = cosineHemisphere(opts.aoSamples);
@@ -692,16 +742,17 @@ export function bakeGeometry(
         Math.round(py * 53 + px * 17)
       );
       const dm = opts.directAoMix + (1 - opts.directAoMix) * ao;
-      const scale = (base: number, dir: number): number =>
+      const [br, bg, bb] = gather?.(px, py, pz, nx, ny, nz) ?? [0, 0, 0];
+      const scale = (base: number, dir: number, bounce: number): number =>
         Math.max(
           opts.floor,
-          shoulder((base * ao + dir * dm) * opts.exposure, opts.knee, opts.ceiling)
+          shoulder((base * ao + dir * dm + bounce) * opts.exposure, opts.knee, opts.ceiling)
         );
       colour.setXYZ(
         vi,
-        colour.getX(vi) * scale(opts.ambient[0] ?? 0, dr),
-        colour.getY(vi) * scale(opts.ambient[1] ?? 0, dg),
-        colour.getZ(vi) * scale(opts.ambient[2] ?? 0, db)
+        colour.getX(vi) * scale(opts.ambient[0] ?? 0, dr, br),
+        colour.getY(vi) * scale(opts.ambient[1] ?? 0, dg, bg),
+        colour.getZ(vi) * scale(opts.ambient[2] ?? 0, db, bb)
       );
     }
   }

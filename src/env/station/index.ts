@@ -314,6 +314,7 @@ export function buildStation(plan: StationPlan): StationHandle {
    * below, the first floor build threw on a temporal dead zone.
    */
   const eye = new THREE.Vector3();
+  const localEye = new THREE.Vector3();
 
   /** How high the eye rides when standing. The anchor's, since it owns the deck. */
   const standingEye = (): number => resident.get(startId)?.handle.eyeHeight ?? 1.74;
@@ -604,6 +605,15 @@ export function buildStation(plan: StationPlan): StationHandle {
           currentId = entry.id;
           break;
         }
+      }
+      // Rooms that want the eye get it too, in their OWN frame: the flight
+      // deck's arm rig reads baked light probes stored room-local, and a
+      // probe queried in world coordinates would light the arm from wherever
+      // the layout happened to put the room. Optional on the contract, so a
+      // room without an observe costs nothing - and a review found the plot's
+      // observe had never once been called before this line existed.
+      for (const entry of resident.values()) {
+        entry.handle.observe?.(localEye.copy(eye).applyMatrix4(entry.placement.inverse));
       }
     },
 

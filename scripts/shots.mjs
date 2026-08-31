@@ -250,7 +250,7 @@ const INTERIOR_PRESETS = [
     room: 'plot',
     t: 19.3,
     bare: true,
-    pose: { x: 1.95, z: 1.05, yaw: 2.35, pitch: -0.02 },
+    pose: { x: -1.9, z: 1.15, yaw: -1.85, pitch: -0.02 },
   },
   {
     // The same hunt from the opposite corner, looking back.

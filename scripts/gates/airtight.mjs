@@ -101,6 +101,13 @@ const VOID = [0x10, 0x1b, 0x26];
  */
 const BLOB = 30;
 
+/**
+ * Many sub-BLOB fragments are still a breach: a dashed or diagonal hairline
+ * seam defeats 4-connectivity, one crumb at a time. A few genuine 8-bit
+ * accidents stay far under this.
+ */
+const SPECKS = 3 * BLOB;
+
 let failures = 0;
 for (const name of SEALED) check(name);
 
@@ -174,10 +181,14 @@ function check(name) {
   console.log(
     `  largest blob       : ${largest}${largestAt ? ` at ${largestAt[0]}, ${largestAt[1]}` : ''}`
   );
-  if (largest < BLOB) {
+  if (largest < BLOB && voids < SPECKS) {
     console.log(voids === 0 ? '  PASS' : `  PASS - isolated accidents only (blob < ${BLOB})`);
     return;
   }
-  console.log('  FAIL - this pose has no window in it, so that is space through a wall');
+  console.log(
+    largest >= BLOB
+      ? '  FAIL - this pose has no window in it, so that is space through a wall'
+      : `  FAIL - ${voids} scattered void pixels; a fragmented seam is still a seam`
+  );
   failures += 1;
 }

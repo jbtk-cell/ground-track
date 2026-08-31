@@ -18,6 +18,7 @@ import { STATION } from '../src/env/station/plan';
 import { corners, planeClashes } from '../src/env/kit/solids';
 import { layOut, overlaps } from '../src/env/station/layout';
 import { buildStation } from '../src/env/station/index';
+import { isPainter } from '../src/env/station/compartment';
 import { facingVector } from '../src/env/station/ports';
 import type { CompartmentDefinition } from '../src/env/station/compartment';
 
@@ -168,6 +169,22 @@ describe('the station as a whole', () => {
     // but the origin, it would scissor space to the wrong part of the screen.
     // See Painter in station/compartment.ts.
     expect(STATION.anchor).toBe(LIMB_DECK.id);
+  });
+
+  it('lets no room but the anchor paint', () => {
+    // Two painter-capable builds exist now - the limb deck, and the plot's
+    // solo variant with its open portholes. The plan must build exactly one
+    // painter, at the anchor: a second one would scissor space onto the wrong
+    // part of the screen from its placement offset. The name check above
+    // cannot see this; only asking each BUILT handle can.
+    for (const room of STATION.rooms) {
+      const built = room.build();
+      try {
+        expect(isPainter(built), room.id).toBe(room.id === STATION.anchor);
+      } finally {
+        built.dispose();
+      }
+    }
   });
 
   it('has a route from the start to every other room', () => {

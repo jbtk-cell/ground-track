@@ -659,7 +659,7 @@ function plotLamps(open: boolean): readonly AreaLamp[] {
       edgeU: [1.8, 0, 0],
       edgeV: [0, 0, 0.34],
       colour: cream,
-      intensity: 17,
+      intensity: 16,
       samplesU: 8,
       samplesV: 2,
     },
@@ -716,11 +716,13 @@ function plotLamps(open: boolean): readonly AreaLamp[] {
   for (const [n, px] of PORTHOLE_X.entries()) {
     lamps.push({
       name: `porthole-${n}`,
-      origin: [px - 0.2, PORT_Y - 0.2, face + (open ? 0 : 0.006)],
+      // Shuttered, the fill stands mid-collar: 6 mm off the shutter gave
+      // cosS*cosL near zero and the plate never received its own light.
+      origin: [px - 0.2, PORT_Y - 0.2, face + (open ? 0 : 0.1)],
       edgeU: [0.4, 0, 0],
       edgeV: [0, 0.4, 0],
       colour: [fill.r, fill.g, fill.b],
-      intensity: open ? 2.2 : 1.0,
+      intensity: open ? 1.3 : 1.0,
       samplesU: 2,
       samplesV: 2,
     });
@@ -737,7 +739,7 @@ const BAKE_OPTS: BakeOptions = {
   aoStrength: 0.92,
   directAoMix: 0.5,
   bounce: 0.7,
-  exposure: 1.18,
+  exposure: 1.12,
   knee: 0.85,
   ceiling: 2.2,
   floor: 0.02,
@@ -790,11 +792,20 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
 
   // The baker traces against the fittings but never against the lamp housings
   // (a lamp shadowing its own emission is an artifact, not a shadow) and
-  // never against the porthole collars' own boxes when lighting their throat.
+  // never against the porthole collars' own boxes: those are declarations
+  // for the clash checks, wider than the drawn collar, and as occluders they
+  // blacked out both porthole fill lamps and banded the collar skin - found
+  // by a review that noticed this comment promising an exclusion the code
+  // did not perform. Derived, so a porthole change cannot re-break it.
   const occluders = traceSet(
     parts,
     { x0: -HALF_X, x1: HALF_X, y0: FLOOR_Y, y1: CEILING_Y, z0: -HALF_Z, z1: HALF_Z },
-    ['lamp-station', 'lamp-walk', 'lamp-spur']
+    [
+      'lamp-station',
+      'lamp-walk',
+      'lamp-spur',
+      ...parts.filter((p) => p.name.startsWith('porthole-')).map((p) => p.name),
+    ]
   );
 
   const baked = bake(shellSink, occluders, lamps, BAKE_OPTS);
@@ -891,7 +902,7 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
         }
       }
       const geometry = toGeometry(capSink);
-      bakeGeometry(geometry, occluders, lamps, BAKE_OPTS);
+      bakeGeometry(geometry, occluders, lamps, BAKE_OPTS, baked.gather);
       const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true }));
       mesh.name = `plot-cap-${id}`;
       root.add(mesh);
@@ -929,7 +940,7 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
     topY: BANK_TOP_Y,
     deskY: DESK_TOP_Y,
   });
-  bakeGeometry(fitOut.lit, occluders, lamps, BAKE_OPTS);
+  bakeGeometry(fitOut.lit, occluders, lamps, BAKE_OPTS, baked.gather);
   const bankMetal = new THREE.Mesh(fitOut.lit, new THREE.MeshBasicMaterial({ vertexColors: true }));
   bankMetal.name = 'plot-bank-metal';
   root.add(bankMetal);
@@ -1015,7 +1026,7 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
       { glyphs: 4, seed: 0x91b2, colour: PALETTE.HULL_SHADOW }
     );
     const dressLitGeometry = toGeometry(dressLit);
-    bakeGeometry(dressLitGeometry, occluders, lamps, BAKE_OPTS);
+    bakeGeometry(dressLitGeometry, occluders, lamps, BAKE_OPTS, baked.gather);
     const dressLitMesh = new THREE.Mesh(
       dressLitGeometry,
       new THREE.MeshBasicMaterial({ vertexColors: true })
