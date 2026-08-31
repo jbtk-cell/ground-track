@@ -253,6 +253,37 @@ try {
     stuck.length === 0,
     stuck.length === 0 ? `${ids.length} walked` : stuck.join('; ')
   );
+
+  // --- The rebuilt flight deck, played rather than posed.
+  //
+  // The plot spawn faces the console; holding W walks a body to the rail, and
+  // inside 1.6 m of the card slot the limb must deploy on its own - the reach
+  // IS the interface, and it has broken twice in ways only a real walk shows
+  // (deploy-but-never-grip, and an arm that vanished entirely). setPose
+  // proves nothing here; this is the same walk a player makes.
+  await page.goto(`http://localhost:${PORT}/rooms.html#plot`);
+  await page.waitForFunction(
+    () =>
+      window.groundTrackRooms?.ready === true &&
+      (window.groundTrackRooms.environment === 'plot' || window.groundTrackRooms.error !== null),
+    { timeout: 20000 }
+  );
+  await page.evaluate(() => window.groundTrackRooms.setPaused(false));
+  await page.keyboard.down('w');
+  await new Promise((r) => setTimeout(r, 1700));
+  await page.keyboard.up('w');
+  await new Promise((r) => setTimeout(r, 900));
+  const reach = await page.evaluate(() => ({
+    limb: window.groundTrackRooms.limb(),
+    pose: window.groundTrackRooms.pose(),
+  }));
+  check(
+    'walking to the flight deck console deploys the limb for the card slot',
+    reach.limb !== null,
+    reach.limb === null
+      ? `no reach at x=${reach.pose.x.toFixed(2)}, z=${reach.pose.z.toFixed(2)}`
+      : `limb open ${reach.limb.open.toFixed(2)} at x=${reach.pose.x.toFixed(2)}`
+  );
 } finally {
   await browser?.close();
   child.kill();

@@ -161,6 +161,7 @@ function testScene() {
     exposure: 1,
     knee: 0.8,
     ceiling: 2,
+    floor: 0,
   };
   return { sink, set, lamp, opts };
 }

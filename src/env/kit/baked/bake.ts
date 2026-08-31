@@ -53,6 +53,13 @@ export interface BakeOptions {
   /** Shoulder knee, linear. Above it light compresses toward `ceiling`. */
   readonly knee: number;
   readonly ceiling: number;
+  /**
+   * Irradiance floor, applied after exposure. A fully occluded pocket still
+   * scatters SOMETHING in a lit pressurised can, and the palette gate holds
+   * interiors above luma 5: this is the number that keeps the darkest
+   * albedo-times-light product a value rather than an absence.
+   */
+  readonly floor: number;
 }
 
 export interface Probe {
@@ -414,7 +421,7 @@ export function bake(
         const idx = ((patch.y + j) * size + (patch.x + i)) * 3;
         for (let c = 0; c < 3; c += 1) {
           const value = (texels[idx + c] ?? 0) * opts.exposure;
-          texels[idx + c] = shoulder(value, opts.knee, opts.ceiling);
+          texels[idx + c] = Math.max(opts.floor, shoulder(value, opts.knee, opts.ceiling));
         }
       }
     }
@@ -471,20 +478,17 @@ export function bake(
         Math.round(py * 53 + px * 17)
       );
       const dm = opts.directAoMix + (1 - opts.directAoMix) * ao;
-      const lr = shoulder(
-        ((opts.ambient[0] ?? 0) * ao + dr * dm) * opts.exposure,
-        opts.knee,
-        opts.ceiling
+      const lr = Math.max(
+        opts.floor,
+        shoulder(((opts.ambient[0] ?? 0) * ao + dr * dm) * opts.exposure, opts.knee, opts.ceiling)
       );
-      const lg = shoulder(
-        ((opts.ambient[1] ?? 0) * ao + dg * dm) * opts.exposure,
-        opts.knee,
-        opts.ceiling
+      const lg = Math.max(
+        opts.floor,
+        shoulder(((opts.ambient[1] ?? 0) * ao + dg * dm) * opts.exposure, opts.knee, opts.ceiling)
       );
-      const lb = shoulder(
-        ((opts.ambient[2] ?? 0) * ao + db * dm) * opts.exposure,
-        opts.knee,
-        opts.ceiling
+      const lb = Math.max(
+        opts.floor,
+        shoulder(((opts.ambient[2] ?? 0) * ao + db * dm) * opts.exposure, opts.knee, opts.ceiling)
       );
       colours[vi * 3] = (colours[vi * 3] ?? 0) * lr;
       colours[vi * 3 + 1] = (colours[vi * 3 + 1] ?? 0) * lg;
@@ -689,7 +693,10 @@ export function bakeGeometry(
       );
       const dm = opts.directAoMix + (1 - opts.directAoMix) * ao;
       const scale = (base: number, dir: number): number =>
-        shoulder((base * ao + dir * dm) * opts.exposure, opts.knee, opts.ceiling);
+        Math.max(
+          opts.floor,
+          shoulder((base * ao + dir * dm) * opts.exposure, opts.knee, opts.ceiling)
+        );
       colour.setXYZ(
         vi,
         colour.getX(vi) * scale(opts.ambient[0] ?? 0, dr),

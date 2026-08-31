@@ -67,16 +67,21 @@ export function linerMap(seed: number, size = 256): THREE.DataTexture {
     for (let x = 0; x < size; x += 1) {
       const u = x / size;
       const v = y / size;
-      // Panel field: gentle mottle, a whisper of fabric weave.
+      // Panel field: mottle at two scales. The low-frequency term is what
+      // spreads a big wall across several value buckets - the flatness gate
+      // measured a single-scale field collapsing into one.
       let value =
-        0.94 + (fbm2(u * 6, v * 6, seed, 3) - 0.5) * 0.1 + (hash2(x, y, seed + 9) - 0.5) * 0.015;
+        0.92 +
+        (fbm2(u * 6, v * 6, seed, 3) - 0.5) * 0.16 +
+        (fbm2(u * 1.7 + 31, v * 1.7 + 17, seed + 77, 2) - 0.5) * 0.13 +
+        (hash2(x, y, seed + 9) - 0.5) * 0.02;
       // Seams: one vertical pair per repeat, one horizontal at panel half-height.
       const du = Math.min(u, 1 - u);
       const dv = Math.min(Math.abs(v - 0.5), Math.min(v, 1 - v));
       const edge = Math.min(du, dv);
       if (edge < seam) {
         const depth = 1 - edge / seam;
-        value *= 1 - 0.45 * depth * depth;
+        value *= 1 - 0.52 * depth * depth;
       } else if (edge < seam * 3) {
         // The soft AO gradient a recessed panel edge carries.
         const near = 1 - (edge - seam) / (seam * 2);

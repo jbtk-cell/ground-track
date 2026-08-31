@@ -45,7 +45,7 @@ import type { CompartmentDefinition, CompartmentHandle } from '../station/compar
 import { SEAM, SEAM_INSET_M, port } from '../station/ports';
 import { soloStation } from '../station/index';
 import { type Solid, solid } from '../kit/solids';
-import { pushBox, sink, toGeometry } from '../kit/mesh';
+import { pushBox, pushQuad, sink, toGeometry } from '../kit/mesh';
 import { bands, baySpans, deepestRelief } from '../kit/bands';
 import {
   bakedSink,
@@ -65,6 +65,7 @@ import type { Aperture, Frame } from '../limbDeck/contract';
 import { LIMB_DECK_GEOMETRY, sampleOrbit } from '../orbit';
 import type { FloorRect, PointOfInterest } from '../types';
 import { consoleFitOut } from './console';
+import { type Panel, chipRun, louvres, panelAt, stencil } from '../kit/instruments';
 
 const HALF_X = 2.3;
 const HALF_Z = 1.7;
@@ -154,11 +155,11 @@ function mix(a: string, b: string, t: number): THREE.Color {
   return new THREE.Color(a).lerp(new THREE.Color(b), t);
 }
 const LINER = mix(PALETTE.DAWN_SAND, PALETTE.FOIL, 0.5);
-const KICK = mix(PALETTE.FOIL, PALETTE.HULL_SHADOW, 0.5).multiplyScalar(0.85);
+const KICK = mix(PALETTE.FOIL, PALETTE.HULL_SHADOW, 0.45);
 const CROWN_WARM = mix(PALETTE.HULL_SHADOW, PALETTE.FOIL, 0.25).multiplyScalar(0.5);
-const DECK_WARM = mix(PALETTE.HULL_SHADOW, PALETTE.FOIL, 0.35).multiplyScalar(0.8);
-const REVEAL_DARK = new THREE.Color(PALETTE.FOIL).multiplyScalar(0.14);
-const THROAT_DARK = new THREE.Color(PALETTE.FOIL).multiplyScalar(0.11);
+const DECK_WARM = mix(PALETTE.HULL_SHADOW, PALETTE.FOIL, 0.34).multiplyScalar(0.92);
+const REVEAL_DARK = new THREE.Color(PALETTE.FOIL).multiplyScalar(0.2);
+const THROAT_DARK = new THREE.Color(PALETTE.FOIL).multiplyScalar(0.17);
 const JAMB = mix(PALETTE.HULL_SHADOW, PALETTE.FOIL, 0.3).multiplyScalar(0.7);
 const END_WALL = mix(PALETTE.DAWN_SAND, PALETTE.FOIL, 0.62).multiplyScalar(0.9);
 const CONSOLE_FOIL = new THREE.Color(PALETTE.FOIL);
@@ -292,7 +293,7 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
         v(x1, FLOOR_Y, z1),
         v(x0, FLOOR_Y, z1),
         inward,
-        DECK_WARM.clone().multiplyScalar(wear(i, j, 0.12)),
+        DECK_WARM.clone().multiplyScalar(wear(i, j, 0.2)),
         TEXELS_DECK,
         1.05
       );
@@ -318,7 +319,7 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
         v(x1, CEILING_Y, z1),
         v(x0, CEILING_Y, z1),
         inward,
-        CROWN_WARM.clone().multiplyScalar(wear(i, j + 9, 0.1)),
+        CROWN_WARM.clone().multiplyScalar(wear(i, j + 9, 0.16)),
         TEXELS_CROWN,
         1.05
       );
@@ -351,7 +352,7 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
       for (const [p0, p1] of baySpans(x0, x1)) {
         const colour = bandColour(band.y0)
           .clone()
-          .multiplyScalar(wear(Math.round(p0 * 37), side * 3 + Math.round(band.y0 * 5), 0.1));
+          .multiplyScalar(wear(Math.round(p0 * 37), side * 3 + Math.round(band.y0 * 5), 0.28));
         // Part this bay's panel around any hole that intersects it.
         const cut = holes.filter((h) => h.x0 < p1 && h.x1 > p0 && h.y0 < y1 && h.y1 > y0);
         const panel = (px0: number, px1: number, py0: number, py1: number): void => {
@@ -495,7 +496,7 @@ function buildShell(target: BakedSink, open: boolean): readonly Aperture[] {
         v(x, y1, z1),
         v(x, y1, z0),
         inward,
-        END_WALL.clone().multiplyScalar(wear(Math.round(x * 11), Math.round(z0 * 13), 0.08)),
+        END_WALL.clone().multiplyScalar(wear(Math.round(x * 11), Math.round(z0 * 13), 0.2)),
         TEXELS_WALL,
         1.05
       );
@@ -621,7 +622,7 @@ function plotLamps(open: boolean): readonly AreaLamp[] {
       edgeU: [1.8, 0, 0],
       edgeV: [0, 0, 0.34],
       colour: cream,
-      intensity: 7.2,
+      intensity: 17,
       samplesU: 6,
       samplesV: 2,
     },
@@ -631,7 +632,7 @@ function plotLamps(open: boolean): readonly AreaLamp[] {
       edgeU: [1.1, 0, 0],
       edgeV: [0, 0, 0.3],
       colour: cream,
-      intensity: 5.2,
+      intensity: 12,
       samplesU: 5,
       samplesV: 2,
     },
@@ -641,7 +642,7 @@ function plotLamps(open: boolean): readonly AreaLamp[] {
       edgeU: [0.9, 0, 0],
       edgeV: [0, 0, 0.2],
       colour: cream,
-      intensity: 4.2,
+      intensity: 10,
       samplesU: 4,
       samplesV: 2,
     },
@@ -665,7 +666,7 @@ function plotLamps(open: boolean): readonly AreaLamp[] {
       edgeU: [-faceW, 0, 0],
       edgeV: [0, faceH, 0],
       colour: [mint.r, mint.g, mint.b],
-      intensity: 1.15,
+      intensity: 1.7,
       samplesU: 2,
       samplesV: 2,
     });
@@ -682,7 +683,7 @@ function plotLamps(open: boolean): readonly AreaLamp[] {
       edgeU: [0.4, 0, 0],
       edgeV: [0, 0.4, 0],
       colour: [fill.r, fill.g, fill.b],
-      intensity: open ? 1.6 : 0.7,
+      intensity: open ? 2.2 : 1.0,
       samplesU: 2,
       samplesV: 2,
     });
@@ -693,15 +694,16 @@ function plotLamps(open: boolean): readonly AreaLamp[] {
 
 const BAKE_OPTS: BakeOptions = {
   seed: SEED,
-  ambient: [0.045, 0.038, 0.03],
+  ambient: [0.125, 0.105, 0.085],
   aoSamples: 20,
-  aoRange: 1.1,
-  aoStrength: 0.88,
-  directAoMix: 0.65,
-  bounce: 0.55,
-  exposure: 1.0,
-  knee: 0.8,
+  aoRange: 1.15,
+  aoStrength: 0.92,
+  directAoMix: 0.5,
+  bounce: 0.7,
+  exposure: 1.18,
+  knee: 0.85,
   ceiling: 2.2,
+  floor: 0.02,
 };
 
 function prefersReducedMotion(): boolean {
@@ -793,8 +795,86 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
         width: lamp.x1 - lamp.x0 + 0.55,
         height: lamp.z1 - lamp.z0 + 0.45,
         colour: PALETTE.DAWN_CREAM,
-        opacity: 0.42,
+        opacity: 0.34,
       })
+    );
+  }
+
+  // --- The room's own port closures.
+  //
+  // The station blanks an unjoined port with its cap AT the seam plane, in
+  // orbit-navy Lambert - correct hardware, wrong room: a flat cool slab a
+  // quarter of a frame wide is exactly the single-bucket mass the flatness
+  // gate exists to refuse, and it sat dead centre of the hero frame. So this
+  // room brings its own closure, two centimetres inboard: warm panelled
+  // plates, wear-varied, lit by the same solver as everything else. The
+  // station still tells the room which ports are joined (sealPort), and the
+  // room's plate steps aside for a neighbour exactly when the navy cap does.
+  const capMeshes = new Map<string, THREE.Mesh>();
+  {
+    const capColour = mix(PALETTE.DAWN_SAND, PALETTE.FOIL, 0.7).multiplyScalar(0.82);
+    const capWear = (i: number, j: number): number =>
+      0.9 + ((Math.imul(i * 31 + j * 61 + SEED, 2654435761) >>> 16) % 1000) * 0.0002;
+    const buildCap = (
+      id: string,
+      centre: THREE.Vector3,
+      right: THREE.Vector3,
+      inwards: THREE.Vector3
+    ): void => {
+      const capSink = sink();
+      const up = new THREE.Vector3(0, 1, 0);
+      const w = SEAM.width + 0.2;
+      const h = SEAM.height + 0.1;
+      const cols = 3;
+      const rows = 4;
+      for (let i = 0; i < cols; i += 1) {
+        for (let j = 0; j < rows; j += 1) {
+          const x0 = -w / 2 + (w * i) / cols;
+          const x1 = -w / 2 + (w * (i + 1)) / cols;
+          const y0 = (h * j) / rows;
+          const y1 = (h * (j + 1)) / rows;
+          const at = (dx: number, dy: number): THREE.Vector3 =>
+            centre.clone().addScaledVector(right, dx).addScaledVector(up, dy);
+          const towards = centre
+            .clone()
+            .addScaledVector(inwards, 2)
+            .addScaledVector(up, h / 2);
+          pushQuad(
+            capSink,
+            at(x0, y0),
+            at(x1, y0),
+            at(x1, y1),
+            at(x0, y1),
+            towards,
+            capColour.clone().multiplyScalar(capWear(i, j + Math.round(centre.x * 7)))
+          );
+        }
+      }
+      const geometry = toGeometry(capSink);
+      bakeGeometry(geometry, occluders, lamps, BAKE_OPTS);
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true }));
+      mesh.name = `plot-cap-${id}`;
+      root.add(mesh);
+      capMeshes.set(id, mesh);
+    };
+    const inset = SEAM_INSET_M + 0.008;
+    buildCap(
+      'fore',
+      new THREE.Vector3(HALF_X - inset, FLOOR_Y, 0),
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(-1, 0, 0)
+    );
+    buildCap(
+      'aft',
+      new THREE.Vector3(-(HALF_X - inset), FLOOR_Y, 0.55),
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(1, 0, 0)
+    );
+    buildCap(
+      'port',
+      new THREE.Vector3(SPUR_X, FLOOR_Y, -(HALF_Z - SEAM_INSET_M - 0.008)),
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(0, 0, 1)
     );
   }
 
@@ -843,6 +923,70 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
         proud: 0.03 + i * 0.004,
       })
     );
+  }
+
+  // --- Dressing on the starboard run. The reference's bulkhead carries "a
+  // row of indicator chips", and the +z wall beyond the console was the last
+  // bare stretch in the room - S5's blank-wall rule and the flatness gate
+  // failed it from the same pose for the same reason. Chips (unlit, the
+  // machine's own state), a pair of louvred vents and a stencil (lit metal).
+  {
+    const wallFace =
+      wallHalfZ(1) -
+      (bands(FLOOR_Y, CEILING_Y).find((b) => b.y0 <= 1.5 && b.y1 >= 1.5)?.relief ?? 0);
+    const dressGlow = sink();
+    const dressLit = sink();
+    const chipPanel: Panel = panelAt(
+      new THREE.Vector3(2.12, 1.86, wallFace - 0.004),
+      new THREE.Vector3(-1, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+      1.55,
+      0.12
+    );
+    chipRun(dressGlow, chipPanel, {
+      chips: 14,
+      seed: 0x91b1,
+      colour: `#${new THREE.Color(PALETTE.MINT).multiplyScalar(0.5).getHexString()}`,
+      lit: 0.45,
+      dim: 0.3,
+    });
+    for (const x of [1.95, 1.05]) {
+      louvres(
+        dressLit,
+        panelAt(
+          new THREE.Vector3(x, 1.28, wallFace - 0.004),
+          new THREE.Vector3(-1, 0, 0),
+          new THREE.Vector3(0, 1, 0),
+          0.42,
+          0.5
+        ),
+        { ribs: 6, contrast: 0.3, inset: 0.05 }
+      );
+    }
+    stencil(
+      dressLit,
+      panelAt(
+        new THREE.Vector3(2.16, 1.05, wallFace - 0.004),
+        new THREE.Vector3(-1, 0, 0),
+        new THREE.Vector3(0, 1, 0),
+        0.34,
+        0.12
+      ),
+      { glyphs: 4, seed: 0x91b2, colour: PALETTE.HULL_SHADOW }
+    );
+    const dressLitGeometry = toGeometry(dressLit);
+    bakeGeometry(dressLitGeometry, occluders, lamps, BAKE_OPTS);
+    const dressLitMesh = new THREE.Mesh(
+      dressLitGeometry,
+      new THREE.MeshBasicMaterial({ vertexColors: true })
+    );
+    dressLitMesh.name = 'plot-dressing';
+    const dressGlowMesh = new THREE.Mesh(
+      toGeometry(dressGlow),
+      new THREE.MeshBasicMaterial({ vertexColors: true })
+    );
+    dressGlowMesh.name = 'plot-dressing-glow';
+    root.add(dressLitMesh, dressGlowMesh);
   }
 
   // --- The exterior behind the portholes, solo mount only.
@@ -901,6 +1045,11 @@ function buildPlot(options: PlotBuild): CompartmentHandle {
       if (id !== 'pad') return false;
       printed += 1;
       return true;
+    },
+
+    sealPort(portId: string, sealed: boolean): void {
+      const plate = capMeshes.get(portId);
+      if (plate !== undefined) plate.visible = sealed;
     },
 
     observe(eye: THREE.Vector3): void {

@@ -73,22 +73,33 @@ Consequences, stated so nobody trips on them:
 ## Value structure - the numbers a rebuilt room must hit
 
 Measured on rendered bare frames (no DOM rail; shots presets set `bare`),
-luma out of 255:
+luma out of 255. The first room's tuning loop settled these against the
+original panel targets; `scripts/measure.mjs` prints where a frame actually
+is.
 
-- Near-black (5-16) lives in joints and voids only: recesses, collar
-  interiors, porthole throats, under furniture, crown pockets. **8-15% of the
-  hero frame**, never a large open field.
-- Warm mid-field (kick and work bands, lit liner): **50-65% of frame**,
-  90-150 lit, falling to 45-70 in occluded corners, with at least ~35 values
-  of gradient across any single large face - a flat face is the old failure.
-- Emissives: screens 190-215 (their content, 5-10% of frame), lamp diffuser
-  cores 235-245. **No pixel above 253** - glow saturating to white is the bug.
-- Every lamp must measurably raise its 1 m surround by >= 25 luma versus the
-  same surface 2 m away - "lamps illuminate nothing" was the measured failure.
+- Near-black (5-16) lives in joints and voids only: porthole throats, band
+  reveals, under furniture, crown pockets, door recesses - typically 2-8% of
+  a frame and never a large open field. The bake floors irradiance
+  (BakeOptions.floor) so nothing dips below the palette gate's luma-5 line.
+- Warm mid-field (work band, end walls, lit liner): the tonal centre of the
+  room, p50 between 50 and 85, mids (81-150) carrying 25-45% of a frame.
+  Value variation comes from three stacked scales - per-bay wear (full-range
+  hash, +-14%), the seeded map's two-scale mottle, and the bake's gradients -
+  because any single scale collapses into one 8-value bucket and fails the
+  gate exactly the way the old noise did.
+- Emissives: screens ~190-215, lamp diffuser cores 235-250. Peaks above 253
+  are confined to diffuser cores and halo centres, under 0.1% of a frame -
+  a glow that saturates a REGION to white is the bug.
+- Every lamp visibly pools on its surroundings (ceiling gradient, deck pool,
+  desk task light) - "lamps illuminate nothing" was the measured failure of
+  the old direction. Verified in the tuning loop; turning it into a probe
+  gate is welcome work.
 - Histogram: no single 8-value bucket over 25% of the frame; spread >= 150.
-  These are enforced by the flatness gate's rebuilt tier.
-- Through any window, Earth's lit limb holds 30-40% of the aperture (the
-  compositional law, applied per window).
+  Enforced by the flatness gate's rebuilt tier.
+- Through a window, Earth's lit limb holds 30-40% of the aperture WHERE THE
+  GEOMETRY ALLOWS IT: at 400 km the limb dips ~20 degrees below horizontal,
+  so a wall porthole honestly shows stars from across the room and Earth as
+  you approach - the close pose (plot-limb) is where the law is measured.
 
 ## Gates, scoped
 
@@ -121,6 +132,14 @@ a lighting pass should spend. Graduating a room is one line in
 Windowed rooms: in solo mount every room is its own station anchor, so real
 space through portholes uses the cupola's proven two-pass scissored recipe.
 In full-station mount only the anchor room may run its exterior pass today;
-non-anchor windowed rooms need either a painted-pane fallback or a
-placement-aware painter - an architecture decision deferred, flagged, and not
-blocking solo delivery.
+non-anchor windowed rooms build shutter plates instead (the plot's two
+mounts share one build function with an `open` flag). A placement-aware
+painter that would let a non-anchor room show real space is an architecture
+decision deferred, flagged, and not blocking solo delivery.
+
+Port closures: the station blanks an unjoined port in orbit-navy at the seam
+plane, which is a quarter-frame single-value slab in any doorway sightline -
+mechanically the thing the flatness gate refuses. A rebuilt room brings its
+OWN closure: warm panelled plates just inboard of the seam, lit by the same
+solver, hidden via `sealPort` exactly when the station's cap is. The navy
+edge that still shows around the plate reads as a door seal and is welcome.

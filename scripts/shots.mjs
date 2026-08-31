@@ -230,7 +230,7 @@ const INTERIOR_PRESETS = [
     room: 'plot',
     t: 19.3,
     bare: true,
-    pose: { x: -1.62, z: -1.05, yaw: 0.0, pitch: -0.28 },
+    pose: { x: -1.62, z: -0.72, yaw: 0.0, pitch: -0.2 },
   },
   {
     // The working view: from mid-room toward the console face, turned far
@@ -250,7 +250,7 @@ const INTERIOR_PRESETS = [
     room: 'plot',
     t: 19.3,
     bare: true,
-    pose: { x: 2.0, z: 1.35, yaw: 2.1, pitch: -0.02 },
+    pose: { x: 1.95, z: 1.05, yaw: 2.35, pitch: -0.02 },
   },
   {
     // The same hunt from the opposite corner, looking back.
@@ -278,7 +278,7 @@ const INTERIOR_PRESETS = [
     room: 'plot',
     t: 19.3,
     bare: true,
-    pose: { x: -1.1, z: 0.55, yaw: Math.PI / 2, pitch: 0.1 },
+    pose: { x: 0.3, z: 0.75, yaw: 1.68, pitch: 0.02 },
   },
   {
     // THE RACKS, down the aisle. The aisle is 0.95 m wide, so "off the centre
