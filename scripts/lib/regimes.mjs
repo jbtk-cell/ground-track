@@ -30,7 +30,7 @@ export const isInterior = (name) => !EXTERIOR.test(name);
  * because the debt is known and is paid one room at a time rather than
  * pretended away.
  */
-export const REBUILT = [/^plot-/];
+export const REBUILT = [/^plot-/, /^plotb-/];
 export const isRebuilt = (name) => REBUILT.some((re) => re.test(name));
 
 /**

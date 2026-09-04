@@ -75,6 +75,7 @@ const EXEMPT = new Map([
  */
 const REBUILT_EXEMPT = new Map([
   ['plot-limb', 'a half-metre close-up: the disc and collar are the subject, the wall is one bay'],
+  ['plotb-limb', 'the same close-up, same pose, in the Blender build of the room'],
 ]);
 
 function readPng(file) {

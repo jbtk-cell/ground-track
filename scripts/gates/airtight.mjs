@@ -61,6 +61,10 @@ const SEALED = [
   // hand: each keeps both apertures outside a 62-degree frame. plot-hero and
   // plot-ports look AT the portholes and are legitimately full of space.
   'plot-console',
+  // The Blender build of the same room, at the same windowless pose. Its first
+  // hidden-face cull deleted the faces sealing the gaps between deck plates,
+  // which put open space along the desk front; this is the check that names it.
+  'plotb-console',
   'plot-offline-a',
   'plot-offline-b',
   'plot-dark',

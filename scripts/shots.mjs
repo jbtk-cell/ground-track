@@ -232,6 +232,41 @@ const INTERIOR_PRESETS = [
     bare: true,
     pose: { x: -1.62, z: -0.72, yaw: 0.0, pitch: -0.2 },
   },
+  // --- The same room built in Blender, at three of the poses above, so the
+  // two can be compared as measurements and not only by eye. Same t, same
+  // bare flag, same pose: everything except how the room was made is held
+  // still. See src/env/plotBlender and tools/blender/build_plot.py.
+  {
+    name: 'plotb-hero',
+    room: 'plot-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 1.85, z: -0.95, yaw: 1.75, pitch: -0.03 },
+  },
+  {
+    name: 'plotb-ports',
+    room: 'plot-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 0.4, z: 0.9, yaw: 0.0, pitch: 0.0 },
+  },
+  {
+    name: 'plotb-limb',
+    room: 'plot-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: -1.62, z: -0.72, yaw: 0.0, pitch: -0.2 },
+  },
+  {
+    // Windowless, and on the airtight gate's SEALED list, so the Blender build
+    // is held to the hole-to-space check as well. It is the check that caught
+    // this room's first cull deleting the faces that sealed the deck gaps.
+    name: 'plotb-console',
+    room: 'plot-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 1.35, z: -0.1, yaw: 2.2, pitch: -0.06 },
+  },
   {
     // The working view: from mid-room toward the console face, turned far
     // enough that neither porthole enters the frame - this pose is on the

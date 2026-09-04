@@ -110,6 +110,22 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     },
   },
   {
+    // The same room built in Blender and lit by Cycles, mounted beside the
+    // hand-built one so the two can be flipped between at identical poses.
+    // See src/env/plotBlender for what is deliberately held identical.
+    id: 'plot-blender',
+    name: 'The Plot (Blender)',
+    description: 'The same flight deck, modelled in Blender and lit by Cycles.',
+    async load() {
+      // This room's geometry and light are files, not code, so the fetch
+      // happens here - where the catalogue is already asynchronous - and
+      // build() stays synchronous like every other room's.
+      const module = await import('./plotBlender/index');
+      await module.ready();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'plot-blender');
+    },
+  },
+  {
     id: 'racks',
     name: 'The Racks',
     description: '8.4 m of rack bays, one aisle wide.',
