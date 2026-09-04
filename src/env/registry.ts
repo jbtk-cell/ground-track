@@ -81,6 +81,15 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     name: 'Station Kepler',
     description: 'The pressurised run. Walk it end to end.',
     async load() {
+      // Three of the station's compartments are Blender-built now, and their
+      // geometry and light are files. Fetch them here so buildStation() can
+      // stay synchronous and build every room at mount, as it always has.
+      const [plot, crawl, bend] = await Promise.all([
+        import('./blender/plot'),
+        import('./blender/crawl'),
+        import('./blender/bend'),
+      ]);
+      await Promise.all([plot.readyPlot(), crawl.readyCrawl(), bend.readyBend()]);
       return definitionFrom(
         (await import('./station/plan')) as unknown as Record<string, unknown>,
         'station'
@@ -120,9 +129,29 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
       // This room's geometry and light are files, not code, so the fetch
       // happens here - where the catalogue is already asynchronous - and
       // build() stays synchronous like every other room's.
-      const module = await import('./plotBlender/index');
-      await module.ready();
+      const module = await import('./blender/plot');
+      await module.readyPlot();
       return definitionFrom(module as unknown as Record<string, unknown>, 'plot-blender');
+    },
+  },
+  {
+    id: 'crawl-blender',
+    name: 'The Crawl (Blender)',
+    description: 'The same duct, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/crawl');
+      await module.readyCrawl();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'crawl-blender');
+    },
+  },
+  {
+    id: 'bend-blender',
+    name: 'The Bend (Blender)',
+    description: 'The same turn, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/bend');
+      await module.readyBend();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'bend-blender');
     },
   },
   {

@@ -24,11 +24,15 @@ import { LIMB_DECK_COMPARTMENT } from '../limbDeck';
 import { SPINE } from '../spine';
 import { CROSSING } from '../crossing';
 import { CROWN } from '../crown';
-import { PLOT } from '../plot';
+// Three compartments are the Blender-built rebuilds (owner direction,
+// 2026-09-04): same ports, same floors, same hull tests as the rooms they
+// replace, geometry from a .glb and light from a Cycles bake. The hand-built
+// twins remain in the catalogue (rooms.html#plot etc.) for comparison.
+import { PLOT_BLENDER_COMPARTMENT } from '../blender/plot';
+import { CRAWL_BLENDER_COMPARTMENT } from '../blender/crawl';
+import { BEND_BLENDER_COMPARTMENT } from '../blender/bend';
 import { RACKS } from '../racks';
-import { CRAWL } from '../crawl';
 import { MAGAZINE } from '../magazine';
-import { BEND } from '../bend';
 import { SILL } from '../sill';
 import { GANTRY } from '../gantry';
 import { BERTH } from '../berth';
@@ -42,10 +46,10 @@ const ROOMS: readonly CompartmentDefinition[] = [
   CROSSING,
   CROWN,
   MAGAZINE,
-  PLOT,
-  CRAWL,
+  PLOT_BLENDER_COMPARTMENT,
+  CRAWL_BLENDER_COMPARTMENT,
   RACKS,
-  BEND,
+  BEND_BLENDER_COMPARTMENT,
   SILL,
   GANTRY,
   BERTH,

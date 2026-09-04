@@ -254,6 +254,46 @@ try {
     stuck.length === 0 ? `${ids.length} walked` : stuck.join('; ')
   );
 
+  // --- The Blender-built seams, walked rather than asserted.
+  //
+  // Three of the station's compartments are .glb rooms now (plot, crawl,
+  // bend), and the whole point of giving them real ports was that a player
+  // walks from one into the next through a continuous floor. That continuity
+  // is exactly the kind of claim that passes every picture gate while being
+  // false - a seam floor 2 cm short, a cap that never unsealed - so it is
+  // walked here, on the keys. Positions are station coordinates from layOut:
+  // the plot sits at (-23.25, -0.45) with identity rotation, its aft seam at
+  // x -25.55 and its spur seam at z -2.15.
+  await page.goto(`http://localhost:${PORT}/rooms.html#station`);
+  await page.waitForFunction(() => window.groundTrackRooms?.ready === true, { timeout: 20000 });
+  await page.evaluate(() => window.groundTrackRooms.setPaused(false));
+
+  await page.evaluate(() =>
+    window.groundTrackRooms.setPose({ x: -24.1, z: 0.1, yaw: Math.PI / 2, pitch: 0 })
+  );
+  await page.keyboard.down('w');
+  await new Promise((r) => setTimeout(r, 3000));
+  await page.keyboard.up('w');
+  const inBend = await pose();
+  check(
+    'walking aft out of the plot crosses the seam into the bend',
+    inBend.x < -25.8,
+    `reached x=${inBend.x.toFixed(2)}, seam is -25.55`
+  );
+
+  await page.evaluate(() =>
+    window.groundTrackRooms.setPose({ x: -23.65, z: -0.8, yaw: 0, pitch: 0 })
+  );
+  await page.keyboard.down('w');
+  await new Promise((r) => setTimeout(r, 3000));
+  await page.keyboard.up('w');
+  const inCrawl = await pose();
+  check(
+    'walking the spur out of the plot crosses the seam into the crawl',
+    inCrawl.z < -2.6,
+    `reached z=${inCrawl.z.toFixed(2)}, seam is -2.15`
+  );
+
   // --- The rebuilt flight deck, played rather than posed.
   //
   // The plot spawn faces the console; holding W walks a body to the rail, and

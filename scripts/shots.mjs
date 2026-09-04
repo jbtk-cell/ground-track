@@ -235,7 +235,7 @@ const INTERIOR_PRESETS = [
   // --- The same room built in Blender, at three of the poses above, so the
   // two can be compared as measurements and not only by eye. Same t, same
   // bare flag, same pose: everything except how the room was made is held
-  // still. See src/env/plotBlender and tools/blender/build_plot.py.
+  // still. See src/env/blender/plot.ts and tools/blender/build_plot.py.
   {
     name: 'plotb-hero',
     room: 'plot-blender',
@@ -266,6 +266,45 @@ const INTERIOR_PRESETS = [
     t: 19.3,
     bare: true,
     pose: { x: 1.35, z: -0.1, yaw: 2.2, pitch: -0.06 },
+  },
+  {
+    // THE CRAWL, Blender-built: from the mouth looking down the whole duct -
+    // the taper, the three deck steps, the level trunk that makes the climb
+    // legible, and the amber pool at the blind end. Windowless; SEALED.
+    name: 'crawlb-run',
+    room: 'crawl-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 3.1, z: 0, yaw: Math.PI / 2, pitch: 0.06 },
+  },
+  {
+    // Deep in the duct on the top deck, looking at the blank flange and the
+    // lamp - the dim end of the dimmest room. Off the centre line toward the
+    // trunk side, the pose class that finds band recesses open to space;
+    // hugging the opposite wall put a third of the frame 0.35 m from the eye
+    // in its own shadow, which is a dead frame about the pose, not the room.
+    name: 'crawlb-blind',
+    room: 'crawl-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: -1.4, z: -0.08, yaw: Math.PI / 2, pitch: 0.0 },
+  },
+  {
+    // THE BEND, Blender-built: from the fore end looking into the turn. The
+    // room's whole claim is the arc revealing itself one facet at a time.
+    name: 'bendb-sweep',
+    room: 'bend-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 0.4, z: 3.577, yaw: -Math.PI / 2, pitch: 0 },
+  },
+  {
+    // Mid-arc, square to the album wall: nine stills, each its own light.
+    name: 'bendb-album',
+    room: 'bend-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 2.263, z: 2.263, yaw: Math.PI * 1.25, pitch: 0.02 },
   },
   {
     // The working view: from mid-room toward the console face, turned far

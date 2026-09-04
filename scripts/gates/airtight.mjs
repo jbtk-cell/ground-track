@@ -65,6 +65,12 @@ const SEALED = [
   // hidden-face cull deleted the faces sealing the gaps between deck plates,
   // which put open space along the desk front; this is the check that names it.
   'plotb-console',
+  // The Blender-built crawl and bend have no windows at all, so every one of
+  // their poses qualifies - the same blanket rule as the spine.
+  'crawlb-run',
+  'crawlb-blind',
+  'bendb-sweep',
+  'bendb-album',
   'plot-offline-a',
   'plot-offline-b',
   'plot-dark',
