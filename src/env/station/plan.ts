@@ -21,38 +21,38 @@
  * in ./compartment.ts.
  */
 import { LIMB_DECK_COMPARTMENT } from '../limbDeck';
-import { SPINE } from '../spine';
-import { CROSSING } from '../crossing';
-import { CROWN } from '../crown';
-// Three compartments are the Blender-built rebuilds (owner direction,
+// Five compartments are the Blender-built rebuilds (owner direction,
 // 2026-09-04): same ports, same floors, same hull tests as the rooms they
 // replace, geometry from a .glb and light from a Cycles bake. The hand-built
 // twins remain in the catalogue (rooms.html#plot etc.) for comparison.
 import { PLOT_BLENDER_COMPARTMENT } from '../blender/plot';
 import { CRAWL_BLENDER_COMPARTMENT } from '../blender/crawl';
 import { BEND_BLENDER_COMPARTMENT } from '../blender/bend';
-import { RACKS } from '../racks';
-import { MAGAZINE } from '../magazine';
-import { SILL } from '../sill';
-import { GANTRY } from '../gantry';
-import { BERTH } from '../berth';
+import { SILL_BLENDER_COMPARTMENT } from '../blender/sill';
+import { GANTRY_BLENDER_COMPARTMENT } from '../blender/gantry';
+import { BERTH_BLENDER_COMPARTMENT } from '../blender/berth';
+import { RACKS_BLENDER_COMPARTMENT } from '../blender/racks';
+import { MAGAZINE_BLENDER_COMPARTMENT } from '../blender/magazine';
+import { CROWN_BLENDER_COMPARTMENT } from '../blender/crown';
+import { SPINE_BLENDER_COMPARTMENT } from '../blender/spine';
+import { CROSSING_BLENDER_COMPARTMENT } from '../blender/crossing';
 import type { CompartmentDefinition } from './compartment';
 import { type Connection, connect } from './ports';
 import { type StationHandle, type StationPlan, buildStation } from './index';
 
 const ROOMS: readonly CompartmentDefinition[] = [
   LIMB_DECK_COMPARTMENT,
-  SPINE,
-  CROSSING,
-  CROWN,
-  MAGAZINE,
+  SPINE_BLENDER_COMPARTMENT,
+  CROSSING_BLENDER_COMPARTMENT,
+  CROWN_BLENDER_COMPARTMENT,
+  MAGAZINE_BLENDER_COMPARTMENT,
   PLOT_BLENDER_COMPARTMENT,
   CRAWL_BLENDER_COMPARTMENT,
-  RACKS,
+  RACKS_BLENDER_COMPARTMENT,
   BEND_BLENDER_COMPARTMENT,
-  SILL,
-  GANTRY,
-  BERTH,
+  SILL_BLENDER_COMPARTMENT,
+  GANTRY_BLENDER_COMPARTMENT,
+  BERTH_BLENDER_COMPARTMENT,
 ];
 
 const CONNECTIONS: readonly Connection[] = [

@@ -1,20 +1,34 @@
 # Rooms built in Blender
 
 This document is a REPORT, not direction. docs/INTERIORS.md still governs how
-rebuilt rooms look. It records two stages of work: the experiment of
-2026-09-03 (build THE PLOT a second time in Blender, mount both, compare), and
-the adoption of 2026-09-04 at the owner's request - the Blender flight deck
-promoted to a real station compartment, THE CRAWL and THE BEND rebuilt the
-same way, and all three walked as one continuous station.
+rebuilt rooms look; docs/DIRECTION.md still governs the orbital frames. It
+records three stages of work: the experiment of 2026-09-03 (build THE PLOT a
+second time in Blender, mount both, compare), the adoption of 2026-09-04 (the
+flight deck promoted to a real compartment, THE CRAWL and THE BEND rebuilt),
+and the full rollout of 2026-09-04 at the owner's direction ("implement this
+for all rooms, you can redesign them however you see fit"): every room whose
+light is authored is now Blender-built and Cycles-lit.
 
 ## Where things stand
 
-Three of Station Kepler's twelve compartments are Blender-built: `plot`,
-`crawl` and `bend`, exactly the three that touch (the crawl hangs off the
-plot's spur, the bend off its aft door). `rooms.html#station` walks the whole
-station with those rooms in place; `rooms.html#plot-blender`, `#crawl-blender`
-and `#bend-blender` mount each alone. The hand-built twins remain in the
-catalogue (`#plot`, `#crawl`, `#bend`) for comparison.
+Eleven of Station Kepler's twelve compartments are Blender-built: `plot`,
+`crawl`, `bend`, `sill`, `gantry`, `berth`, `racks`, `magazine`, `crown`,
+`spine` and `crossing`. `rooms.html#station` walks the whole station with
+those rooms in place; every room also mounts alone as `#<room>-blender`. The
+hand-built twins remain in the catalogue for comparison.
+
+THE LIMB DECK is the deliberate exception, and the reason is architectural
+rather than unfinished work. A baked lightmap is constant in `t`, and the
+limb deck is the one room whose entire subject is light changing in `t`: the
+sun walks the deck once per revolution, the eclipse guts it, the dial tracks
+the bearing, the motes hang in the beam, and the pinned poses (deck-noon
+against deck-eclipse) measure exactly that change. Its light already IS a
+physical simulation - the game's own sun - which is what the Cycles rebuild
+gives the other rooms. Freezing it into a texture would make the showpiece
+worse. It stays on DIRECTION.md's orbital rig. If it is ever to join the
+baked rooms it needs a designed hybrid (Lambert materials taking a baked
+ambient term under the live orbital keys), which is an architecture decision
+for the owner, not a gap.
 
 The pipeline is split in two:
 
@@ -22,101 +36,93 @@ The pipeline is split in two:
   mapping, box/prism builders, booleans, bevels, the visibility cull, the
   two-UV unwrap, the Cycles bake, the lightmap write, the glTF export. A
   defect fixed here is fixed for every room at once.
-- `tools/blender/build_plot.py`, `build_crawl.py`, `build_bend.py` - one per
-  room, each owning only its PLAN: numbers copied from the room's src/env
-  twin, its materials, its geometry, its lamps. Building a fourth room is a
-  new plan file, not a new pipeline.
+- `tools/blender/build_<room>.py`, one per room, each owning only its PLAN:
+  numbers copied from the room's src/env twin, its materials, its geometry,
+  its lamps. Building a room is a plan file, not a pipeline.
 
 Run any of them headless; nothing takes over the screen:
 
-    blender --background --python tools/blender/build_crawl.py
+    blender --background --python tools/blender/build_crown.py
 
 Each writes `public/blender/<room>.glb` and `<room>-lightmap.png`.
-`GT_BAKE_SAMPLES=16` in the environment smoke-tests a whole build in about a
-minute without pretending to be a bake.
+`GT_BAKE_SAMPLES=16` smoke-tests a whole build in about a minute. The shots
+harness serves `dist/`, so `npm run build` after any rebake or nothing on
+screen changes.
 
 On the runtime side, `src/env/blender/loader.ts` fetches assets and swaps
-materials for the unlit-plus-lightmap pair; `plot.ts`, `crawl.ts` and
-`bend.ts` are full `CompartmentDefinition`s - ports, declared solids, hull
-test, floors, caps toggled by `sealPort()` - so the station places and tests
-them exactly as it does hand-built rooms. Their build() constructs the whole
-testable contract with no assets on hand (the room tests run in Node); the
-registry awaits the fetch before any real mount.
+materials for the unlit-plus-lightmap pair; each room's module under
+`src/env/blender/` is a full `CompartmentDefinition` - ports, declared
+solids, hull test, floors, caps toggled by `sealPort()` - so the station
+places and tests them exactly as it did the hand-built rooms. build()
+constructs the whole testable contract with no assets on hand (the room
+tests run in Node); the registry awaits the fetches before any real mount.
 
-## What the adoption established, beyond the experiment
+## What the full rollout established
 
-**A Blender room can be a first-class compartment.** All 80 room tests hold:
-ports match their declarations, solids clash with nothing, everything stays
-inside `contains()`, no room but the anchor paints, the seams are continuous
-floor. The station neither knows nor cares that three of its rooms are files.
+**Screens draw from the sim, models carry only their light.** Every readout
+on the station - the plot's three instruments, the sill's salvage register,
+the gantry's transfer board, the berth's and racks' manifests, the crossing's
+offer queue - is runtime geometry from `src/env/kit/instruments`, laid proud
+of a face whose .glb contributes one hidden emissive plate so the bake
+receives the screen's light. The crown goes further: its regime rings derive
+from `src/sim`'s live regime definitions, so they are runtime geometry too -
+geometry that tracks data belongs where the data is.
 
-**The screens are shared, not duplicated.** The .glb no longer models screen
-content. The runtime lays the same procedural instrument geometry the
-hand-built console uses (`src/env/kit/instruments`: text rows, trace, bar
-graph, chip runs) proud of the Blender bank face, and the model contributes
-one hidden emissive plate per face so the Cycles bake still receives the
-screens' light. One source of truth for what the screens say; two rooms that
-say it. Canvas textures were never an option - docs/INTERIORS.md bans Canvas
-2D outright because Skia rasterisation drifts across Chromium versions,
-straight into the CI pixel baselines.
+**Cycles is an audit of the legacy lighting, and it fails the fakes.** Three
+rooms' rigs turned out to be physically impossible and had to be redesigned
+honestly:
 
-**Doorway caps belong to the runtime, not the model.** Whether a seam is a
-doorway or the end of the station is decided after layout, so a cap baked
-into the mesh could never be removed when rooms join. The build scripts keep
-bake-only cap objects (they seal the bake so light cannot leak and reveals
-receive honest bounce) but exclude them from the export; the runtime builds
-its own plates and shows them only while a port leads nowhere.
+- THE CROWN's "lightest upper wall" was a shadowless DirectionalLight's lie:
+  an 0.85 m gallery ring SHADOWS the wall below it, so emissive panes alone
+  gave dark courses and bounce-lit gallery undersides - the inversion
+  inverted. Fixed in the station's own idiom: each gallery carries a cove
+  strip under its outer edge and lights the course beneath it.
+- THE MAGAZINE's earthshine beam was an analytic projection cut into the far
+  wall's facets. Now the grating is genuinely open in the bake, a sun stands
+  in for the planet at the same fifty degrees, and the barred rectangle, the
+  crown-ledge step across it and the wash it throws back are physics. The
+  runtime closes the hole with its own plenum panel - the doorway-cap split
+  applied to a skylight. The sun also had to be SIZED like one: at the
+  legacy-matched energy 4 the bars peaked at bake value ~1.0 against the
+  2.2 write range - a whole room below luma 116, which the flatness gate
+  caught. A sun that cannot clip at its own bar cores is not a sun; at 20
+  the beam clips hot and its bounce is what grades the tall dark volume.
+- THE SILL's sump lamp, mounted low as the legacy room had it, lit a puddle
+  and left 4.5 m of drop reading as a black shaft; the room's own prose
+  ("tucked under the lip") turned out to be the correct engineering, and the
+  lamp now washes the pit from under the soffit.
 
-## Things that cost time this round, so the next room does not pay
+**The gallery-seam caps needed wider margins.** A 2.10 m doorway plus an
+oblique pose slips a grazing sightline past a 0.05 m cap margin at 0.03 m of
+inset - found by the airtight gate as 548 pixels of space in gantryb-board.
+All new rooms' cap plates carry 0.12 m side margins.
 
-**The parked texel must actually be reserved.** Hidden faces are kept and
-parked on one lightmap texel - but the packer fills the whole unit square,
-so "a texel in the corner" landed inside a bright island and the crawl's
-blind-end walls rendered flat pale. The islands are now scaled to leave the
-corner genuinely empty; the empty corner bakes at the light floor, so a
-parked face renders very dark, never bright.
+**A big flat emitter floods.** The gantry's wide-door spill at the crawl's
+strength 7 was 4.8 m2 of plate and washed the nearest tank rank white; wide
+doors carry their own spill material at a fraction of the strength.
 
-**A Cycles room has no free ambient.** The legacy crawl is lit by a 0.32
-hemisphere light that reaches everywhere by fiat. In a path-traced room every
-photon comes from an authored emitter, and the first bake's blind end sat
-entirely at the light floor - uniform, flat, readable as a defect. What a
-legacy room gets for free, a rebuilt room's lamps must earn: the amber lamp
-runs at emission strength 48 where 6 read as plausible on paper, and the mouth
-carries a bake-only spill plate standing in for the flight deck next door.
+## Things that cost time in earlier rounds, still binding
 
-**A band's backing must reach past the face of the band it meets.** The crown
-stands proud at -0.14 with a 0.20 backing, the work band is recessed to
-+0.08, and the 2 cm shortfall between them was a slot to space running the
-whole length of both new rooms - the airtight gate saw thousands of void
-pixels along a joint that looked like a shadow line. The kick band never
-leaked for exactly this reason (its backing reaches +0.14), so the rule was
-already in the geometry; now it is written down: crown backings are 0.34.
-
-**Two coplanar caps shimmer.** The station adds its own generic blank to any
-sealed port whether or not the room brought one, and its inner face laps
-12 mm into the room - exactly where the first cut of the runtime cap plate
-sat. The room's plate now stands 30 mm in, in front of the blank, and reads
-as the room's own closure.
-
-**The shot harness serves dist/, not public/.** A rebaked lightmap changes
-nothing on screen until `npm run build` copies it in - which reads as "my fix
-did nothing" and burns a diagnosis cycle on a file that was never loaded.
-
-**Gates measured under a running bake measure the bake.** The playable gate
-walks on real keys against wall-clock timers; with a 1024-sample bake holding
-the GPU, every walk comes up short and every check fails differently per
-run. Playability verdicts only count from an idle machine.
+- **The parked texel must actually be reserved** (islands scaled to 0.97,
+  park at 0.995) or hidden faces render in somebody else's light.
+- **A Cycles room has no free ambient**: what a legacy hemisphere gave for
+  free, authored emitters must earn.
+- **A band's backing must reach past the face of the band it meets** or the
+  joint is a slot to space. The shared-outer-plane wall scheme in the build
+  scripts satisfies this by construction.
+- **Two coplanar caps shimmer**: the runtime cap stands 30 mm in, in front
+  of the station's 12 mm blank.
+- **Gates measured under a running bake measure the bake**: playability
+  verdicts only count from an idle machine.
 
 ## What is not done
 
-- The lightmaps are uncompressed PNG (about 8 MB across three rooms). Mesh
-  and texture compression, and loading rooms on entry, all remain untouched.
-- Collision, reach and the floor rectangles are still declared in TypeScript
-  and copied by hand from the plan constants. Reading them out of named
-  objects in the .glb would make the model the single source of truth.
-- Nine legacy rooms remain hand-built. The crawl and bend were chosen because
-  they adjoin the plot; the run beyond the bend (sill, gantry) is the natural
-  next pair.
-- The shots-diff baselines for the changed frames move by CI artifact, not
-  locally; the branch carries new frames (`crawlb-*`, `bendb-*`) with no
-  baseline until CI blesses them.
+- The lightmaps are uncompressed PNG (tens of MB across eleven rooms).
+  Compression and on-entry loading remain untouched.
+- Collision, reach and floor rectangles are still declared in TypeScript and
+  copied from the plan constants by hand.
+- THE LIMB DECK's hybrid (baked ambient under live orbital keys) is designed
+  nowhere and deferred deliberately; see above.
+- The shots-diff baselines for the changed frames move by CI artifact; the
+  branch carries the new `*b-*` frames with no baseline until CI blesses
+  them.

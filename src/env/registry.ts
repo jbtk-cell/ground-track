@@ -51,6 +51,16 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     },
   },
   {
+    id: 'spine-blender',
+    name: 'The Spine (Blender)',
+    description: 'The same corridor, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/spine');
+      await module.readySpine();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'spine-blender');
+    },
+  },
+  {
     id: 'spine',
     name: 'The Spine',
     description: 'An 11 m connecting run, one person wide.',
@@ -59,6 +69,16 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
         (await import('./spine/index')) as unknown as Record<string, unknown>,
         'spine'
       );
+    },
+  },
+  {
+    id: 'crossing-blender',
+    name: 'The Crossing (Blender)',
+    description: 'The same hub, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/crossing');
+      await module.readyCrossing();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'crossing-blender');
     },
   },
   {
@@ -81,19 +101,50 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     name: 'Station Kepler',
     description: 'The pressurised run. Walk it end to end.',
     async load() {
-      // Three of the station's compartments are Blender-built now, and their
+      // Five of the station's compartments are Blender-built now, and their
       // geometry and light are files. Fetch them here so buildStation() can
       // stay synchronous and build every room at mount, as it always has.
-      const [plot, crawl, bend] = await Promise.all([
-        import('./blender/plot'),
-        import('./blender/crawl'),
-        import('./blender/bend'),
+      const [plot, crawl, bend, sill, gantry, berth, racks, magazine, crown, spine, crossing] =
+        await Promise.all([
+          import('./blender/plot'),
+          import('./blender/crawl'),
+          import('./blender/bend'),
+          import('./blender/sill'),
+          import('./blender/gantry'),
+          import('./blender/berth'),
+          import('./blender/racks'),
+          import('./blender/magazine'),
+          import('./blender/crown'),
+          import('./blender/spine'),
+          import('./blender/crossing'),
+        ]);
+      await Promise.all([
+        plot.readyPlot(),
+        crawl.readyCrawl(),
+        bend.readyBend(),
+        sill.readySill(),
+        gantry.readyGantry(),
+        berth.readyBerth(),
+        racks.readyRacks(),
+        magazine.readyMagazine(),
+        crown.readyCrown(),
+        spine.readySpine(),
+        crossing.readyCrossing(),
       ]);
-      await Promise.all([plot.readyPlot(), crawl.readyCrawl(), bend.readyBend()]);
       return definitionFrom(
         (await import('./station/plan')) as unknown as Record<string, unknown>,
         'station'
       );
+    },
+  },
+  {
+    id: 'crown-blender',
+    name: 'The Crown (Blender)',
+    description: 'The same shaft, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/crown');
+      await module.readyCrown();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'crown-blender');
     },
   },
   {
@@ -155,6 +206,46 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     },
   },
   {
+    id: 'sill-blender',
+    name: 'The Sill (Blender)',
+    description: 'The same register room, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/sill');
+      await module.readySill();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'sill-blender');
+    },
+  },
+  {
+    id: 'gantry-blender',
+    name: 'The Gantry (Blender)',
+    description: 'The same tank farm, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/gantry');
+      await module.readyGantry();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'gantry-blender');
+    },
+  },
+  {
+    id: 'berth-blender',
+    name: 'The Berth (Blender)',
+    description: 'The same drum, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/berth');
+      await module.readyBerth();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'berth-blender');
+    },
+  },
+  {
+    id: 'racks-blender',
+    name: 'The Racks (Blender)',
+    description: 'The same stores, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/racks');
+      await module.readyRacks();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'racks-blender');
+    },
+  },
+  {
     id: 'racks',
     name: 'The Racks',
     description: '8.4 m of rack bays, one aisle wide.',
@@ -174,6 +265,16 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
         (await import('./crawl/index')) as unknown as Record<string, unknown>,
         'crawl'
       );
+    },
+  },
+  {
+    id: 'magazine-blender',
+    name: 'The Magazine (Blender)',
+    description: 'The same silent room, modelled in Blender and lit by Cycles.',
+    async load() {
+      const module = await import('./blender/magazine');
+      await module.readyMagazine();
+      return definitionFrom(module as unknown as Record<string, unknown>, 'magazine-blender');
     },
   },
   {

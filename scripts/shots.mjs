@@ -307,6 +307,168 @@ const INTERIOR_PRESETS = [
     pose: { x: 2.263, z: 2.263, yaw: Math.PI * 1.25, pitch: 0.02 },
   },
   {
+    // THE SILL, Blender-built: standing on the grating, eye tipped hard down
+    // the room's one long sightline - the sump walls in courses, the frames
+    // on the foundations, the soffit that makes the pit wider than the way
+    // in. The pose class that finds holes where the sump meets the deck.
+    name: 'sillb-drop',
+    room: 'sill-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 0.0, z: 0, yaw: Math.PI / 2, pitch: -0.85 },
+  },
+  {
+    // From the port aisle: the register plate with its drawn rows in the near
+    // frame, the rails over the drop, the dead pump bank across the room and
+    // the starboard cove over it.
+    name: 'sillb-register',
+    room: 'sill-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 1.05, z: -1.5, yaw: 2.62, pitch: -0.12 },
+  },
+  {
+    // THE GANTRY, Blender-built: one pace inside the wide opening, down the
+    // central aisle - a forest, receding, lit from between the trunks. The
+    // far door is hidden behind three ranks, which is the room's design.
+    name: 'gantryb-forest',
+    room: 'gantry-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 4.8, z: 0, yaw: Math.PI / 2, pitch: -0.02 },
+  },
+  {
+    // The transfer board with its drawn column, the coffer header overhead:
+    // the one place in the room a player is guaranteed to stand.
+    name: 'gantryb-board',
+    room: 'gantry-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 3.4, z: -2.45, yaw: -1.78, pitch: -0.03 },
+  },
+  {
+    // Off the centre line, hugging the port wall, looking diagonally down a
+    // rank - the hole-hunting pose class, under the room's lowest light.
+    name: 'gantryb-rank',
+    room: 'gantry-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: -4.4, z: 2.9, yaw: -2.07, pitch: -0.02 },
+  },
+  {
+    // THE BERTH, Blender-built: one pace in from the door, the empty middle,
+    // the shut round hatch dead ahead - the only curve aboard, and the room's
+    // whole sentence in one frame.
+    name: 'berthb-hatch',
+    room: 'berth-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 1.7, z: 0, yaw: Math.PI / 2, pitch: -0.04 },
+  },
+  {
+    // Square to the manifest board with its drawn rows, the worn tie-down
+    // haloes in the near deck, a diagonal facet each side - the pose class
+    // that finds mitre slits where two facets meet.
+    name: 'berthb-manifest',
+    room: 'berth-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: -0.4, z: 0.4, yaw: Math.PI + 0.25, pitch: -0.12 },
+  },
+  {
+    // THE RACKS, Blender-built: from the fore door down the whole aisle -
+    // fifty drawer faces at 1.05 m frequency, the withdrawn drawers pinching
+    // the walk, the tote warm at the far end of the one long sightline.
+    name: 'racksb-aisle',
+    room: 'racks-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 3.55, z: 0, yaw: Math.PI / 2, pitch: 0 },
+  },
+  {
+    // Square to the manifest bay: the board's drawn rows on the rack that
+    // carries it, an open bay's dark mouth beside it, stock in silhouette.
+    name: 'racksb-manifest',
+    room: 'racks-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 1.1, z: -0.3, yaw: Math.PI + 0.5, pitch: -0.06 },
+  },
+  {
+    // THE MAGAZINE, Blender-built: just inside the door, pitched up - the
+    // height, the restraint frame, and the planet's barred light on the far
+    // wall, cast by a real sun through a real grating.
+    name: 'magazineb-beam',
+    room: 'magazine-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 2.1, z: 0, yaw: Math.PI / 2, pitch: 0.08 },
+  },
+  {
+    // From the far corner looking back through the frame at the door - the
+    // silhouette pose, the room's dark seen against its one lit patch.
+    name: 'magazineb-frame',
+    room: 'magazine-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: -1.7, z: 1.6, yaw: -1.45, pitch: -0.12 },
+  },
+  {
+    // THE CROWN, Blender-built: at the table looking up into the height -
+    // the emissive panes, the three galleries counting the nine metres, the
+    // upper wall lightest and dimming by the metre.
+    name: 'crownb-up',
+    room: 'crown-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 2.4, z: 0.6, yaw: Math.PI / 2 + 0.25, pitch: 0.62 },
+  },
+  {
+    // The table with its runtime regime rings, the survey plate, the aft
+    // door sealed beyond - the working end of the room, at body height.
+    name: 'crownb-table',
+    room: 'crown-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 1.6, z: -1.3, yaw: 1.95, pitch: -0.14 },
+  },
+  {
+    // THE SPINE, Blender-built: the long converging view, eight frames and
+    // eight pools of light marching to the vanishing point.
+    name: 'spineb-run',
+    room: 'spine-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 4.7, z: 0, yaw: Math.PI / 2, pitch: 0 },
+  },
+  {
+    // Off the centre line, hugging the port wall - the hole-hunting pose
+    // class, the frames and handrail grazing past.
+    name: 'spineb-off',
+    room: 'spine-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 3.2, z: -0.38, yaw: Math.PI / 2 - 0.16, pitch: 0.06 },
+  },
+  {
+    // THE CROSSING, Blender-built: from the door you arrive by, up the
+    // slope - nine lid facets at nine values, the trunk's diagonal, the
+    // platform to the wide high door.
+    name: 'crossingb-slope',
+    room: 'crossing-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 1.9, z: 0.4, yaw: 1.42, pitch: 0.25 },
+  },
+  {
+    // The offer board with its drawn queue, first thing on the way in.
+    name: 'crossingb-board',
+    room: 'crossing-blender',
+    t: 19.3,
+    bare: true,
+    pose: { x: 1.0, z: 0.6, yaw: Math.PI + 0.58, pitch: -0.06 },
+  },
+  {
     // The working view: from mid-room toward the console face, turned far
     // enough that neither porthole enters the frame - this pose is on the
     // SEALED list and must stay windowless.
