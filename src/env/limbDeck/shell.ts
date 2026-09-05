@@ -25,6 +25,7 @@ import {
   toGeometry,
 } from '../kit/mesh';
 import { LIMB_DECK_ORBIT, sunDirection } from '../orbit';
+import { LIGHT_INTENSITY, bakedParts } from '../blender/loader';
 import type { Aperture, Frame, ShellHandle } from './contract';
 
 const DEG = Math.PI / 180;
@@ -1172,8 +1173,35 @@ export function buildShell(): ShellHandle {
 
   const structureMaterial = interiorMaterial();
   const lampMaterial = diffuserMaterial();
-  const structureGeometry = toGeometry(structure);
-  const lampGeometry = toGeometry(lamps);
+  let structureGeometry = toGeometry(structure);
+  let lampGeometry = toGeometry(lamps);
+
+  // THE HYBRID (owner direction, 2026-09-05): when the Cycles bake of this
+  // exact geometry is on hand, use its .glb copies instead - the same two
+  // meshes to the millimetre (scripts/export-limbdeck-shell.ts exports them,
+  // tools/blender/build_limbdeck.py re-imports them), but carrying lightmap
+  // UVs. The materials stay THESE materials, so the orbital rig lights the
+  // room exactly as before; the map adds only the indirect term - the lamp
+  // troughs' bounce filling the hull crown - that the rig's ambient backstop
+  // could only guess at. Direct light is never in the map, so nothing is
+  // counted twice and nothing goes stale when the orbit turns.
+  const baked = bakedParts('limbdeck');
+  if (baked !== null) {
+    for (const part of baked.parts) {
+      if (part.materialName === 'STRUCTURE') {
+        structureGeometry.dispose();
+        structureGeometry = part.geometry;
+      } else if (part.materialName === 'LAMPS') {
+        lampGeometry.dispose();
+        lampGeometry = part.geometry;
+      } else {
+        part.geometry.dispose();
+      }
+    }
+    structureMaterial.lightMap = baked.lightMap;
+    structureMaterial.lightMapIntensity = LIGHT_INTENSITY;
+    structureMaterial.needsUpdate = true;
+  }
 
   const hull = new THREE.Mesh(structureGeometry, structureMaterial);
   hull.name = 'shell-structure';

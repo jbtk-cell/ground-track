@@ -364,7 +364,7 @@ def check_slots(room):
         raise RuntimeError(f"material slots with no material carry faces: {counts}")
 
 
-def bake(room, atlas, samples):
+def bake(room, atlas, samples, direct=True):
     check_slots(room)
     samples = int(os.environ.get(SAMPLES_ENV, samples))
     img = bpy.data.images.new(f"{room.name}_lightmap", atlas, atlas,
@@ -398,7 +398,11 @@ def bake(room, atlas, samples):
     sc.cycles.adaptive_threshold = 0.005
     sc.cycles.adaptive_min_samples = 64
     b = sc.render.bake
-    b.use_pass_direct = True
+    # direct=False bakes BOUNCE ONLY - for a hybrid room whose direct light
+    # stays live at runtime (the limb deck: the orbital rig's lamps and sun
+    # keep shining on Lambert materials, and the map carries only the
+    # inter-reflection Cycles can compute and the runtime cannot).
+    b.use_pass_direct = direct
     b.use_pass_indirect = True
     b.use_pass_color = False
     b.use_selected_to_active = False
@@ -496,7 +500,7 @@ def fresh_scene():
     sc.cycles.diffuse_bounces = 6
 
 
-def produce(name, stem, inside, atlas, samples, tag):
+def produce(name, stem, inside, atlas, samples, tag, direct=True):
     """Cull, unwrap, bake, write, export - everything after the geometry."""
     room = join_room(name)
     total = len(room.data.polygons)
@@ -509,7 +513,7 @@ def produce(name, stem, inside, atlas, samples, tag):
             by_mat[key] = by_mat.get(key, 0) + 1
     print(f"[{tag}] hidden by material: {sorted(by_mat.items(), key=lambda kv: -kv[1])}")
     unwrap(room, hidden)
-    img = bake(room, atlas, samples)
+    img = bake(room, atlas, samples, direct)
     clipped = write_lightmap(img, stem)
     export(room, stem)
     share = 100.0 * len(hidden) / max(1, total)

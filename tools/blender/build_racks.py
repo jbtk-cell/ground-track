@@ -5,12 +5,16 @@ Build THE RACKS in Blender, light it with Cycles, bake it, and export it.
 
 Writes public/blender/racks.glb and racks-lightmap.png.
 
-The room, per src/env/racks: the stores - 8.40 by 3.05 m flat at 2.42, a bank
-of rack bays 1.05 m deep down both long walls and a 0.95 m aisle between.
-Sixteen bays on the ISPR pitch, fifty drawer faces with pulls and labels,
-four bays standing open with stock in silhouette and their drawers ridden out
-into the aisle, the manifest board, the blank perch bay, and one foil tote
-left standing where it does not belong.
+The room, per src/env/racks with one owner-directed change of 2026-09-05:
+the stores - 8.40 by 3.05 m flat at 2.42, a bank of rack bays down both long
+walls. The banks are 0.90 m deep (the legacy 1.05 left an 0.95 m aisle whose
+open drawers rode out past the centreline - a corridor no body could pass;
+"impossible for a person in real life to walk through", and the owner is
+right). The aisle is 1.25 m between faces, the four open drawers ride out
+0.30 m on staggered sides, and the worst pinch leaves 0.95 m of clear walk.
+Sixteen bays on the ISPR pitch, drawer faces with pulls and labels, stock in
+silhouette, the manifest board, the blank perch bay, and the foil tote
+standing on a ridden-out drawer where it does not belong.
 
 NO DIRECTIONAL LIGHT, and the rebuild keeps the rule by construction: eight
 identical fittings on the bay pitch down the middle of the ceiling and
@@ -39,25 +43,26 @@ FLOOR_Y, CEILING_Y = 0.0, 2.42
 SEAM_W, SEAM_H = 1.18, 2.06
 THICK = 0.10
 
-BAY_M = 1.05
+BAY_M = 1.05                             # pitch along the wall (ISPR)
+BANK_D = 0.90                            # bank depth - NOT the pitch
 BAYS = 8
 BAY_GAP = 0.04
 BAY_W = BAY_M - BAY_GAP
-AISLE_HALF = HALF_Z - BAY_M              # 0.475
+AISLE_HALF = HALF_Z - BANK_D             # 0.625: a 1.25 m aisle
 RACK_TOP = 2.05
 PLINTH_H = 0.05
 
 FACE_RELIEF = 0.055
 FACE_Z = AISLE_HALF
 CARCASS_Z = AISLE_HALF + FACE_RELIEF
-CAVITY_BACK_Z = CARCASS_Z + 0.86
+CAVITY_BACK_Z = CARCASS_Z + 0.81
 BANK_BACK_Z = HALF_Z - 0.005
 
 DRAWERS = 5
 DRAWER_H, DRAWER_GAP = 0.37, 0.025
 DRAWER_W = BAY_W - 0.04
 PULL_W, LABEL_W = 0.32, 0.24
-DRAWER_OUT = 0.51
+DRAWER_OUT = 0.30
 OPEN_DRAWER_W = 0.94
 DRAWER_FRONT_Z = AISLE_HALF - DRAWER_OUT
 
@@ -215,9 +220,11 @@ def build_room(M):
             for k in range(DRAWERS):
                 shut_drawer(M, tag, cx, side, k)
 
-    # --- The tote: warm, out of place, on the open drawer six metres down.
+    # --- The tote: warm, out of place, standing on bay p2's ridden-out
+    # drawer. (It was declared at bay 1 - a SHUT bay - and floated in
+    # mid-air over the aisle; found during the walkability redesign.)
     top = drawer_y(2)[1]
-    dbox("tote", BAY_CENTRES[1], -1, (-0.18, 0.18), (top, top + 0.24), (0.06, 0.42), M["FOIL"])
+    dbox("tote", BAY_CENTRES[2], -1, (-0.24, 0.12), (top, top + 0.24), (0.44, 0.80), M["FOIL"])
 
     # --- Eight fittings on the bay pitch. The entire rig.
     for n, cx in enumerate(BAY_CENTRES):

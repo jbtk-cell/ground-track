@@ -1,11 +1,14 @@
 /**
  * THE RACKS, BUILT IN BLENDER - the stores, as a station compartment.
  *
- * The same room as src/env/racks in every number that matters: 8.40 by
- * 3.05 m flat at 2.42, sixteen bays on the ISPR pitch down both long walls,
- * fifty drawer faces, four bays standing open with their drawers ridden out
- * into the 0.95 m aisle - the only place on the station where the building
- * makes you do anything with your body. The geometry is a .glb built by
+ * The same room as src/env/racks in plan and pitch, with one owner-directed
+ * change (2026-09-05): the banks are 0.90 m deep rather than 1.05, because
+ * the legacy numbers left an 0.95 m aisle whose open drawers rode out 0.51 m
+ * - past the centreline, a corridor no body could pass. The aisle is now
+ * 1.25 m between faces, the four open drawers ride out 0.30 m on staggered
+ * sides, and the worst pinch leaves 0.95 m of clear walk - still the only
+ * place on the station where the building makes you do anything with your
+ * body, but a place a person fits through. The geometry is a .glb built by
  * tools/blender/build_racks.py; the light is a Cycles bake of the room's one
  * rule - eight identical fittings on the bay pitch and nothing else, flat,
  * even, bureaucratic.
@@ -32,18 +35,19 @@ const FLOOR_Y = 0;
 const CEILING_Y = 2.42;
 const EYE_HEIGHT = 1.74;
 
-const BAY_M = 1.05;
+const BAY_M = 1.05; // pitch along the wall (ISPR) - not the bank depth
+const BANK_D = 0.9;
 const BAYS_PER_SIDE = 8;
 const BAY_GAP = 0.04;
 const BAY_W = BAY_M - BAY_GAP;
-const AISLE_HALF = HALF_Z - BAY_M;
+const AISLE_HALF = HALF_Z - BANK_D;
 const RACK_TOP = 2.05;
 const PLINTH_H = 0.05;
 
 const FACE_RELIEF = 0.055;
 const FACE_Z = AISLE_HALF;
 const CARCASS_Z = AISLE_HALF + FACE_RELIEF;
-const CAVITY_BACK_Z = CARCASS_Z + 0.86;
+const CAVITY_BACK_Z = CARCASS_Z + 0.81;
 const BANK_BACK_Z = HALF_Z - 0.005;
 
 const DRAWERS = 5;
@@ -52,7 +56,7 @@ const DRAWER_GAP = 0.025;
 const DRAWER_W = BAY_W - 0.04;
 const PULL_W = 0.32;
 const LABEL_W = 0.24;
-const DRAWER_OUT = 0.51;
+const DRAWER_OUT = 0.3;
 const OPEN_DRAWER_W = 0.94;
 const DRAWER_FRONT_Z = AISLE_HALF - DRAWER_OUT;
 
@@ -194,9 +198,12 @@ function racksSolids(): readonly Solid[] {
   });
 
   {
+    // On bay p2's ridden-out drawer. (Declared at bay 1 - a shut bay - it
+    // floated in mid-air over the aisle; found during the walkability
+    // redesign.)
     const [, top] = drawerY(2);
-    const tote = bayBoxes(parts, 'stray', BAY_CENTRES[1] ?? 0, -1);
-    tote('tote', 'warm', [-0.18, 0.18], [top, top + 0.24], [0.06, 0.42]);
+    const tote = bayBoxes(parts, 'stray', BAY_CENTRES[2] ?? 0, -1);
+    tote('tote', 'warm', [-0.24, 0.12], [top, top + 0.24], [0.44, 0.8]);
   }
 
   BAY_CENTRES.forEach((cx, n) => {
@@ -261,7 +268,7 @@ const FLOOR: readonly FloorRect[] = aisleFloor();
 
 const MANIFEST_X = BAY_CENTRES[MANIFEST_BAY] ?? 0;
 const PERCH_X = BAY_CENTRES[PERCH_BAY] ?? HALF_X - BAY_M / 2;
-const TOTE_X = BAY_CENTRES[1] ?? -HALF_X + BAY_M / 2;
+const TOTE_X = BAY_CENTRES[2] ?? -HALF_X + BAY_M / 2;
 
 const POINTS: readonly PointOfInterest[] = [
   {
@@ -271,7 +278,7 @@ const POINTS: readonly PointOfInterest[] = [
     operable: true,
   },
   { id: 'perch', label: 'the perch', position: [PERCH_X, 0.62, FACE_Z - 0.17] },
-  { id: 'tote', label: 'the stowage tote', position: [TOTE_X, 1.35, -0.24] },
+  { id: 'tote', label: 'the stowage tote', position: [TOTE_X, 1.35, -0.62] },
 ];
 
 /** The manifest's rows on the board's aisle face (facing -z), plus a halo. */
@@ -339,7 +346,7 @@ function buildRacksBlender(): CompartmentHandle {
     root,
     // Just inside the fore door, on the centreline, looking the length of
     // the aisle - the room's one claim is what 8.4 m of drawer faces does to
-    // a 0.95 m gap.
+    // a 1.25 m gap.
     spawn: { position: [3.55, FLOOR_Y + EYE_HEIGHT, 0], yaw: Math.PI / 2, pitch: 0 },
     floor: FLOOR,
     pointsOfInterest: POINTS,
@@ -386,7 +393,7 @@ function buildRacksBlender(): CompartmentHandle {
 export const RACKS_BLENDER_COMPARTMENT: CompartmentDefinition = {
   id: 'racks',
   name: 'THE RACKS',
-  description: 'The stores, 8.4 by 3.05 m, sixteen bays and a 0.95 m aisle.',
+  description: 'The stores, 8.4 by 3.05 m, sixteen bays and a 1.25 m aisle.',
   ports: PORTS,
   extent: EXTENT,
   build: buildRacksBlender,

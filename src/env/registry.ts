@@ -44,6 +44,10 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
     name: 'The Limb Deck',
     description: 'A 6.4 m module with a faceted cupola in the port hull.',
     async load() {
+      // The hybrid shell: same geometry, plus a Cycles indirect map when the
+      // assets exist. Tolerant - a missing map mounts the legacy shell.
+      const shell = await import('./blender/limbShell');
+      await shell.readyLimbShell();
       return definitionFrom(
         (await import('./limbDeck/index')) as unknown as Record<string, unknown>,
         'limb-deck'
@@ -130,6 +134,7 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
         crown.readyCrown(),
         spine.readySpine(),
         crossing.readyCrossing(),
+        import('./blender/limbShell').then((shell) => shell.readyLimbShell()),
       ]);
       return definitionFrom(
         (await import('./station/plan')) as unknown as Record<string, unknown>,

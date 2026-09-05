@@ -208,8 +208,26 @@ def build_room(M):
               [(p0[0], CEILING_Y, p0[1]), (p1[0], CEILING_Y, p1[1]),
                (q1[0], CEILING_Y, q1[1]), (q0[0], CEILING_Y, q0[1])], M["CROWN"])
         # A thin backing slab above each annulus quad seals it.
-    gbox("annulus-back", (-AP_HX, AP_HX), (CEILING_Y + 0.02, CEILING_Y + THICK),
-         (-AP_HZ, AP_HZ), M["CROWN"])
+    # The slab is a RING, not a lid. The first build ran it solid across the
+    # whole aperture rectangle, which blocked the pane cone from below - the
+    # room's key read as a dark soffit with a glowing hexagonal outline - and
+    # left a 2 cm slot between the quads and the slab that a shallow
+    # sightline up the shaft could slip through into space (found by the
+    # station seam scan, 2026-09-05). The elliptical hole is cut at 0.87 of
+    # the aperture - inside the cone's radius at the slab's TOP, not just
+    # its bottom - so the slab's inner edge lands ON the canted panes, which
+    # pass through it: the slot dead-ends on emissive glass, and the cone
+    # rises clear.
+    back = gbox("annulus-back", (-AP_HX, AP_HX), (CEILING_Y + 0.02, CEILING_Y + THICK),
+                (-AP_HZ, AP_HZ), M["CROWN"])
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=64, radius=1.0, depth=0.4, location=g2b((0.0, CEILING_Y + 0.06, 0.0)))
+    hole = bpy.context.active_object
+    hole.name = "c-aperture"
+    hole.scale = (AP_HX * 0.87, AP_HZ * 0.87, 1.0)
+    hole.data.materials.append(M["CROWN"])
+    boolean_diff(back, [hole])
+    bpy.data.objects.remove(hole, do_unlink=True)
 
     # --- The aperture: six canted emissive panes rising to an emissive cap.
     cap_pts = []
@@ -224,7 +242,10 @@ def build_room(M):
               M["PANEGLOW"])
         cap_pts.append((p0[0] * 0.32, CAP_Y, p0[1] * 0.32))
     me = bpy.data.meshes.new("pane-cap")
-    me.from_pydata([g2b(p) for p in cap_pts], [], [tuple(range(PANES - 1, -1, -1))])
+    # Wound so the face looks DOWN the shaft: the cap was invisible from the
+    # deck (backface-culled, a hexagon of space at the top of the room) until
+    # the annulus ring fix made the cone visible enough to notice.
+    me.from_pydata([g2b(p) for p in cap_pts], [], [tuple(range(PANES))])
     me.validate()
     ob = bpy.data.objects.new("pane-cap", me)
     bpy.context.collection.objects.link(ob)

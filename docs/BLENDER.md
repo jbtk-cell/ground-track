@@ -17,18 +17,19 @@ Eleven of Station Kepler's twelve compartments are Blender-built: `plot`,
 those rooms in place; every room also mounts alone as `#<room>-blender`. The
 hand-built twins remain in the catalogue for comparison.
 
-THE LIMB DECK is the deliberate exception, and the reason is architectural
-rather than unfinished work. A baked lightmap is constant in `t`, and the
-limb deck is the one room whose entire subject is light changing in `t`: the
-sun walks the deck once per revolution, the eclipse guts it, the dial tracks
-the bearing, the motes hang in the beam, and the pinned poses (deck-noon
-against deck-eclipse) measure exactly that change. Its light already IS a
-physical simulation - the game's own sun - which is what the Cycles rebuild
-gives the other rooms. Freezing it into a texture would make the showpiece
-worse. It stays on DIRECTION.md's orbital rig. If it is ever to join the
-baked rooms it needs a designed hybrid (Lambert materials taking a baked
-ambient term under the live orbital keys), which is an architecture decision
-for the owner, not a gap.
+THE LIMB DECK is the HYBRID (owner direction, 2026-09-05: "the first
+original room is still of the old variation"). A baked lightmap is constant
+in `t` and the limb deck's entire subject is light changing in `t`, so it
+was never a candidate for the full treatment - instead it keeps its orbital
+rig, its fixtures, its door and its window untouched, and takes from Cycles
+only what the rig could never compute: an INDIRECT-ONLY bake of the lamp
+troughs' bounce, added to the same Lambert materials as a lightmap. The
+geometry is never re-modelled: scripts/export-limbdeck-shell.ts exports the
+exact shell meshes buildShell() mounts, tools/blender/build_limbdeck.py
+re-imports them, and the .glb that returns is the same shell with lightmap
+UVs. Direct light is never in the map, so nothing is counted twice and
+nothing goes stale when the orbit turns. The fetch is tolerant: missing
+assets mount the legacy shell unchanged.
 
 The pipeline is split in two:
 
@@ -100,6 +101,37 @@ All new rooms' cap plates carry 0.12 m side margins.
 **A big flat emitter floods.** The gantry's wide-door spill at the crawl's
 strength 7 was 4.8 m2 of plate and washed the nearest tank rank white; wide
 doors carry their own spill material at a fraction of the strength.
+
+## What the station scan of 2026-09-05 established
+
+The owner reported layering glitches "where a new room meets another or on a
+window", and a systematic scan (scripts/seam-poses.ts + seam-scan.mjs: both
+sides of all eleven seams, axial and grazing, plus the window apertures)
+found some at every seam. Three classes, three fixes:
+
+- **A joint between two compartments is two wall cuts butted back to back,
+  and neither room owns the joint.** Built separately, the cuts disagree by
+  millimetres, and the disagreement renders as bright sliver leaks down the
+  jambs at grazing angles, stitched z-fighting where planes coincide, and
+  layered confusion over the headers. The fix is the blank's logic extended:
+  the STATION owns what no room can know. Every joined port now carries a
+  collar - a dark ring of boards straddling the cut edges, 0.2 m into its
+  own room, butting the neighbour's ring at the seam plane (collarFor in
+  station/index.ts). Ports with a real door keep their own joinery.
+- **THE CROWN's aperture backing was a lid, not a ring.** The slab over the
+  aperture rectangle blocked the pane cone from below - the room's key read
+  as a dark soffit with a glowing outline - and left a 2 cm slot a shallow
+  sightline could slip through into space; the pane-cap was also wound
+  facing up, a hexagon of space at the top of the shaft. The slab now
+  carries an elliptical hole cut INSIDE the cone's radius at the slab's top,
+  so the slot dead-ends on emissive glass, and the cap faces down the shaft.
+- **THE RACKS could not be walked by a body.** Legacy numbers left an 0.95 m
+  aisle whose four open drawers rode out 0.51 m - past the centreline. The
+  banks are now 0.90 m deep (the ISPR pitch along the wall is unchanged),
+  the aisle is 1.25 m between faces, the open drawers ride out 0.30 m on
+  staggered sides, and the worst pinch leaves 0.95 m of clear walk. The
+  redesign also found the stray tote declared at a SHUT bay, floating in
+  mid-air; it stands on bay p2's ridden-out drawer now.
 
 ## Things that cost time in earlier rounds, still binding
 

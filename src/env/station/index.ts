@@ -260,6 +260,69 @@ export function buildStation(plan: StationPlan): StationHandle {
     emissiveIntensity: 1,
   });
 
+  /**
+   * The collar: a dark ring of boards lining this room's half of a doorway
+   * throat, straddling the cut edges.
+   *
+   * A joint between two compartments is two wall cuts butted back to back,
+   * and neither room owns the joint itself. Built separately, the two cuts
+   * disagree by millimetres - a jamb face a hair short of its neighbour's, a
+   * header plane shared exactly - and the disagreement renders as bright
+   * sliver leaks down the jambs at grazing angles, stitched z-fighting where
+   * the planes coincide, and layered confusion over the header. The full
+   * station scan of 2026-09-05 found some of it at every one of the eleven
+   * seams.
+   *
+   * The fix is the same as the blank's: the STATION owns what no room can
+   * know about. Each joined port gets a ring of unlit boards 60 mm across the
+   * cut edge and 0.2 m deep into its own room, stopping at the seam plane
+   * where the neighbouring room's ring butts against it - dark meeting dark,
+   * so the butt line cannot read. The ring hides every line the two cuts
+   * disagree over and reads as what it structurally is: a door frame.
+   *
+   * Ports with a real door (portDoor) keep their own joinery - the limb
+   * deck's aft door built a sleeve for exactly this reason long before the
+   * station had more than one seam.
+   */
+  const collarFor = (port: Port): THREE.Group => {
+    const w = port.seam.width;
+    const h = port.seam.height;
+    const t = 0.03;
+    const d = 0.2;
+    const y0 = port.floorY;
+    const alongX = port.facing === '+x' || port.facing === '-x';
+    const [ax, , az] = facingVector(port.facing);
+    const ring = new THREE.Group();
+    ring.name = `collar-${port.id}`;
+    const board = (
+      tag: string,
+      across: number,
+      tall: number,
+      cy: number,
+      offAcross: number
+    ): THREE.Mesh => {
+      const geometry = new THREE.BoxGeometry(alongX ? d : across, tall, alongX ? across : d);
+      geometry.translate(
+        port.at[0] - ax * (d / 2) + (alongX ? 0 : offAcross),
+        cy,
+        port.at[2] - az * (d / 2) + (alongX ? offAcross : 0)
+      );
+      const mesh = new THREE.Mesh(geometry, collarMaterial);
+      mesh.name = `collar-${port.id}-${tag}`;
+      return mesh;
+    };
+    // Header and sill straddle the top and bottom of the cut; the jambs
+    // straddle its sides and run the height between them, held clear of the
+    // header and sill boards so no two boards share a corner plane.
+    ring.add(board('head', w + 2 * t, 2 * t, y0 + h, 0));
+    ring.add(board('sill', w + 2 * t, 2 * t, y0, 0));
+    ring.add(board('jamb-a', 2 * t, h - 2 * t, y0 + h / 2, -(w / 2)));
+    ring.add(board('jamb-b', 2 * t, h - 2 * t, y0 + h / 2, w / 2));
+    return ring;
+  };
+
+  const collarMaterial = new THREE.MeshBasicMaterial({ color: 0x282219 });
+
   const build = (id: string): void => {
     if (resident.has(id)) return;
     const definition = byId.get(id);
@@ -278,6 +341,8 @@ export function buildStation(plan: StationPlan): StationHandle {
       // And the room's, for one that did. Both are told either way: a room that
       // was capped in a previous layout has to be uncapped in this one.
       handle.sealPort?.(p.id, sealed);
+      // The joint's own trim, unless the room built a real door there.
+      if (!sealed && handle.portDoor?.(p.id) === undefined) group.add(collarFor(p));
     }
     root.add(group);
     resident.set(id, { id, handle, group, placement });

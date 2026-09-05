@@ -104,6 +104,38 @@ export function bakedVisuals(
   return root;
 }
 
+/** One primitive of a baked asset: its geometry and the material it named. */
+export interface BakedPart {
+  readonly geometry: THREE.BufferGeometry;
+  readonly materialName: string;
+}
+
+/**
+ * The raw parts of a baked asset - geometry and lightmap, no materials.
+ *
+ * For the HYBRID room (the limb deck), whose materials are not this module's
+ * to decide: its shell keeps the exact Lambert materials the orbital rig has
+ * always lit, and takes only the Blender geometry (same mesh, now with
+ * lightmap UVs) and the indirect-only map to put in their lightMap slot. The
+ * caller owns the returned geometry clones.
+ */
+export function bakedParts(
+  stem: string
+): { readonly parts: readonly BakedPart[]; readonly lightMap: THREE.Texture } | null {
+  const asset = assets.get(stem);
+  if (asset === undefined) return null;
+  const parts: BakedPart[] = [];
+  asset.scene.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const material = object.material as THREE.Material;
+    parts.push({
+      geometry: (object.geometry as THREE.BufferGeometry).clone(),
+      materialName: material.name,
+    });
+  });
+  return { parts, lightMap: asset.lightMap };
+}
+
 export type Facing = '+x' | '-x' | '+z' | '-z';
 
 /**
