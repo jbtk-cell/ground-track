@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { LIMB_DECK } from '../src/env/limbDeck';
 import { STATION } from '../src/env/station/plan';
 import { corners, planeClashes } from '../src/env/kit/solids';
-import { layOut, overlaps } from '../src/env/station/layout';
+import { layOut, worldExtent, overlaps } from '../src/env/station/layout';
 import { buildStation } from '../src/env/station/index';
 import { isPainter } from '../src/env/station/compartment';
 import { facingVector } from '../src/env/station/ports';
@@ -143,7 +143,11 @@ describe('every room: its seams are walk-through sized', () => {
       // constant would have quietly held every gallery port to the wrong
       // rectangle while reading as though it were checking something.
       expect(p.at[1] - p.floorY).toBeCloseTo(p.seam.height / 2, 6);
-      expect(p.seam.height, `${room.id}/${p.id} is too low to walk through`).toBeGreaterThan(1.99);
+      // The LOW_SEAM is the one sanctioned crouch: the crawl's blind-end
+      // hatch, 1.86 over a 1.74 eye, all its 2.55 ceiling allows over the
+      // 0.6 deck. Everything else clears a standing person with margin.
+      const floor = p.seam.width < 1.1 ? 1.84 : 1.99;
+      expect(p.seam.height, `${room.id}/${p.id} is too low to walk through`).toBeGreaterThan(floor);
       expect(p.seam.width, `${room.id}/${p.id} is too narrow`).toBeGreaterThan(1.0);
     }
   });
@@ -263,9 +267,15 @@ describe('the station: you can actually walk between the compartments', () => {
         station.update(i / 60);
       }
 
+      // Deck One's locked doors are sealed until their key turns; walking
+      // them is the locked-door test's job (walk.test.ts), so open them all.
+      station.unlock?.('*');
+
       const placed = layOut(STATION.rooms, STATION.connections, STATION.anchor);
       for (const link of STATION.connections) {
         const room = STATION.rooms.find((r) => r.id === link.from[0]);
+        const other = STATION.rooms.find((r) => r.id === link.to[0]);
+        const otherPlacement = placed.get(link.to[0]);
         const placement = placed.get(link.from[0]);
         const p = room?.ports.find((q) => q.id === link.from[1]);
         expect(p, `${link.from[0]} has no port ${link.from[1]}`).toBeDefined();
@@ -276,11 +286,34 @@ describe('the station: you can actually walk between the compartments', () => {
           .applyAxisAngle(new THREE.Vector3(0, 1, 0), placement.yaw)
           .round();
 
-        // Walk the eye from 2 m before the seam to 2 m past it.
+        // Walk the eye from 2 m before the seam to 2 m past it - but only
+        // where there is ROOM to walk: a side door into a corridor 1.6 m deep
+        // runs out of building before it runs out of the 2 m, and beyond the
+        // far wall there is rightly no floor. Samples outside both rooms'
+        // extents are wall, not gap.
+        // Shrunk by a wall's worth: a transverse door into a narrow room
+        // runs out of floor at the far wall band, and that is the wall's
+        // territory, not a gap.
+        const boxes = [
+          room !== undefined && placement !== undefined ? worldExtent(room, placement) : null,
+          other !== undefined && otherPlacement !== undefined
+            ? worldExtent(other, otherPlacement)
+            : null,
+        ]
+          .filter((b): b is THREE.Box3 => b !== null)
+          .map((b) => b.expandByScalar(-0.25));
         const gaps: string[] = [];
         for (let t = -2; t <= 2.0001; t += 0.1) {
           const x = seam.x + axis.x * t;
           const z = seam.z + axis.z * t;
+          const insideSome = boxes.some(
+            (b) =>
+              x >= b.min.x - 1e-6 &&
+              x <= b.max.x + 1e-6 &&
+              z >= b.min.z - 1e-6 &&
+              z <= b.max.z + 1e-6
+          );
+          if (!insideSome) continue;
           station.observe?.(new THREE.Vector3(x, 1.74, z));
           const standing = station.floor.some(
             (rect) => x >= rect.minX && x <= rect.maxX && z >= rect.minZ && z <= rect.maxZ

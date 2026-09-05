@@ -18,6 +18,7 @@
  */
 import { spawn } from 'node:child_process';
 import { mkdir, rm } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { setTimeout as sleep } from 'node:timers/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
@@ -615,6 +616,32 @@ const INTERIOR_PRESETS = [
     pose: { x: 1.5, z: 0.75, yaw: Math.PI / 2, pitch: -0.06 },
   },
 ];
+// Deck One's generated rooms: one pinned pose each, standing where the
+// factory spawns, looking down the room's long axis - derived from the same
+// record the rooms are built from, so a room added to the deckplan gets a
+// pose, a regime and an airtight check without anyone remembering to add
+// them.
+{
+  const deckplan = JSON.parse(
+    readFileSync(new URL('../tools/blender/deckplan.json', import.meta.url), 'utf8')
+  );
+  for (const room of deckplan) {
+    const first = room.floors[0] ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0, floorY: 0 };
+    const wide = room.ohw >= room.ohd;
+    INTERIOR_PRESETS.push({
+      name: room.stem,
+      room: room.stem,
+      t: 19.3,
+      bare: true,
+      pose: {
+        x: (first.minX + first.maxX) / 2,
+        z: (first.minZ + first.maxZ) / 2,
+        yaw: wide ? -Math.PI / 2 : 0,
+        pitch: 0.04,
+      },
+    });
+  }
+}
 
 /**
  * How far the eye may end up from where the preset put it, metres.

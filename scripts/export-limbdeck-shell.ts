@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import * as THREE from 'three';
 import { buildShell } from '../src/env/limbDeck/shell';
+import { warmed } from '../src/env/limbDeck/warm';
 
 const OUT_DIR = path.join(__dirname, '..', 'tools', 'blender', 'limbdeck');
 fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -44,6 +45,11 @@ function writePly(file: string, geometry: THREE.BufferGeometry): void {
   const c = new THREE.Color();
   for (let i = 0; i < count; i += 1) {
     c.setRGB(colour?.getX(i) ?? 1, colour?.getY(i) ?? 1, colour?.getZ(i) ?? 1);
+    // THE WARM PASS (owner direction 2026-09-05: the first room read as the
+    // old game beside eleven Cycles rooms). Slate-family colours map onto
+    // the interiors palette by LUMINANCE - the facet value structure, the
+    // terminator's whole language, survives exactly; only the hue moves.
+    warmed(c);
     // Linear working-space floats to sRGB bytes: Blender decodes byte colour
     // attributes back to linear, so the round trip is exact to 1/255.
     c.convertLinearToSRGB();

@@ -165,7 +165,7 @@ def build_room(M):
             band_prism(f"w-{k}-{bname}", k, r_face - inset, A + 0.08 + THICK - inset,
                        y0, y1, M[mat])
         # Liner panels: two rows, two columns, 12 mm proud of the work face.
-        if k in (0, 2, 4):
+        if k in (0, 2, 4, 6):
             continue
         for col, (s0, s1) in enumerate(((-0.86, -0.06), (0.06, 0.86))):
             for row, (ry0, ry1) in enumerate(((KICK_TOP + 0.03, 1.50), (1.53, WORK_TOP - 0.03))):
@@ -189,6 +189,24 @@ def build_room(M):
          (-SEAM_W / 2 - 0.03, SEAM_W / 2 + 0.03), M["LINER"])
     gbox("sky-fore", (A + 0.015, A + 0.020), (FLOOR_Y, SEAM_H),
          (-SEAM_W / 2, SEAM_W / 2), M["SPILL"])
+
+    # Deck One (owner direction 2026-09-05): a berth is where things dock,
+    # and now three things do. The east hatchway (facet 6, local -z) meets
+    # the works loop, the west (facet 2, local +z) the science shortcut -
+    # both axis-aligned, so the fore door's box-cut idiom serves.
+    for tag, k, sign in (("east", 6, -1), ("west", 2, +1)):
+        facet = [o for o in bpy.data.objects if o.name.startswith(f"w-{k}-")]
+        z0, z1 = sorted((sign * (A - 0.5), sign * (A + 0.5)))
+        c = gbox(f"c-{tag}", (-SEAM_W / 2, SEAM_W / 2), (FLOOR_Y, SEAM_H), (z0, z1), M["JAMB"])
+        for w in facet:
+            boolean_diff(w, [c])
+        bpy.data.objects.remove(c, do_unlink=True)
+        cz0, cz1 = sorted((sign * (A + 0.04), sign * (A + 0.12)))
+        gbox(f"cap-{tag}", (-SEAM_W / 2 - 0.03, SEAM_W / 2 + 0.03), (FLOOR_Y, SEAM_H),
+             (cz0, cz1), M["LINER"])
+        sz0, sz1 = sorted((sign * (A + 0.015), sign * (A + 0.020)))
+        gbox(f"sky-{tag}", (-SEAM_W / 2, SEAM_W / 2), (FLOOR_Y, SEAM_H),
+             (sz0, sz1), M["SPILL"])
 
     # --- The hatch, in facet 4 (axis-aligned at -x). A square mounting plate
     # proud of the bands, a circular bore cut through plate and backing
@@ -272,8 +290,18 @@ def fit_out(M):
 
     # --- The manifest board on facet 2 (+z, square to the world), butted back
     # against the recessed work face; the runtime draws the rows.
-    gbox("board", (-0.46, 0.46), (1.12, 1.72), (A - 0.2, A + 0.081), M["FOIL"])
-    gbox("glow-board", (-0.4, 0.4), (1.18, 1.66), (A - 0.2015, A - 0.2), M["SCREENGLOW"])
+    # (Deck One moved it from facet 2, which is a doorway now, to facet 1 -
+    # the diagonal between the door and the west hatch.)
+    board_plan = [
+        on_facet(1, -0.46, A - 0.2), on_facet(1, 0.46, A - 0.2),
+        on_facet(1, 0.46, A + 0.081), on_facet(1, -0.46, A + 0.081),
+    ]
+    gprism("board", board_plan, (1.12, 1.72), M["FOIL"])
+    glow_plan = [
+        on_facet(1, -0.4, A - 0.2015), on_facet(1, 0.4, A - 0.2015),
+        on_facet(1, 0.4, A - 0.2), on_facet(1, -0.4, A - 0.2),
+    ]
+    gprism("glow-board", glow_plan, (1.18, 1.66), M["SCREENGLOW"])
 
     # --- The cornice ring: four housings tucked into the wall-lid angle on
     # the four square facets, each with its diffuser strip underneath.

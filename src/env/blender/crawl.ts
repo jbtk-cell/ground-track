@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import type { EnvironmentDefinition, FloorRect, PointOfInterest } from '../types';
 import type { CompartmentDefinition, CompartmentHandle } from '../station/compartment';
 import { type Solid, solid } from '../kit/solids';
-import { SEAM, port } from '../station/ports';
+import { LOW_SEAM, SEAM, port } from '../station/ports';
 import { bakedVisuals, capPlate, disposeVisuals, ready } from './loader';
 
 const STEM = 'crawl';
@@ -25,7 +25,13 @@ const HALF_Z_BLIND = 0.51;
 const EYE_HEIGHT = 1.74;
 const WALK_HALF_Z = 0.3;
 
-const PORTS = [port('fore', [HALF_LENGTH, SEAM.height / 2, 0], '+x', 0)] as const;
+const PORTS = [
+  port('fore', [HALF_LENGTH, SEAM.height / 2, 0], '+x', 0),
+  // Deck One: the bolted blank finally unbolted. The duct's blind end is a
+  // low hatch now - 1.02 by 1.86 over the 0.6 deck, the only opening that
+  // fits under this ceiling - and the science spur ramps away beyond it.
+  port('aft', [-HALF_LENGTH, 0.6 + LOW_SEAM.height / 2, 0], '-x', 0.6, LOW_SEAM),
+] as const;
 
 const EXTENT = {
   minX: -HALF_LENGTH,
@@ -84,7 +90,6 @@ const FLOOR: readonly FloorRect[] = [
 const POINTS: readonly PointOfInterest[] = [
   { id: 'perch', label: 'the perch', position: [2.61, 0.72, 0.42] },
   { id: 'trunk', label: 'the cable run', position: [-1.2, 1.96, -0.4] },
-  { id: 'blank', label: 'the blank flange', position: [-3.42, 1.35, 0] },
   { id: 'loose-bag', label: 'a stowage bag, unclipped', position: [0.3, 0.56, 0.05] },
 ];
 

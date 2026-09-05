@@ -150,6 +150,7 @@ def build_room(M):
 
     fore = [o for o in bpy.data.objects if o.name.startswith("w-fore-")]
     aft = [o for o in bpy.data.objects if o.name.startswith("w-aft-")]
+    stbd = [o for o in bpy.data.objects if o.name.startswith("w-stbd-")]
     c1 = gbox("c-fore", (WALL_X - 0.5, WALL_X + 0.6), (FLOOR_Y, FLOOR_Y + GAL_H),
               (-GAL_W / 2, GAL_W / 2), M["JAMB"])
     c2 = gbox("c-aft", (-WALL_X - 0.6, -WALL_X + 0.5), (FLOOR_Y, FLOOR_Y + SEAM_H),
@@ -160,6 +161,17 @@ def build_room(M):
         boolean_diff(w, [c2])
     bpy.data.objects.remove(c1, do_unlink=True)
     bpy.data.objects.remove(c2, do_unlink=True)
+
+    # Deck One: the starboard door onto THE RETURN's ramp, at local x 2.0.
+    c3 = gbox("c-stbd", (2.0 - SEAM_W / 2, 2.0 + SEAM_W / 2),
+              (FLOOR_Y, FLOOR_Y + SEAM_H), (HALF_Z - 0.5, HALF_Z + 0.6), M["JAMB"])
+    for w in stbd:
+        boolean_diff(w, [c3])
+    bpy.data.objects.remove(c3, do_unlink=True)
+    gbox("cap-stbd", (2.0 - SEAM_W / 2 - 0.03, 2.0 + SEAM_W / 2 + 0.03),
+         (FLOOR_Y, FLOOR_Y + SEAM_H), (HALF_Z + 0.16, HALF_Z + 0.24), M["END"])
+    gbox("sky-stbd", (2.0 - SEAM_W / 2, 2.0 + SEAM_W / 2),
+         (FLOOR_Y, FLOOR_Y + SEAM_H), (HALF_Z + 0.135, HALF_Z + 0.140), M["SPILL"])
 
     gbox("cap-fore", (WALL_X + 0.10, WALL_X + 0.18), (FLOOR_Y, FLOOR_Y + GAL_H),
          (-GAL_W / 2 - 0.03, GAL_W / 2 + 0.03), M["END"])

@@ -92,6 +92,21 @@ export const GALLERY_SEAM: SeamSize = {
   collar: 1.24,
 };
 
+/**
+ * The low hatch: a crouch of a doorway, 1.02 by 1.86.
+ *
+ * Deck One broke through the crawl's blind end - the bolted blank finally
+ * unbolted - and the duct's 0.6 m raised deck under its 2.55 m ceiling
+ * leaves only this much opening. 1.86 clears a 1.74 m eye by the same
+ * DOOR_HEAD margin every other doorway holds; it reads as what it is, the
+ * way out through a wall that was never meant to have one.
+ */
+export const LOW_SEAM: SeamSize = {
+  width: 1.02,
+  height: 1.86,
+  collar: 1.24,
+};
+
 /** Which way a port faces, in its own room's local frame. */
 export type Facing = '+x' | '-x' | '+z' | '-z';
 
@@ -159,15 +174,29 @@ export function facingYaw(facing: Facing): number {
 export interface Connection {
   readonly from: readonly [string, string];
   readonly to: readonly [string, string];
+  /**
+   * The key that opens it, if the door starts sealed.
+   *
+   * A locked connection is a real join for LAYOUT - the room behind it is
+   * placed, reachable on the drawings, part of the deck - but the station
+   * keeps both ports sealed (blank in place, no floor through the seam)
+   * until `unlock(name)` is told the named key has been found. This is the
+   * secret-room mechanism the owner asked for: the maze holds rooms that
+   * only open once something is unlocked.
+   */
+  readonly locked?: string;
 }
 
 export function connect(
   fromRoom: string,
   fromPort: string,
   toRoom: string,
-  toPort: string
+  toPort: string,
+  locked?: string
 ): Connection {
-  return { from: [fromRoom, fromPort], to: [toRoom, toPort] };
+  return locked === undefined
+    ? { from: [fromRoom, fromPort], to: [toRoom, toPort] }
+    : { from: [fromRoom, fromPort], to: [toRoom, toPort], locked };
 }
 
 /**

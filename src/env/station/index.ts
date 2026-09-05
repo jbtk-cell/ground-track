@@ -162,6 +162,10 @@ export interface StationHandle extends EnvironmentHandle {
   currentRoom(): string;
   /** Which compartments are built right now. For tests and the debug readout. */
   residentRooms(): readonly string[];
+  /** Turn a key: open every door the named lock holds shut. '*' opens all. */
+  unlock(name: string): void;
+  /** Every lock on the deck and whether it has been opened. */
+  locks(): readonly { readonly name: string; readonly open: boolean }[];
 }
 
 export function buildStation(plan: StationPlan): StationHandle {
@@ -196,12 +200,36 @@ export function buildStation(plan: StationPlan): StationHandle {
   let currentId = startId;
   let lastTime = 0;
 
-  /** Which ports lead somewhere. Everything else has to be walled off. */
-  const joined = new Set<string>();
+  /**
+   * Which keys have been found. A locked connection behaves as no
+   * connection at all - blank in place, no collar, no floor through the
+   * seam - until its key lands here. See `locked` in ports.ts.
+   */
+  const unlocked = new Set<string>();
+
+  const linkOpen = (link: Connection): boolean =>
+    link.locked === undefined || unlocked.has(link.locked);
+
+  /**
+   * The far side of every locked link. A locked seam is sealed from BOTH
+   * rooms, but only one station blank stands in the throat - two would share
+   * planes and fight for pixels (the rooms' own caps still seal each side).
+   */
+  const lockedBackside = new Set<string>();
   for (const link of plan.connections) {
-    joined.add(`${link.from[0]}/${link.from[1]}`);
-    joined.add(`${link.to[0]}/${link.to[1]}`);
+    if (link.locked !== undefined) lockedBackside.add(`${link.to[0]}/${link.to[1]}`);
   }
+
+  /** Which ports lead somewhere RIGHT NOW. Everything else is walled off. */
+  const joined = (): Set<string> => {
+    const open = new Set<string>();
+    for (const link of plan.connections) {
+      if (!linkOpen(link)) continue;
+      open.add(`${link.from[0]}/${link.from[1]}`);
+      open.add(`${link.to[0]}/${link.to[1]}`);
+    }
+    return open;
+  };
 
   /**
    * A blank over a port that leads nowhere.
@@ -334,18 +362,39 @@ export function buildStation(plan: StationPlan): StationHandle {
     group.matrixAutoUpdate = false;
     group.matrix.copy(placement.matrix);
     group.add(handle.root);
+    applySeals(id, handle, group);
+    root.add(group);
+    resident.set(id, { id, handle, group, placement });
+  };
+
+  /**
+   * Seal or open every port of one room to match the current lock state.
+   * Runs at build and again whenever a key turns: blanks and collars are
+   * added and removed by name, so unlocking a door mid-game opens exactly
+   * that doorway and nothing else.
+   */
+  const applySeals = (id: string, handle: CompartmentHandle, group: THREE.Group): void => {
+    const open = joined();
     for (const p of handle.ports) {
-      const sealed = !joined.has(`${id}/${p.id}`);
+      const sealed = !open.has(`${id}/${p.id}`);
+      const blankName = `blank-${p.id}`;
+      const collarName = `collar-${p.id}`;
+      const existingBlank = group.getObjectByName(blankName);
+      const existingCollar = group.getObjectByName(collarName);
       // The station's own blank, for a room that brought no closure of its own.
-      if (sealed) group.add(capFor(p));
+      if (sealed && existingBlank === undefined && !lockedBackside.has(`${id}/${p.id}`)) {
+        group.add(capFor(p));
+      }
+      if (!sealed && existingBlank !== undefined) group.remove(existingBlank);
       // And the room's, for one that did. Both are told either way: a room that
       // was capped in a previous layout has to be uncapped in this one.
       handle.sealPort?.(p.id, sealed);
       // The joint's own trim, unless the room built a real door there.
-      if (!sealed && handle.portDoor?.(p.id) === undefined) group.add(collarFor(p));
+      if (!sealed && handle.portDoor?.(p.id) === undefined && existingCollar === undefined) {
+        group.add(collarFor(p));
+      }
+      if (sealed && existingCollar !== undefined) group.remove(existingCollar);
     }
-    root.add(group);
-    resident.set(id, { id, handle, group, placement });
   };
 
   const drop = (id: string): void => {
@@ -391,6 +440,9 @@ export function buildStation(plan: StationPlan): StationHandle {
   const seamFloors = (): readonly FloorRect[] => {
     const out: FloorRect[] = [];
     for (const link of plan.connections) {
+      // A locked seam has a blank in it; floor that ran through would walk
+      // the player into the plate.
+      if (!linkOpen(link)) continue;
       const a = resident.get(link.from[0]);
       const b = resident.get(link.to[0]);
       if (a === undefined || b === undefined) continue;
@@ -631,6 +683,40 @@ export function buildStation(plan: StationPlan): StationHandle {
 
     currentRoom: () => currentId,
     residentRooms: () => [...resident.keys()].sort(),
+
+    /**
+     * Turn a key. The named lock's doors unseal on the spot: blanks lift,
+     * collars appear, the floor runs through the seam, and the secret room
+     * beyond is simply part of the deck from then on. '*' opens everything -
+     * the debug and gate path, not the game's.
+     */
+    unlock(name: string): void {
+      const wanted = new Set<string>();
+      for (const link of plan.connections) {
+        if (link.locked !== undefined && (name === '*' || link.locked === name)) {
+          wanted.add(link.locked);
+        }
+      }
+      let changed = false;
+      for (const key of wanted) {
+        if (!unlocked.has(key)) {
+          unlocked.add(key);
+          changed = true;
+        }
+      }
+      if (!changed) return;
+      for (const entry of resident.values()) applySeals(entry.id, entry.handle, entry.group);
+      refreshLists();
+    },
+
+    /** Every lock on the deck and whether it has been opened. For the map. */
+    locks(): readonly { readonly name: string; readonly open: boolean }[] {
+      const seen = new Map<string, boolean>();
+      for (const link of plan.connections) {
+        if (link.locked !== undefined) seen.set(link.locked, unlocked.has(link.locked));
+      }
+      return [...seen.entries()].map(([name, open]) => ({ name, open }));
+    },
 
     /**
      * Where the player is, handed in by the viewer each frame.

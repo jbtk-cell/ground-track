@@ -52,15 +52,23 @@ const WORN = new Set([
   '0,-2',
 ]);
 
-const PORTS = [port('fore', [A, SEAM.height / 2, 0], '+x', FLOOR_Y)] as const;
+const PORTS = [
+  port('fore', [A, SEAM.height / 2, 0], '+x', FLOOR_Y),
+  // Deck One: a berth is where things dock, and now three things do. The
+  // east hatch meets the works loop, the west the science shortcut.
+  port('east', [0, SEAM.height / 2, -A], '-z', FLOOR_Y),
+  port('west', [0, SEAM.height / 2, A], '+z', FLOOR_Y),
+] as const;
 
 const EXTENT = {
   minX: -A - 0.2,
   maxX: A,
   minY: -0.2,
   maxY: CEILING_Y + 0.2,
-  minZ: -A - 0.2,
-  maxZ: A + 0.2,
+  // The z facets are ported now, so the extent stops at their seam planes,
+  // exactly as the fore side always has.
+  minZ: -A,
+  maxZ: A,
 } as const;
 
 function normalOf(k: number): THREE.Vector3 {
@@ -199,8 +207,12 @@ function berthSolids(): readonly Solid[] {
   );
 
   parts.push(
-    solid('board', 'frame', -0.46, 0.46, 1.12, 1.72, A - 0.2, A - 0.08),
-    solid('board-face', 'panel', -0.4, 0.4, 1.18, 1.66, A - 0.21, A - 0.13)
+    // The diagonal board, declared as a staircase of cubes along facet 1 -
+    // an axis-aligned bounding box of a diagonal object has corners outside
+    // the octagon, and the vessel test rightly refuses to believe them.
+    solid('board-0', 'frame', 1.589, 1.889, 1.12, 1.72, 1.151, 1.451),
+    solid('board-1', 'frame', 1.37, 1.67, 1.124, 1.716, 1.37, 1.67),
+    solid('board-2', 'frame', 1.151, 1.451, 1.1280000000000001, 1.712, 1.589, 1.889)
   );
 
   parts.push(
@@ -235,18 +247,26 @@ const FLOOR: readonly FloorRect[] = [
 const HATCH_AT = onFacet(4, 0, HATCH_Y, A - 0.2);
 const NET_AT = onFacet(6, 0, 0.6, A - 0.3);
 const POINTS: readonly PointOfInterest[] = [
-  { id: 'manifest', label: 'the manifest board', position: [0, 1.4, A - 0.28], operable: true },
+  { id: 'manifest', label: 'the manifest board', position: [1.5, 1.4, 1.5], operable: true },
   { id: 'hatch', label: 'the resupply hatch', position: [HATCH_AT.x, HATCH_AT.y, HATCH_AT.z] },
   { id: 'net', label: 'the stowed cargo net', position: [NET_AT.x, NET_AT.y, NET_AT.z] },
   { id: 'deck', label: 'the tie-down grid', position: [0, 0.1, 0] },
 ];
 
-/** The manifest's rows on the board's room face (facing -z), plus a halo. */
+/**
+ * The manifest's rows on the board's room face, plus a halo. Deck One moved
+ * the board to diagonal facet 1 (facet 2 is the west hatchway now): the
+ * panel basis is the facet's own tangent, the same mirror of the old
+ * facet-2 numbers rotated 45 degrees.
+ */
+const F1 = Math.SQRT1_2;
 function boardInstruments(): readonly THREE.Object3D[] {
   const target = sink();
+  const boardR = A - 0.2015;
   const panel = {
-    origin: new THREE.Vector3(0.4, 1.18, A - 0.2015),
-    right: new THREE.Vector3(-1, 0, 0),
+    // s = -0.4 along the facet tangent, exactly where x = +0.4 was on facet 2.
+    origin: new THREE.Vector3(F1 * boardR + F1 * 0.4, 1.18, F1 * boardR - F1 * 0.4),
+    right: new THREE.Vector3(-F1, 0, F1),
     up: new THREE.Vector3(0, 1, 0),
     width: 0.8,
     height: 0.48,
@@ -261,8 +281,8 @@ function boardInstruments(): readonly THREE.Object3D[] {
   return [
     rows,
     halo({
-      at: [0, 1.42, A - 0.2015],
-      normal: [0, 0, -1],
+      at: [F1 * (A - 0.2015), 1.42, F1 * (A - 0.2015)],
+      normal: [-F1, 0, -F1],
       width: 1.1,
       height: 0.72,
       colour: PALETTE.MINT,

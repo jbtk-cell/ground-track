@@ -39,6 +39,8 @@ import { buildExterior } from './exterior';
 import { IMPELLER_BLADES, IMPELLER_HZ, IMPELLER_VISUAL_GEARING, buildFixtures } from './fixtures';
 import { buildLighting } from './light';
 import { buildShell, hullClearance } from './shell';
+import { warmRetint } from './warm';
+import { hasAsset } from '../blender/loader';
 
 /**
  * Eye height above the deck, metres.
@@ -220,6 +222,15 @@ function buildLimbDeck(): SelfRenderingHandle {
   let lastTravel = 0;
   let lastTime = 0;
   root.add(shell.root, fixtures.root, lighting.root, testButton.root, motes.root, door.root);
+
+  // When the baked warm shell is live, the room's furniture follows it into
+  // the interiors palette (see warm.ts). Gated on the asset so the legacy
+  // fallback still renders exactly as it always did.
+  if (hasAsset('limbdeck')) {
+    warmRetint(fixtures.root);
+    warmRetint(testButton.root);
+    warmRetint(door.root);
+  }
 
   return {
     root,

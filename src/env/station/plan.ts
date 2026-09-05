@@ -39,6 +39,8 @@ import { CROSSING_BLENDER_COMPARTMENT } from '../blender/crossing';
 import type { CompartmentDefinition } from './compartment';
 import { type Connection, connect } from './ports';
 import { type StationHandle, type StationPlan, buildStation } from './index';
+import { GENERATED_COMPARTMENTS } from '../blender/generated';
+import { DECK_LINKS } from './deckplan';
 
 const ROOMS: readonly CompartmentDefinition[] = [
   LIMB_DECK_COMPARTMENT,
@@ -53,6 +55,8 @@ const ROOMS: readonly CompartmentDefinition[] = [
   SILL_BLENDER_COMPARTMENT,
   GANTRY_BLENDER_COMPARTMENT,
   BERTH_BLENDER_COMPARTMENT,
+  // Deck One's expansion: forty-one rooms from one spec (deckplan.ts).
+  ...GENERATED_COMPARTMENTS,
 ];
 
 const CONNECTIONS: readonly Connection[] = [
@@ -76,6 +80,9 @@ const CONNECTIONS: readonly Connection[] = [
   // anything else on purpose: what arrives has to be counted before it can be
   // stowed, so THE RACKS sits between the way in and the rest of the station.
   connect('racks', 'aft', 'berth', 'fore'),
+  // Deck One's expansion joins, locked doors included, from the same spec
+  // the rooms come from - the maze cannot disagree with itself.
+  ...DECK_LINKS.map((link) => connect(link.a[0], link.a[1], link.b[0], link.b[1], link.locked)),
 ];
 
 export const STATION: StationPlan = {

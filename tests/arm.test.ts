@@ -175,6 +175,7 @@ describe('the station: the hand can actually get to every control', () => {
     // holding. Nothing else in the suite proves a control can be operated at
     // all, as opposed to being wired up correctly to nothing anybody can reach.
     const station = buildStation(STATION);
+    station.unlock?.('*');
     const arm = createArm(false);
     try {
       station.observe?.(new THREE.Vector3(1.4, 1.74, 0));

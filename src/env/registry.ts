@@ -10,6 +10,7 @@
  * building takes itself down and nothing else.
  */
 import type { EnvironmentDefinition } from './types';
+import { DECK_ROOMS } from './station/deckplan';
 
 export interface EnvironmentEntry {
   /** Stable slug, and the URL fragment: rooms.html#limb-deck */
@@ -37,6 +38,26 @@ function definitionFrom(module: Record<string, unknown>, id: string): Environmen
   }
   throw new Error(`${id} exports no EnvironmentDefinition`);
 }
+
+/**
+ * Solo entries for Deck One's generated rooms, one per spec record. They sit
+ * at the end of the catalogue: the pinned poses mount them by id, and a
+ * reviewer can walk any one alone the way every bespoke room is walked.
+ */
+async function generatedEntry(id: string): Promise<EnvironmentDefinition> {
+  const gen = await import('./blender/generated');
+  await gen.readyGeneratedRoom(id);
+  const found = gen.GENERATED_ENVIRONMENTS.find((entry) => entry.id === `gen-${id}`);
+  if (found === undefined) throw new Error(`no generated room: ${id}`);
+  return found;
+}
+
+const GENERATED_ENTRIES: readonly EnvironmentEntry[] = DECK_ROOMS.map((spec) => ({
+  id: `gen-${spec.id}`,
+  name: `${spec.name} (Blender)`,
+  description: spec.description,
+  load: () => generatedEntry(spec.id),
+}));
 
 export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
   {
@@ -135,6 +156,8 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
         spine.readySpine(),
         crossing.readyCrossing(),
         import('./blender/limbShell').then((shell) => shell.readyLimbShell()),
+        // Deck One's forty-one generated rooms, tolerant while the bakes land.
+        import('./blender/generated').then((gen) => gen.readyGenerated()),
       ]);
       return definitionFrom(
         (await import('./station/plan')) as unknown as Record<string, unknown>,
@@ -337,6 +360,7 @@ export const ENVIRONMENTS: readonly EnvironmentEntry[] = [
       );
     },
   },
+  ...GENERATED_ENTRIES,
 ];
 
 /**

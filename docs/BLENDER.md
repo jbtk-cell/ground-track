@@ -147,6 +147,18 @@ found some at every seam. Three classes, three fixes:
 - **Gates measured under a running bake measure the bake**: playability
   verdicts only count from an idle machine.
 
+## Deck One (2026-09-05)
+
+The expansion quadrupled the station (see docs/DECKONE.md): forty-one
+generated rooms build through tools/blender/build_generated.py from
+deckplan.json - one builder, one record per room, the same banded-wall
+grammar as the bespoke rooms. The limb deck's hybrid gained THE WARM PASS:
+the exporter maps its slate palette onto the interiors ramp by luminance
+(src/env/limbDeck/warm.ts), the fixtures follow at mount, and the room
+finally sits in the same palette as everything it opens onto. The station
+also grew collarFor's sibling for LOCKED doors: one blank per locked seam
+(two fought for pixels), removed live when the key turns.
+
 ## What is not done
 
 - The lightmaps are uncompressed PNG (tens of MB across eleven rooms).

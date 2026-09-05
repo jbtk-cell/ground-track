@@ -37,6 +37,11 @@ const LAMP_HALF_Z = 0.062;
 const PORTS = [
   port('fore', [HALF_LENGTH, SEAM.height / 2, 0], '+x', FLOOR_Y),
   port('aft', [-HALF_LENGTH, SEAM.height / 2, 0], '-x', FLOOR_Y),
+  // Deck One (owner direction 2026-09-05): the corridor grew junctions. The
+  // north door lets onto the hab block's tee, the south into the works
+  // chase - the spine stops being a straw and starts being a street.
+  port('north', [2.95, SEAM.height / 2, HALF_Z + 0.2], '+z', FLOOR_Y),
+  port('south', [-2.65, SEAM.height / 2, -HALF_Z - 0.2], '-z', FLOOR_Y),
 ] as const;
 
 const EXTENT = {

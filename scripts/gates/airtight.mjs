@@ -136,6 +136,13 @@ const BLOB = 30;
 const SPECKS = 3 * BLOB;
 
 let failures = 0;
+// Deck One's generated rooms: every pose is a sealed solo mount, and the
+// list comes from the same record the rooms do.
+const deckplan = JSON.parse(
+  readFileSync(new URL('../../tools/blender/deckplan.json', import.meta.url), 'utf8')
+);
+for (const room of deckplan) SEALED.push(room.stem);
+
 for (const name of SEALED) check(name);
 
 if (failures === 0) {

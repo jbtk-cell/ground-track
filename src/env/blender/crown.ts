@@ -42,6 +42,9 @@ const FOOT_TOP = FLOOR_Y + 0.06;
 const PORTS = [
   port('fore', [HALF_X, FLOOR_Y + GALLERY_SEAM.height / 2, 0], '+x', FLOOR_Y, GALLERY_SEAM),
   port('aft', [-HALF_X, FLOOR_Y + SEAM.height / 2, 0], '-x', FLOOR_Y),
+  // Deck One: the starboard door onto THE RETURN's ramp - the loop that
+  // makes the crown a place you pass through rather than an antechamber.
+  port('stbd', [2.0, FLOOR_Y + SEAM.height / 2, HALF_Z], '+z', FLOOR_Y),
 ] as const;
 
 const EXTENT = {

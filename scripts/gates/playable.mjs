@@ -294,6 +294,39 @@ try {
     `reached z=${inCrawl.z.toFixed(2)}, seam is -2.15`
   );
 
+  // --- A locked door is a wall until its key turns, and a doorway after.
+  //
+  // Deck One's secret rooms are the first gameplay the station has that is
+  // ABOUT state: the drystores' east panel leads to THE VOID only once
+  // 'sounding' is unlocked. Both halves are claims a picture cannot test -
+  // a blank that stops nobody, or a key that opens nothing, would each pass
+  // every shot in the repo. Walked here, on the keys, both sides of the key.
+  await page.evaluate(() =>
+    window.groundTrackRooms.setPose({ x: -24.9, z: 23.7, yaw: -Math.PI / 2, pitch: 0 })
+  );
+  await page.keyboard.down('w');
+  await new Promise((r) => setTimeout(r, 1500));
+  await page.keyboard.up('w');
+  const atLocked = await pose();
+  check(
+    'a locked secret door stops the walk',
+    atLocked.x < -23.9,
+    `stopped at x=${atLocked.x.toFixed(2)}, the void's seam is -23.95`
+  );
+  await page.evaluate(() => window.groundTrackRooms.unlock('sounding'));
+  await page.evaluate(() =>
+    window.groundTrackRooms.setPose({ x: -24.9, z: 23.7, yaw: -Math.PI / 2, pitch: 0 })
+  );
+  await page.keyboard.down('w');
+  await new Promise((r) => setTimeout(r, 2000));
+  await page.keyboard.up('w');
+  const inVoid = await pose();
+  check(
+    'the same door opens when its key is unlocked',
+    inVoid.x > -23.9,
+    `reached x=${inVoid.x.toFixed(2)} past the seam at -23.95`
+  );
+
   // --- The rebuilt flight deck, played rather than posed.
   //
   // The plot spawn faces the console; holding W walks a body to the rail, and

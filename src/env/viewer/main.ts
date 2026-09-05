@@ -91,6 +91,8 @@ declare global {
       holding(): string | null;
       /** Press what the hand is holding. Returns true if anything happened. */
       interact(): boolean;
+      /** Turn one of Deck One's keys ('*' for all). No-op outside a station. */
+      unlock(name: string): void;
       /**
        * Where the hand is, how committed the reach is, and how far the magnets
        * have opened. The reach is two beats that must happen in order and be
@@ -602,6 +604,14 @@ function main(): void {
       const acted = handle?.interact?.(held) === true;
       if (acted) sound.switchClick();
       return acted;
+    },
+    unlock(name: string) {
+      // Deck One's locked doors, for the harness and the debugger: the game
+      // will turn these keys through play; the playable gate turns them all.
+      const station = handle as unknown as { unlock?: (name: string) => void };
+      station.unlock?.(name);
+      refreshTargets();
+      draw();
     },
     limb() {
       const state = arm?.state();

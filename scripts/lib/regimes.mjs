@@ -31,6 +31,8 @@ export const isInterior = (name) => !EXTERIOR.test(name);
  * pretended away.
  */
 export const REBUILT = [
+  /^gen-/, // Deck One's forty-one generated rooms, all Blender-built
+
   /^plot-/,
   /^plotb-/,
   /^crawlb-/,

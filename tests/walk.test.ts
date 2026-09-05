@@ -129,8 +129,25 @@ describe('the station: every doorway is walk-through at its full width', () => {
   const placed = layOut(STATION.rooms, STATION.connections, STATION.anchor);
 
   const approach = 1.5;
-  const offsets: number[] = [];
-  for (let o = -0.55; o <= 0.5501; o += 0.05) offsets.push(Math.round(o * 100) / 100);
+  // Offsets span the door being tested: its half-width less a finger's
+  // clearance, which is what "walk-through at its full width" means for a
+  // 1.02 m hatch and a 2.1 m gallery alike.
+  const offsetsFor = (width: number): number[] => {
+    const out: number[] = [];
+    // Full width for the standard and low seams; the gallery's outer edges
+    // may legitimately carry a rail end or a kerb (the sill's sump kerb
+    // borders its aft doorway at +0.79), so its span is generous rather
+    // than edge-grazing - the 1.0 m minimum-walkable check below is the
+    // gallery's real contract.
+    const lim = Math.min(width / 2 - 0.04, 0.76);
+    for (let o = -lim; o <= lim + 1e-6; o += 0.05) out.push(Math.round(o * 100) / 100);
+    return out;
+  };
+
+  // Deck One's locked doors hold their blanks until the key turns; this
+  // suite walks the OPEN station and the locked-door suite below walks the
+  // locks themselves.
+  station.unlock?.('*');
 
   for (const link of STATION.connections) {
     const room = STATION.rooms.find((r) => r.id === link.from[0]);
@@ -151,7 +168,7 @@ describe('the station: every doorway is walk-through at its full width', () => {
       const side = new THREE.Vector3(-axis.z, 0, axis.x);
 
       const stuck: string[] = [];
-      for (const offset of offsets) {
+      for (const offset of offsetsFor(port?.seam.width ?? 1.18)) {
         const startX = seam.x - axis.x * approach + side.x * offset;
         const startZ = seam.z - axis.z * approach + side.z * offset;
         // Only start from offsets that are themselves standable - an offset

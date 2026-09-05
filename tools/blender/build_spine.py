@@ -104,7 +104,8 @@ def wall(M, side, axis, plane, inward, work_mat, doors):
             gbox(f"w-{side}-{bname}", (-HALF_LENGTH - THICK, HALF_LENGTH + THICK),
                  (y0, y1), (lo, hi), M[key])
 
-    # Liner panels on the bay rhythm, 12 mm proud of the recessed work face.
+    # Liner panels on the bay rhythm, 12 mm proud of the recessed work face -
+    # held off any door span (Deck One cut side doors into this corridor).
     if axis != "z":
         return
     work_face = plane + inward * (-0.08)
@@ -115,15 +116,27 @@ def wall(M, side, axis, plane, inward, work_mat, doors):
     for i in range(n):
         a = -HALF_LENGTH + step * i + 0.007
         b = -HALF_LENGTH + step * (i + 1) - 0.007
+        if any(d0 < b and a < d1 for d0, d1 in doors):
+            continue
         for ry0, ry1 in rows:
             gbox(f"p-{side}-{i}-{ry0:.2f}", (a, b), (ry0, ry1), (p0, p1), M[work_mat])
 
 
+# Deck One's side doors (owner direction 2026-09-05): the spine stops being
+# a straw and starts being a street. World: north to THE TEE, south to THE
+# CHASE. Port planes sit at the EXTENT edge (HALF_Z + 0.2); the walls end at
+# HALF_Z + THICK, and the station's collar rings line the gap, exactly as at
+# every other seam.
+NORTH_X, SOUTH_X = 2.95, -2.65
+
+
 def build_room(M):
+    door_n = (NORTH_X - SEAM_W / 2 - 0.06, NORTH_X + SEAM_W / 2 + 0.06)
+    door_s = (SOUTH_X - SEAM_W / 2 - 0.06, SOUTH_X + SEAM_W / 2 + 0.06)
     wall(M, "fore", "x", HALF_LENGTH, -1, "END", [])
     wall(M, "aft", "x", -HALF_LENGTH, +1, "END", [])
-    wall(M, "stbd", "z", HALF_Z, -1, "LINER", [])
-    wall(M, "port", "z", -HALF_Z, +1, "LINER", [])
+    wall(M, "stbd", "z", HALF_Z, -1, "LINER", [door_n])
+    wall(M, "port", "z", -HALF_Z, +1, "LINER", [door_s])
 
     backing = [o for o in bpy.data.objects if o.name.startswith("w-fore") or o.name.startswith("w-aft")]
     cutters = [
@@ -144,6 +157,28 @@ def build_room(M):
          (-SEAM_W / 2 - 0.03, SEAM_W / 2 + 0.03), M["END"])
     gbox("sky-aft", (-HALF_LENGTH - 0.020, -HALF_LENGTH - 0.015), (FLOOR_Y, SEAM_H),
          (-SEAM_W / 2, SEAM_W / 2), M["SPILL"])
+
+    # The side doors, cut through the z walls' bands.
+    sides = [o for o in bpy.data.objects if o.name.startswith("w-stbd")]
+    ports = [o for o in bpy.data.objects if o.name.startswith("w-port")]
+    c_n = gbox("c-north", (NORTH_X - SEAM_W / 2, NORTH_X + SEAM_W / 2), (FLOOR_Y, SEAM_H),
+               (HALF_Z - 0.5, HALF_Z + 0.6), M["JAMB"])
+    c_s = gbox("c-south", (SOUTH_X - SEAM_W / 2, SOUTH_X + SEAM_W / 2), (FLOOR_Y, SEAM_H),
+               (-HALF_Z - 0.6, -HALF_Z + 0.5), M["JAMB"])
+    for w in sides:
+        boolean_diff(w, [c_n])
+    for w in ports:
+        boolean_diff(w, [c_s])
+    bpy.data.objects.remove(c_n, do_unlink=True)
+    bpy.data.objects.remove(c_s, do_unlink=True)
+    gbox("cap-north", (NORTH_X - SEAM_W / 2 - 0.03, NORTH_X + SEAM_W / 2 + 0.03),
+         (FLOOR_Y, SEAM_H), (HALF_Z + 0.24, HALF_Z + 0.32), M["END"])
+    gbox("sky-north", (NORTH_X - SEAM_W / 2, NORTH_X + SEAM_W / 2),
+         (FLOOR_Y, SEAM_H), (HALF_Z + 0.215, HALF_Z + 0.220), M["SPILL"])
+    gbox("cap-south", (SOUTH_X - SEAM_W / 2 - 0.03, SOUTH_X + SEAM_W / 2 + 0.03),
+         (FLOOR_Y, SEAM_H), (-HALF_Z - 0.32, -HALF_Z - 0.24), M["END"])
+    gbox("sky-south", (SOUTH_X - SEAM_W / 2, SOUTH_X + SEAM_W / 2),
+         (FLOOR_Y, SEAM_H), (-HALF_Z - 0.220, -HALF_Z - 0.215), M["SPILL"])
 
     # --- The deck: a PALE slab under dark plates, so every transverse gap is
     # a light joint sweeping under the eye.

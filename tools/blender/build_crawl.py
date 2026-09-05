@@ -24,8 +24,9 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bpy  # noqa: E402
 from roomlib import (  # noqa: E402
-    bevel_everything, fresh_scene, gbox, gprism, newmat, produce, world,
+    bevel_everything, boolean_diff, fresh_scene, gbox, gprism, newmat, produce, world,
 )
 
 # --------------------------------------------------------------------- plan
@@ -163,11 +164,21 @@ def build_room(M):
     gbox("cap-fore", (HALF_LENGTH + 0.04, HALF_LENGTH + 0.12), (0.0, SEAM_H),
          (-HALF_Z_MOUTH - 0.24, HALF_Z_MOUTH + 0.24), M["END"])
 
-    # --- The blind end: a full wall, then the bolted blank standing on it.
-    gbox("blind-wall", (-HALF_LENGTH - 0.10, -HALF_LENGTH + 0.005), (0.0, CEILING_Y),
-         (-HALF_Z_BLIND - 0.24, HALF_Z_BLIND + 0.24), M["END"])
-    gbox("blank", (-HALF_LENGTH, -3.53), (0.6, CEILING_Y), (-0.49, 0.49), M["TRIM"])
-    gbox("build-plate", (-3.53, -3.522), (1.3, 1.4), (-0.14, 0.14), M["FOIL"])
+    # --- The blind end is blind no longer (Deck One, owner direction
+    # 2026-09-05): the bolted blank finally unbolted, and a low hatch - 1.02
+    # by 1.86 over the 0.6 deck, all this ceiling allows - lets onto the
+    # science spur. The wall remains; the doorway is cut through it.
+    blind = gbox("blind-wall", (-HALF_LENGTH - 0.10, -HALF_LENGTH + 0.005), (0.0, CEILING_Y),
+                 (-HALF_Z_BLIND - 0.24, HALF_Z_BLIND + 0.24), M["END"])
+    LOW_W, LOW_H = 1.02, 1.86
+    c_aft = gbox("c-aft", (-HALF_LENGTH - 0.5, -HALF_LENGTH + 0.5), (0.6, 0.6 + LOW_H),
+                 (-LOW_W / 2, LOW_W / 2), M["JAMB"])
+    boolean_diff(blind, [c_aft])
+    bpy.data.objects.remove(c_aft, do_unlink=True)
+    gbox("cap-aft", (-HALF_LENGTH - 0.20, -HALF_LENGTH - 0.12), (0.6, 0.6 + LOW_H),
+         (-LOW_W / 2 - 0.03, LOW_W / 2 + 0.03), M["END"])
+    gbox("sky-aft", (-HALF_LENGTH - 0.115, -HALF_LENGTH - 0.110), (0.6, 0.6 + LOW_H),
+         (-LOW_W / 2, LOW_W / 2), M["SPILL"])
 
     fit_out(M)
 
