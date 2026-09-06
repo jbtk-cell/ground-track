@@ -107,8 +107,13 @@ try {
   // is what "I can't walk through the door" turned out to mean the first time.
   await page.evaluate(() => window.groundTrackRooms.setPose(window.groundTrackRooms.spawn()));
   await page.evaluate(() => window.groundTrackRooms.setPaused(false));
+  // Nine seconds, not four: Deck One quadrupled the station and halved the
+  // software renderer's frame rate, and the walker's dt clamp makes a slow
+  // frame a slow walk. The number is choreography, not a bar - the check is
+  // the stop, and the door-control check after it needs the walker actually
+  // AT the resting stop, because the 73 degree turn is aimed from there.
   await page.keyboard.down('w');
-  await new Promise((r) => setTimeout(r, 4000));
+  await new Promise((r) => setTimeout(r, 9000));
   await page.keyboard.up('w');
   const atDoor = await pose();
   check(

@@ -370,11 +370,18 @@ const INTERIOR_PRESETS = [
     // Square to the manifest board with its drawn rows, the worn tie-down
     // haloes in the near deck, a diagonal facet each side - the pose class
     // that finds mitre slits where two facets meet.
+    // Deck One moved the manifest board to the north-east diagonal facet
+    // (the old wall gained a door), and the old pose kept staring at where
+    // the board used to be - which is now the east cap, a quarter of the
+    // frame at one flat value. Stand south-west, look across at the board.
     name: 'berthb-manifest',
     room: 'berth-blender',
     t: 19.3,
     bare: true,
-    pose: { x: -0.4, z: 0.4, yaw: Math.PI + 0.25, pitch: -0.12 },
+    // Close enough that the board and its diagonal facet carry the frame -
+    // stood further back, the sealed east and west doorways' cap plates
+    // flanked the shot with two large uniform rectangles.
+    pose: { x: 0.3, z: 0.3, yaw: Math.atan2(-1.44, -1.0), pitch: 0.02 },
   },
   {
     // THE RACKS, Blender-built: from the fore door down the whole aisle -
@@ -616,28 +623,64 @@ const INTERIOR_PRESETS = [
     pose: { x: 1.5, z: 0.75, yaw: Math.PI / 2, pitch: -0.06 },
   },
 ];
-// Deck One's generated rooms: one pinned pose each, standing where the
-// factory spawns, looking down the room's long axis - derived from the same
+// Deck One's generated rooms: one pinned pose each, derived from the same
 // record the rooms are built from, so a room added to the deckplan gets a
 // pose, a regime and an airtight check without anyone remembering to add
 // them.
+//
+// The pose is a CORNER DIAGONAL, not a bullseye. The first cut of these
+// poses stood at the centre of a floor rectangle and stared down the long
+// axis, and 27 of the 41 frames failed the flatness gate at once: a room
+// shot square-on is one wall filling the frame at one value, with the lamp
+// out of shot. Standing inside the largest walkable rectangle's near corner
+// and looking across to its far corner, pitched slightly up, puts two walls
+// at different rakes, the ceiling, the lamp and the furniture into every
+// frame - which is the value structure the gate exists to demand.
 {
   const deckplan = JSON.parse(
     readFileSync(new URL('../tools/blender/deckplan.json', import.meta.url), 'utf8')
   );
+  // The corner diagonal serves most rooms; the small and the dim need the
+  // camera pitched further up, or their one lamp never enters the frame and
+  // the spread floor has nothing bright to measure. Values are per-room
+  // judgements from the first gate run, not a second formula.
+  const PITCH_UP = new Map([
+    ['gen-return', 0.18],
+    ['gen-hold', 0.16],
+    ['gen-elbow', 0.16],
+    ['gen-archive', 0.14],
+  ]);
+  // The three smallest, dimmest rooms need the whole pose authored: every
+  // generated room hangs its one fitting over the local origin, and in a
+  // closet under 1.5 m across the corner formula either walls the lamp off
+  // behind a rib or never lifts high enough to see it. Stand in the arm with
+  // the clear sightline and put the fitting at the top of the frame.
+  const PINNED = new Map([
+    ['gen-void', { x: 0.85, z: -0.6, yaw: Math.atan2(0.85, -0.6), pitch: 0.28 }],
+    ['gen-annex', { x: 0.8, z: -0.95, yaw: 2.75, pitch: 0.13 }],
+    ['gen-coldstore', { x: -1.3, z: -0.75, yaw: Math.atan2(-1.3, -0.75), pitch: 0.3 }],
+  ]);
   for (const room of deckplan) {
-    const first = room.floors[0] ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0, floorY: 0 };
-    const wide = room.ohw >= room.ohd;
+    const floors = [...room.floors].sort(
+      (a, b) => (b.maxX - b.minX) * (b.maxZ - b.minZ) - (a.maxX - a.minX) * (a.maxZ - a.minZ)
+    );
+    const f = floors[0] ?? { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+    const inX = Math.min(0.45, (f.maxX - f.minX) * 0.25);
+    const inZ = Math.min(0.45, (f.maxZ - f.minZ) * 0.25);
+    const x = f.minX + inX;
+    const z = f.minZ + inZ;
+    const dx = f.maxX - 0.15 - x;
+    const dz = f.maxZ - 0.15 - z;
     INTERIOR_PRESETS.push({
       name: room.stem,
       room: room.stem,
       t: 19.3,
       bare: true,
-      pose: {
-        x: (first.minX + first.maxX) / 2,
-        z: (first.minZ + first.maxZ) / 2,
-        yaw: wide ? -Math.PI / 2 : 0,
-        pitch: 0.04,
+      pose: PINNED.get(room.stem) ?? {
+        x,
+        z,
+        yaw: Math.atan2(-dx, -dz),
+        pitch: PITCH_UP.get(room.stem) ?? 0.09,
       },
     });
   }

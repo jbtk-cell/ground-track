@@ -168,8 +168,10 @@ def build_room(M):
     for w in stbd:
         boolean_diff(w, [c3])
     bpy.data.objects.remove(c3, do_unlink=True)
-    gbox("cap-stbd", (2.0 - SEAM_W / 2 - 0.03, 2.0 + SEAM_W / 2 + 0.03),
-         (FLOOR_Y, FLOOR_Y + SEAM_H), (HALF_Z + 0.16, HALF_Z + 0.24), M["END"])
+    # 0.03 m cap margins leaked space at the spine's side doors; this cap sits
+    # 0.16 m proud, so oversize it the same way.
+    gbox("cap-stbd", (2.0 - SEAM_W / 2 - 0.45, 2.0 + SEAM_W / 2 + 0.45),
+         (FLOOR_Y, FLOOR_Y + SEAM_H + 0.30), (HALF_Z + 0.16, HALF_Z + 0.24), M["END"])
     gbox("sky-stbd", (2.0 - SEAM_W / 2, 2.0 + SEAM_W / 2),
          (FLOOR_Y, FLOOR_Y + SEAM_H), (HALF_Z + 0.135, HALF_Z + 0.140), M["SPILL"])
 

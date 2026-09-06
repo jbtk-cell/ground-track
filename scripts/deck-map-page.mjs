@@ -134,7 +134,7 @@ for (const [wing, ids] of WINGS) {
 }
 
 let legend = '';
-for (const [key, fam] of Object.entries(FAMILY)) {
+for (const fam of Object.values(FAMILY)) {
   legend += `<span class="chip"><i style="background:${fam.fill};border-color:${fam.line}"></i>${fam.label}</span>`;
 }
 

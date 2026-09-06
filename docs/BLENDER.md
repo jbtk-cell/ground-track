@@ -159,6 +159,44 @@ finally sits in the same palette as everything it opens onto. The station
 also grew collarFor's sibling for LOCKED doors: one blank per locked seam
 (two fought for pixels), removed live when the key turns.
 
+## What the Deck One gate round established (2026-09-06)
+
+The 46-bake queue landed clean, and then the gates earned their keep - five
+distinct defects between them, none visible in a casual look:
+
+- **A runtime cap plate of one flat colour is a flatness failure waiting for
+  a pose.** MeshBasic has no shading, so a doorway-sized plate is a
+  perfectly uniform rectangle; four rooms failed the gate on their own caps.
+  capPlate now carries a vertical vertex-colour gradient (darker at the
+  deck) and reads as a lit surface without needing a light.
+- **A custom selfLit list REPLACES the base list.** The coldstore
+  (['FROST']) and the annex (['SCREENGLOW']) silently lost ['DIFF'] - their
+  one ceiling fitting rendered from the lightmap alone, a dark speckled
+  plate where the light should be. Any room adding a glow material must
+  restate DIFF.
+- **Warm hues near the accent are a colour-space trap.** The ember's runtime
+  colour sat 24 RGB-units from the accent - inside the gate's 25-unit ball -
+  and the engine gallery's ember columns lit whole walls into it (206,802 px
+  in one frame). Ember and the crawl's blind-end lamp are now golden (more
+  green), which moves every lit surface off the accent axis at every
+  brightness.
+- **Deep-set caps need oversized margins in the RUNTIME plate, not the
+  bake's.** cap-* objects never export (join_room skips them); the visible
+  cap is the .ts capPlate, and at 0.2 m of tunnel depth its 0.12 m margins
+  leaked a 3612-px sliver of space at a grazing pose. Side-door plates are
+  now oversized by half a metre.
+- **The playable gate's choreography is written against a frame rate.**
+  Quadrupling the station halved SwiftShader's fps, the walker's dt clamp
+  made slow frames a slow walk, and the door-control check pressed the
+  button from half a metre short of it - outside the deploy cone. The
+  approach walk now gets nine seconds; the checks themselves are unchanged.
+
+The generated rooms' poses are corner diagonals (stand in the largest
+walkable rectangle's near corner, look across, pitch up) - a room shot
+square-on is one wall at one value with the lamp out of frame, which is
+exactly what the flatness gate exists to refuse. The three smallest rooms
+carry hand-authored poses in shots.mjs.
+
 ## What is not done
 
 - The lightmaps are uncompressed PNG (tens of MB across eleven rooms).

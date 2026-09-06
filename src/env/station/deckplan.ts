@@ -154,7 +154,11 @@ const CREAM_LIT = 0xe4d6bb;
 const SCREEN_LIT = 0x1b2735;
 const GROW_LIT = 0xb8cf9a;
 const FROST_LIT = 0xdbe4ea;
-const EMBER_LIT = 0xd99a4e;
+// Golden rather than orange: 0xd99a4e sat 24 RGB-units from the accent
+// colour - inside the accent gate's 25-unit ball - so every ember fixture
+// face counted as a stray accent pixel. (The hex itself may not be spelled
+// here; the gate's source check reads comments too.)
+const EMBER_LIT = 0xdfa961;
 
 /**
  * The family dressers. Each returns furniture that lines the walls, floors
@@ -1139,7 +1143,13 @@ export const DECK_ROOMS: readonly DeckRoomSpec[] = [
       ports: [{ id: 'w', wall: 'w', at: 31.8 }],
     },
     {
-      selfLit: [['FROST', FROST_LIT]],
+      // DIFF stays in the list: a custom selfLit REPLACES the base, and
+      // losing the lamp entry left the coldstore's one fitting rendering
+      // from the lightmap alone - a dark plate where the light should be.
+      selfLit: [
+        ['DIFF', CREAM_LIT],
+        ['FROST', FROST_LIT],
+      ],
     }
   ),
   room(
@@ -1257,7 +1267,10 @@ export const DECK_ROOMS: readonly DeckRoomSpec[] = [
     },
     {
       furniture: [
-        { name: 'tank', mat: 'CROWN', box: [-0.7, 0.1, 0, 1.7, -0.85, -0.15] },
+        // FOIL, not CROWN: a near-black tank against bare JAMB walls put a
+        // third of the room's one frame into a single value bucket, and a
+        // pressure tank in foil is the more honest object anyway.
+        { name: 'tank', mat: 'FOIL', box: [-0.7, 0.1, 0, 1.7, -0.85, -0.15] },
         { name: 'tank-sight', mat: 'SCREENGLOW', box: [-0.55, -0.05, 0.7, 1.3, -0.148, -0.142] },
         { name: 'desk', mat: 'LINER', box: [-0.85, 0.55, 0, 0.78, 0.55, 1.0] },
         { name: 'rib-x', mat: 'JAMB', box: [0.95, 1.07, 0, 2.1, -1.2, 1.2] },
@@ -1266,7 +1279,11 @@ export const DECK_ROOMS: readonly DeckRoomSpec[] = [
         { minX: -1.1, maxX: 0.9, minZ: -0.1, maxZ: 0.5, floorY: 0 },
         { minX: 0.2, maxX: 1.05, minZ: -1.2, maxZ: 0.5, floorY: 0 },
       ],
-      selfLit: [['SCREENGLOW', SCREEN_LIT]],
+      // DIFF stays in the list - same lesson as the coldstore's fitting.
+      selfLit: [
+        ['DIFF', CREAM_LIT],
+        ['SCREENGLOW', SCREEN_LIT],
+      ],
       pois: [
         { id: 'sightglass', label: 'the sight glass', position: [-0.3, 1.0, -0.2], operable: true },
       ],

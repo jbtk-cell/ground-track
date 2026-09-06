@@ -145,12 +145,17 @@ function buildSpineBlender(): CompartmentHandle {
 
   const capMeshes = new Map<string, THREE.Mesh>();
   for (const p of PORTS) {
+    // The side doors sit in a 0.2 m wall tunnel and the run's own poses view
+    // them at extreme grazing angles; a 0.12 m margin let a sightline past
+    // the plate's edge (3612 px of space in spineb-run). Oversize their
+    // plates - the excess is buried in the wall and never reads.
+    const side = p.id === 'north' || p.id === 'south';
     const cap = capPlate(
       `cap-${p.id}`,
       p.at,
       p.facing,
-      p.seam.width + 0.24,
-      p.seam.height + 0.12,
+      p.seam.width + (side ? 1.2 : 0.24),
+      p.seam.height + (side ? 0.6 : 0.12),
       CAP_COLOUR
     );
     capMeshes.set(p.id, cap);

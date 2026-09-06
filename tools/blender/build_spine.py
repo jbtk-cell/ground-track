@@ -171,12 +171,16 @@ def build_room(M):
         boolean_diff(w, [c_s])
     bpy.data.objects.remove(c_n, do_unlink=True)
     bpy.data.objects.remove(c_s, do_unlink=True)
-    gbox("cap-north", (NORTH_X - SEAM_W / 2 - 0.03, NORTH_X + SEAM_W / 2 + 0.03),
-         (FLOOR_Y, SEAM_H), (HALF_Z + 0.24, HALF_Z + 0.32), M["END"])
+    # The side caps sit 0.24 m proud (behind the bake spill plates), and depth
+    # amplifies grazing sightlines: 0.03 m margins leaked 3612 px of space in
+    # spineb-run. Oversize generously - the plate is free and invisible except
+    # through the cut.
+    gbox("cap-north", (NORTH_X - SEAM_W / 2 - 0.60, NORTH_X + SEAM_W / 2 + 0.60),
+         (FLOOR_Y, SEAM_H + 0.40), (HALF_Z + 0.24, HALF_Z + 0.32), M["END"])
     gbox("sky-north", (NORTH_X - SEAM_W / 2, NORTH_X + SEAM_W / 2),
          (FLOOR_Y, SEAM_H), (HALF_Z + 0.215, HALF_Z + 0.220), M["SPILL"])
-    gbox("cap-south", (SOUTH_X - SEAM_W / 2 - 0.03, SOUTH_X + SEAM_W / 2 + 0.03),
-         (FLOOR_Y, SEAM_H), (-HALF_Z - 0.32, -HALF_Z - 0.24), M["END"])
+    gbox("cap-south", (SOUTH_X - SEAM_W / 2 - 0.60, SOUTH_X + SEAM_W / 2 + 0.60),
+         (FLOOR_Y, SEAM_H + 0.40), (-HALF_Z - 0.32, -HALF_Z - 0.24), M["END"])
     gbox("sky-south", (SOUTH_X - SEAM_W / 2, SOUTH_X + SEAM_W / 2),
          (FLOOR_Y, SEAM_H), (-HALF_Z - 0.220, -HALF_Z - 0.215), M["SPILL"])
 

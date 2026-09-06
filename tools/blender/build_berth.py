@@ -202,7 +202,9 @@ def build_room(M):
             boolean_diff(w, [c])
         bpy.data.objects.remove(c, do_unlink=True)
         cz0, cz1 = sorted((sign * (A + 0.04), sign * (A + 0.12)))
-        gbox(f"cap-{tag}", (-SEAM_W / 2 - 0.03, SEAM_W / 2 + 0.03), (FLOOR_Y, SEAM_H),
+        # 0.03 m cap margins leaked space at the spine's side doors; oversize
+        # every new-port cap the same way.
+        gbox(f"cap-{tag}", (-SEAM_W / 2 - 0.30, SEAM_W / 2 + 0.30), (FLOOR_Y, SEAM_H + 0.20),
              (cz0, cz1), M["LINER"])
         sz0, sz1 = sorted((sign * (A + 0.015), sign * (A + 0.020)))
         gbox(f"sky-{tag}", (-SEAM_W / 2, SEAM_W / 2), (FLOOR_Y, SEAM_H),

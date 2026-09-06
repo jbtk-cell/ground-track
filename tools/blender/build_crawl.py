@@ -61,7 +61,11 @@ COLOURS = {
     "TRIM": (0.16495, 0.10987, 0.04242),
     "VOID": (0.00518, 0.01096, 0.01938),
     "CREAM": (0.77505, 0.66693, 0.48515),    # DAWN_CREAM: the mouth's spill
-    "AMBER": (0.58310, 0.35130, 0.12520),    # SETTLEMENT: the blind-end lamp
+    # The blind-end lamp, pulled golden (2026-09-06): at SETTLEMENT's own hue
+    # (0.583, 0.351, 0.125) the pool it threw on the liner grazed the accent
+    # gate's ball - 219 px of near-accent at the shelf rail. More green moves
+    # every lit surface off that axis, same as the engine gallery's ember.
+    "AMBER": (0.52000, 0.46000, 0.12000),
     "SOFT": (0.06050, 0.10220, 0.14830),     # HULL_SHADOW: stowage fabric
     "NOSE": (0.72310, 0.69380, 0.62620),     # CLOUD: the step nosings
 }
@@ -102,6 +106,11 @@ def materials():
         # Bake-only: the light standing in for the flight deck seen through
         # the mouth. Never exported; the runtime's doorway does this for real.
         "SPILL": newmat("SPILL", C["CREAM"], 0.50, emit=C["CREAM"], strength=7.0),
+        # The aft hatch's stand-in is a fraction of the mouth's: a 1.02 m
+        # crawlway lets a sliver of the spur's light through, not a doorway's
+        # worth. At the mouth's 7.0 the blind end read bright amber and 8780
+        # px of it landed inside the accent ball (gate run, 2026-09-06).
+        "LOWSPILL": newmat("LOWSPILL", C["CREAM"], 0.50, emit=C["CREAM"], strength=1.5),
     }
 
 
@@ -175,10 +184,10 @@ def build_room(M):
                  (-LOW_W / 2, LOW_W / 2), M["JAMB"])
     boolean_diff(blind, [c_aft])
     bpy.data.objects.remove(c_aft, do_unlink=True)
-    gbox("cap-aft", (-HALF_LENGTH - 0.20, -HALF_LENGTH - 0.12), (0.6, 0.6 + LOW_H),
-         (-LOW_W / 2 - 0.03, LOW_W / 2 + 0.03), M["END"])
+    gbox("cap-aft", (-HALF_LENGTH - 0.20, -HALF_LENGTH - 0.12), (0.6 - 0.15, 0.6 + LOW_H + 0.20),
+         (-LOW_W / 2 - 0.30, LOW_W / 2 + 0.30), M["END"])
     gbox("sky-aft", (-HALF_LENGTH - 0.115, -HALF_LENGTH - 0.110), (0.6, 0.6 + LOW_H),
-         (-LOW_W / 2, LOW_W / 2), M["SPILL"])
+         (-LOW_W / 2, LOW_W / 2), M["LOWSPILL"])
 
     fit_out(M)
 

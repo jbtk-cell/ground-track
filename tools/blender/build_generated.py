@@ -50,7 +50,11 @@ COLOURS = {
     "GROWM": (0.09000, 0.14000, 0.06000),
     "GROWL": (0.42000, 0.58000, 0.26000),
     "FROSTC": (0.62000, 0.70000, 0.76000),
-    "EMBERC": (0.65000, 0.28000, 0.06000),
+    # Golden, not orange: the first ember (0.65, 0.28, 0.06) lit the engine
+    # gallery's walls to within the accent gate's 25-unit ball around #D98A3C
+    # - 206802 px of near-accent in one frame. More green pulls every lit
+    # surface's hue off that axis.
+    "EMBERC": (0.63000, 0.44000, 0.09000),
 }
 
 # The whole rig per family: how bright its fittings run, and its spill.
@@ -79,7 +83,7 @@ def materials(family):
                              emit=(0.56471, 0.71569, 0.60383), strength=0.9),
         "GROW": newmat("GROW", C["GROWL"], 0.40, emit=C["GROWL"], strength=9.0),
         "FROST": newmat("FROST", C["FROSTC"], 0.40, emit=C["FROSTC"], strength=11.0),
-        "EMBER": newmat("EMBER", C["EMBERC"], 0.45, emit=(0.72, 0.36, 0.10), strength=7.0),
+        "EMBER": newmat("EMBER", C["EMBERC"], 0.45, emit=(0.68, 0.51, 0.12), strength=4.5),
         "SPILL": newmat("SPILL", C["CREAM"], 0.50, emit=C["CREAM"],
                         strength=SPILL_STRENGTH[family]),
     }

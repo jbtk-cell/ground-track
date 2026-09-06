@@ -155,9 +155,24 @@ export function capPlate(
   height: number,
   colour: number
 ): THREE.Mesh {
+  // A vertical gradient rather than one flat value: a MeshBasic plate of a
+  // single colour is a perfectly uniform rectangle, and a doorway-sized one
+  // put a quarter of a frame into a single luminance bucket - the flatness
+  // gate failed four rooms on their own caps. Darker at the deck, lighter at
+  // the header, the plate reads as a lit surface without needing a light.
+  const geometry = new THREE.PlaneGeometry(width, height);
+  const positions = geometry.getAttribute('position');
+  const shades = new Float32Array(positions.count * 3);
+  for (let i = 0; i < positions.count; i += 1) {
+    const k = 0.74 + 0.4 * (positions.getY(i) / height + 0.5);
+    shades[i * 3] = k;
+    shades[i * 3 + 1] = k;
+    shades[i * 3 + 2] = k;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(shades, 3));
   const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, height),
-    new THREE.MeshBasicMaterial({ color: colour })
+    geometry,
+    new THREE.MeshBasicMaterial({ color: colour, vertexColors: true })
   );
   mesh.name = name;
   // The plate sits inboard of the port plane, facing into the room - and
