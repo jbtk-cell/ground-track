@@ -12,3 +12,4 @@ shots/diff/
 # Scratch files from review agents driving the browser.
 .gt-*
 __pycache__/
+/prospects/*.png
